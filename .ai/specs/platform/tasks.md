@@ -20,7 +20,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: arranca con variables válidas; falla nombrando la variable cuando falta; rechaza un `JWT_SECRET` corto en producción.
   - Commit: `feat(config): validate environment variables`
 
-- [ ] **P-04 Prisma y migración inicial** (R3.1, R3.2, R3.3, R3.4)
+- [x] **P-04 Prisma y migración inicial** (R3.1, R3.2, R3.3, R3.4)
   - `schema.prisma` con `datasource`, `generator` y modelo `User`; migración inicial; `PrismaModule` global y `PrismaService` (`$connect` y `$disconnect`).
   - Pruebas: `PrismaService` conecta en `onModuleInit` y desconecta en `onModuleDestroy` (cliente simulado).
   - Hecho cuando: `npx prisma migrate dev` crea la tabla `users` en una base local.
