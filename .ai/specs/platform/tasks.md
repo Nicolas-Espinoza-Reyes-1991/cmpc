@@ -15,7 +15,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `npm run lint` y `npm run test:cov` terminan sin errores sobre el proyecto base.
   - Commit: `chore(backend): scaffold NestJS project`
 
-- [ ] **P-03 Configuración validada** (R2.1, R2.3)
+- [x] **P-03 Configuración validada** (R2.1, R2.3)
   - `ConfigModule` global con esquema `joi`; `JWT_SECRET` mínimo 32 caracteres cuando `NODE_ENV=production`.
   - Pruebas: arranca con variables válidas; falla nombrando la variable cuando falta; rechaza un `JWT_SECRET` corto en producción.
   - Commit: `feat(config): validate environment variables`
