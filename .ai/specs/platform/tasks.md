@@ -26,8 +26,8 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `npx prisma migrate dev` crea la tabla `users` en una base local.
   - Commit: `feat(prisma): add schema, initial migration and PrismaService`
 
-- [ ] **P-05 Seed del administrador** (R7.3)
-  - Función `seedAdmin(prisma, env)` con `upsert` y hash `argon2`, invocada desde `prisma/seed.ts`; falla si faltan `ADMIN_EMAIL` o `ADMIN_PASSWORD`.
+- [x] **P-05 Seed del administrador** (R7.3)
+  - Función `seedAdmin(client, env)` en `src/seed/seed-admin.ts` con `upsert` y hash `argon2`, invocada desde `src/seed/run-seed.ts` (`npm run seed`, `prisma db seed` y `node dist/seed/run-seed.js` en Docker); falla si faltan `ADMIN_EMAIL` o `ADMIN_PASSWORD`.
   - Pruebas: crea el usuario; es idempotente; el hash no es la contraseña en claro; error si faltan variables.
   - Commit: `feat(seed): add idempotent admin user seed`
 

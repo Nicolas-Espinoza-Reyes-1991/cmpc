@@ -56,7 +56,7 @@ Formato: CUANDO <evento>, EL SISTEMA DEBERÁ <respuesta>. Cada criterio es verif
 - R8.1 CUANDO se ejecute `npm run test:cov` en `backend/`, EL SISTEMA DEBERÁ fallar si la cobertura de líneas, ramas, funciones o sentencias es menor a 80%.
 - R8.2 CUANDO se ejecute `npm run test:cov` en `frontend/`, EL SISTEMA DEBERÁ fallar bajo el mismo umbral.
 - R8.3 Las pruebas unitarias NO DEBERÁN requerir base de datos ni red.
-- R8.4 La cobertura DEBERÁ excluir solo código declarativo o de arranque (`main.ts`, `*.module.ts`, DTOs, tipos, cliente Prisma generado); la lista DEBERÁ estar documentada en `design.md`.
+- R8.4 La cobertura DEBERÁ excluir solo código declarativo o de arranque (`main.ts`, `run-seed.ts`, `*.module.ts`, DTOs, tipos, cliente Prisma generado); la lista DEBERÁ estar documentada en `design.md`.
 
 ## R9. Calidad estática
 - R9.1 `tsconfig` DEBERÁ tener `strict: true` en backend y frontend.

@@ -85,7 +85,7 @@ Los mensajes de la API van en inglés; la interfaz los traduce a español (ver `
 - `PrismaService extends PrismaClient` e implementa `OnModuleInit` (`$connect`) y `OnModuleDestroy` (`$disconnect`) (R3.4).
 - `PrismaModule` es global y exporta `PrismaService`.
 - El `schema.prisma` inicial contiene `datasource`, `generator` y el modelo `User` (lo necesita el seed). Los demás modelos y sus migraciones los añade cada spec: `books-crud` (catálogos, `Book`, extensión de soft delete) y `audit-log` (`AuditLog`).
-- `prisma/seed.ts` crea el usuario administrador a partir de `ADMIN_EMAIL` y `ADMIN_PASSWORD` con hash `argon2`, de forma idempotente (`upsert`). Falla si faltan las variables.
+- El seed vive en `src/seed/` para compilarse con el resto del backend: `seed-admin.ts` (lógica, con pruebas) y `run-seed.ts` (punto de entrada). Crea el usuario administrador a partir de `ADMIN_EMAIL` y `ADMIN_PASSWORD` con hash `argon2`, de forma idempotente (`upsert` con `update` vacío: no sobrescribe una contraseña cambiada después). Valida sus propias variables (correo con cualquier dominio, para admitir `.local`; contraseña de 8 caracteres o más) y falla si faltan. Se ejecuta con `npm run seed`, `prisma db seed` o, compilado, `node dist/seed/run-seed.js`.
 - La migración manual de `pg_trgm` (`CREATE EXTENSION IF NOT EXISTS pg_trgm` y el índice GIN) pertenece a `books-crud`.
 
 ## 7. Health
@@ -122,7 +122,7 @@ Se usa una imagen basada en Debian (no Alpine) para evitar problemas de compilac
 - **Almacenamiento del token:** `localStorage`, con el compromiso documentado en `auth/design.md`.
 
 ## 10. Pruebas y cobertura (R8)
-- **Backend:** Jest con `coverageThreshold.global` de 80 en `statements`, `branches`, `functions` y `lines`. Exclusiones (`coveragePathIgnorePatterns`): `main.ts`, `*.module.ts`, `*.dto.ts`, `prisma/` y `dist/` (R8.4).
+- **Backend:** Jest con `coverageThreshold.global` de 80 en `statements`, `branches`, `functions` y `lines`. Exclusiones (`collectCoverageFrom`): `main.ts`, `seed/run-seed.ts`, `*.module.ts`, `*.dto.ts`, `*.d.ts` y código generado (R8.4). `PrismaService` y `seed-admin.ts` sí se miden.
 - **Frontend:** Vitest con proveedor `v8` y los mismos umbrales. Exclusiones: `main.tsx`, `src/types/`, archivos de configuración y `*.d.ts`.
 - Scripts: `test`, `test:cov` y `lint` en ambas aplicaciones.
 - Las pruebas usan dobles de `PrismaService` y de Axios; ninguna toca base de datos ni red (R8.3).

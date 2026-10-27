@@ -21,7 +21,12 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "seed": "ts-node src/seed/run-seed.ts",
+    "seed:prod": "node dist/seed/run-seed.js"
+  },
+  "prisma": {
+    "seed": "ts-node src/seed/run-seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -29,6 +34,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "6.19.3",
+    "argon2": "^0.45.1",
     "joi": "^18.3.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
@@ -73,6 +79,7 @@
     "collectCoverageFrom": [
       "**/*.ts",
       "!main.ts",
+      "!seed/run-seed.ts",
       "!**/*.module.ts",
       "!**/*.dto.ts",
       "!**/*.d.ts",
