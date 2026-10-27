@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Uploaded files (stored in a Docker volume)
+uploads/
+backend/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Prisma generated client is rebuilt on install/build
+backend/src/generated/
+
+# Local Claude Code settings (shared instructions live in CLAUDE.md and .ai/)
+.claude/settings.local.json
