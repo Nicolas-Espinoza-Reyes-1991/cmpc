@@ -10,7 +10,7 @@ Marcar con `[x]` al terminar.
   - Commit: `chore: initialize repository`
 
 ## Backend
-- [ ] **P-02 Scaffold del backend** (R1.1, R1.2, R1.3, R8.1, R9)
+- [x] **P-02 Scaffold del backend** (R1.1, R1.2, R1.3, R8.1, R9)
   - Proyecto NestJS en `backend/`, `strict: true`, ESLint con `no-explicit-any` en error y una regla `no-restricted-imports` que prohíbe importar `PrismaService` en archivos `*.controller.ts`, Prettier, scripts `test`, `test:cov`, `lint` y `coverageThreshold` de 80 con las exclusiones de `design.md` §10.
   - Hecho cuando: `npm run lint` y `npm run test:cov` terminan sin errores sobre el proyecto base.
   - Commit: `chore(backend): scaffold NestJS project`

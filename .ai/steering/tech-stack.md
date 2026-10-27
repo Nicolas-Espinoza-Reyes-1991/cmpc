@@ -35,4 +35,5 @@ Las versiones exactas se fijan en cada `package.json` al crearlo. No usar `lates
 - Frontend con Vitest, no Jest, para no mantener dos runners.
 - Tailwind sin librería de componentes, para mantener el código propio y pequeño.
 - Prisma en lugar de Drizzle (el enunciado admite ambos): esquema declarativo en `schema.prisma`, migraciones versionadas y cliente tipado generado, lo que reduce código manual y errores de tipos. El SQL específico (índice `pg_trgm`) se añade como migración manual.
+- NestJS 11 generado con `@nestjs/cli@11`: la versión 12 del CLI genera Vitest, oxlint y ESM, lo que contradice el stack definido aquí (Jest y ESLint). El backend compila a CommonJS (`module: commonjs`, `isolatedModules: false`) porque así los metadatos de inyección no añaden ramas artificiales a la cobertura y ts-jest no emite avisos. Por `strict: true`, las propiedades de los DTO se declaran con `!`.
 - Idioma: identificadores, código, mensajes de commit y respuestas de la API en inglés; documentación (README, specs, steering) y textos de la interfaz en español.
