@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { BookWithCatalogs } from './book.mapper';
 import { BooksService } from './books.service';
 import type { CreateBookDto } from './dto/create-book.dto';
+import { ListBooksQueryDto } from './dto/list-books-query.dto';
 
 const createdAt = new Date('2026-10-28T10:00:00.000Z');
 
@@ -50,6 +51,8 @@ describe('BooksService', () => {
   // The transaction client handed to the callbacks; `live.book` is the plain read client.
   const tx = { book: { create: jest.fn(), update: jest.fn() } };
   const findUnique = jest.fn();
+  const count = jest.fn();
+  const findMany = jest.fn();
   const $transaction = jest.fn();
   const resolve = jest.fn();
   let service: BooksService;
@@ -58,10 +61,15 @@ describe('BooksService', () => {
     tx.book.create.mockReset().mockResolvedValue(row);
     tx.book.update.mockReset().mockResolvedValue(row);
     findUnique.mockReset().mockResolvedValue(row);
+    count.mockReset().mockResolvedValue(1);
+    findMany.mockReset().mockResolvedValue([row]);
+    // A callback receives the transaction client; a list of queries is run together.
     $transaction
       .mockReset()
-      .mockImplementation((work: (client: typeof tx) => Promise<unknown>) =>
-        work(tx),
+      .mockImplementation(
+        (
+          work: ((client: typeof tx) => Promise<unknown>) | Promise<unknown>[],
+        ) => (Array.isArray(work) ? Promise.all(work) : work(tx)),
       );
     resolve
       .mockReset()
@@ -74,7 +82,9 @@ describe('BooksService', () => {
         BooksService,
         {
           provide: PrismaService,
-          useValue: { live: { $transaction, book: { findUnique } } },
+          useValue: {
+            live: { $transaction, book: { findUnique, count, findMany } },
+          },
         },
         { provide: CatalogService, useValue: { resolve } },
       ],
@@ -156,6 +166,113 @@ describe('BooksService', () => {
     await expect(service.update('b1', { publisher: 'x' })).rejects.toBe(
       catalogRace,
     );
+  });
+
+  describe('findAll', () => {
+    const query = (overrides: Partial<ListBooksQueryDto> = {}) =>
+      Object.assign(new ListBooksQueryDto(), overrides);
+
+    it('returns the page as items and meta, mapped to the API shape', async () => {
+      count.mockResolvedValue(42);
+
+      const result = await service.findAll(query({ page: 2, limit: 10 }));
+
+      expect(result.meta).toEqual({ page: 2, limit: 10, total: 42 });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toMatchObject({
+        id: 'b1',
+        author: 'Gabriel García Márquez',
+        price: 12990,
+      });
+      expect(result.items[0]).not.toHaveProperty('deletedAt');
+    });
+
+    it('reads the count and the page in one transaction', async () => {
+      await service.findAll(query());
+
+      expect($transaction).toHaveBeenCalledTimes(1);
+      expect(count).toHaveBeenCalledTimes(1);
+      expect(findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      [1, 10, 0],
+      [2, 10, 10],
+      [3, 25, 50],
+      [1, 100, 0],
+    ])('page %s of %s books skips %s', async (page, limit, skip) => {
+      await service.findAll(query({ page, limit }));
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip, take: limit }),
+      );
+    });
+
+    it('counts and reads with the same filters', async () => {
+      await service.findAll(
+        query({ search: 'dune', availability: true, author: 'herb' }),
+      );
+
+      const where = {
+        AND: [
+          { title: { contains: 'dune', mode: 'insensitive' } },
+          { author: { name: { contains: 'herb', mode: 'insensitive' } } },
+          { availability: true },
+        ],
+      };
+      expect(count).toHaveBeenCalledWith({ where });
+      expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where }));
+    });
+
+    it('orders by the newest first, then id, when there is no sort', async () => {
+      await service.findAll(query());
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        }),
+      );
+    });
+
+    it('orders by the criteria of sort, in priority order, ending with id', async () => {
+      await service.findAll(query({ sort: 'genre:asc,price:desc' }));
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [
+            { genre: { name: 'asc' } },
+            { price: 'desc' },
+            { id: 'asc' },
+          ],
+        }),
+      );
+    });
+
+    it('includes the catalogs the mapper needs', async () => {
+      await service.findAll(query());
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: { author: true, publisher: true, genre: true },
+        }),
+      );
+    });
+
+    it('answers an empty page, not an error, beyond the last page', async () => {
+      count.mockResolvedValue(3);
+      findMany.mockResolvedValue([]);
+
+      await expect(service.findAll(query({ page: 99 }))).resolves.toEqual({
+        items: [],
+        meta: { page: 99, limit: 10, total: 3 },
+      });
+    });
+
+    it('lets a database failure propagate', async () => {
+      findMany.mockRejectedValue(new Error('db down'));
+
+      await expect(service.findAll(query())).rejects.toThrow('db down');
+    });
   });
 
   describe('findOne', () => {

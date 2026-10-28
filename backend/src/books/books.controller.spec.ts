@@ -3,6 +3,7 @@ import { BooksController } from './books.controller';
 import { BooksService } from './books.service';
 import type { BookDto } from './dto/book.dto';
 import type { CreateBookDto } from './dto/create-book.dto';
+import { ListBooksQueryDto } from './dto/list-books-query.dto';
 
 const ID = '3f6c2a52-7f0e-4c3e-9d57-1d8f0f6a9b11';
 const book = { id: ID, title: 'Dune' } as BookDto;
@@ -12,6 +13,7 @@ describe('BooksController', () => {
   const findOne = jest.fn();
   const update = jest.fn();
   const remove = jest.fn();
+  const findAll = jest.fn();
   let controller: BooksController;
 
   beforeEach(async () => {
@@ -19,12 +21,16 @@ describe('BooksController', () => {
     findOne.mockReset().mockResolvedValue(book);
     update.mockReset().mockResolvedValue(book);
     remove.mockReset().mockResolvedValue(undefined);
+    findAll.mockReset().mockResolvedValue({
+      items: [book],
+      meta: { page: 1, limit: 10, total: 1 },
+    });
     const moduleRef = await Test.createTestingModule({
       controllers: [BooksController],
       providers: [
         {
           provide: BooksService,
-          useValue: { create, findOne, update, remove },
+          useValue: { create, findOne, update, remove, findAll },
         },
       ],
     }).compile();
@@ -36,6 +42,16 @@ describe('BooksController', () => {
 
     await expect(controller.create(dto)).resolves.toBe(book);
     expect(create).toHaveBeenCalledWith(dto);
+  });
+
+  it('list passes the query to the service and returns its page', async () => {
+    const query = Object.assign(new ListBooksQueryDto(), { search: 'dune' });
+
+    await expect(controller.list(query)).resolves.toEqual({
+      items: [book],
+      meta: { page: 1, limit: 10, total: 1 },
+    });
+    expect(findAll).toHaveBeenCalledWith(query);
   });
 
   it('findOne passes the id to the service', async () => {

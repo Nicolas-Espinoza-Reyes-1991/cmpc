@@ -66,6 +66,16 @@ export function parseSort(text: string): ParsedSort {
   return { ok: true, criteria };
 }
 
+/**
+ * The criteria of a `sort` text, or none when there is no text or it is not
+ * valid (the DTO rejects an invalid one before it gets here, so the listing
+ * never silently drops a criterion the client asked for).
+ */
+export function sortCriteria(text: string | undefined): SortCriterion[] {
+  const parsed = parseSort(text ?? '');
+  return parsed.ok ? parsed.criteria : [];
+}
+
 /** What the listing can be filtered by. Empty texts mean "no filter". */
 export interface BookFilters {
   search?: string;

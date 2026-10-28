@@ -4,6 +4,7 @@ import {
   MAX_SORT_CRITERIA,
   parseSort,
   SORT_FIELDS,
+  sortCriteria,
   type SortCriterion,
 } from './book-list.query';
 
@@ -195,4 +196,20 @@ describe('buildBookOrderBy', () => {
   ] as const)('orders by %j as %j', ([field, direction], expected) => {
     expect(buildBookOrderBy([{ field, direction }])[0]).toEqual(expected);
   });
+});
+
+describe('sortCriteria', () => {
+  it('returns the criteria of a valid sort', () => {
+    expect(sortCriteria('price:desc,title:asc')).toEqual([
+      { field: 'price', direction: 'desc' },
+      { field: 'title', direction: 'asc' },
+    ]);
+  });
+
+  it.each([[undefined], [''], ['not a sort'], ['title:asc,title:desc']])(
+    'returns no criteria for %j',
+    (text) => {
+      expect(sortCriteria(text)).toEqual([]);
+    },
+  );
 });

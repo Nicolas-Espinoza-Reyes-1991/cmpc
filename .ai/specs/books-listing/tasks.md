@@ -15,7 +15,7 @@ Marcar con `[x]` al terminar.
   - Pruebas con el `ValidationPipe` de la aplicación: cada parámetro válido e inválido, normalización y límites.
   - Commit: `feat(books): add the list query DTO`
 
-- [ ] **L-03 Servicio y controlador del listado** (L1.1, L1.3, L1.4, L5.1, L5.2)
+- [x] **L-03 Servicio y controlador del listado** (L1.1, L1.3, L1.4, L5.1, L5.2)
   - `BooksService.findAll`, `GET /api/books` con Swagger y `PaginatedBooksDto`.
   - Pruebas: `skip`/`take`/`meta`; página fuera de rango; HTTP con Passport real (401, 200 con `meta`, 400 por parámetros inválidos); el e2e de `auth` sigue exigiendo 401.
   - Commit: `feat(books): add the paginated books listing endpoint`

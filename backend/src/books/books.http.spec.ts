@@ -54,6 +54,8 @@ describe('books over HTTP (real Passport)', () => {
     genre: { findFirst: jest.fn(), upsert: jest.fn() },
   };
   const findUnique = jest.fn();
+  const count = jest.fn();
+  const findMany = jest.fn();
   const $transaction = jest.fn();
   let app: NestExpressApplication;
   let auth: string;
@@ -86,7 +88,7 @@ describe('books over HTTP (real Passport)', () => {
           findUnique: ({ where }: { where: { id?: string } }) =>
             Promise.resolve(where.id === USER.id ? { ...USER } : null),
         },
-        live: { $transaction, book: { findUnique } },
+        live: { $transaction, book: { findUnique, count, findMany } },
         // The catalog list/read client is not used by these routes.
       })
       .compile();
@@ -103,11 +105,16 @@ describe('books over HTTP (real Passport)', () => {
   });
 
   beforeEach(() => {
+    // A callback receives the transaction client; a list of queries is run together.
     $transaction
       .mockReset()
-      .mockImplementation((work: (client: typeof tx) => Promise<unknown>) =>
-        work(tx),
+      .mockImplementation(
+        (
+          work: ((client: typeof tx) => Promise<unknown>) | Promise<unknown>[],
+        ) => (Array.isArray(work) ? Promise.all(work) : work(tx)),
       );
+    count.mockReset().mockResolvedValue(1);
+    findMany.mockReset().mockResolvedValue([row]);
     findUnique.mockReset().mockResolvedValue(row);
     tx.book.create.mockReset().mockResolvedValue(row);
     tx.book.update.mockReset().mockResolvedValue(row);
@@ -119,6 +126,7 @@ describe('books over HTTP (real Passport)', () => {
 
   describe('without a token', () => {
     it.each([
+      ['get', '/api/books'],
       ['post', '/api/books'],
       ['get', `/api/books/${ID}`],
       ['patch', `/api/books/${ID}`],
@@ -128,6 +136,102 @@ describe('books over HTTP (real Passport)', () => {
 
       expect(res.status).toBe(401);
       expect($transaction).not.toHaveBeenCalled();
+      expect(findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /api/books (listing)', () => {
+    const list = (query = '') =>
+      api().get(`/api/books${query}`).set('Authorization', auth);
+
+    it('answers 200 with the page in data and the totals in meta', async () => {
+      count.mockResolvedValue(25);
+
+      const res = await list('?page=2&limit=10').expect(200);
+
+      expect(res.body).toMatchObject({
+        data: [
+          { id: ID, title: 'Dune', author: 'Frank Herbert', price: 9990.5 },
+        ],
+        meta: { page: 2, limit: 10, total: 25 },
+      });
+      expect(res.body).not.toHaveProperty('data.0.deletedAt');
+    });
+
+    it('uses page 1 with 10 books when no parameter is sent', async () => {
+      const res = await list().expect(200);
+
+      expect(res.body).toMatchObject({
+        meta: { page: 1, limit: 10, total: 1 },
+      });
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 10 }),
+      );
+    });
+
+    it('turns the query string into filters and order for the database', async () => {
+      await list(
+        '?search=%20dune%20&author=herb&availability=true&sort=genre:asc,price:desc',
+      ).expect(200);
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { title: { contains: 'dune', mode: 'insensitive' } },
+              { author: { name: { contains: 'herb', mode: 'insensitive' } } },
+              { availability: true },
+            ],
+          },
+          orderBy: [
+            { genre: { name: 'asc' } },
+            { price: 'desc' },
+            { id: 'asc' },
+          ],
+        }),
+      );
+    });
+
+    it('answers 200 with an empty page beyond the last one', async () => {
+      count.mockResolvedValue(3);
+      findMany.mockResolvedValue([]);
+
+      const res = await list('?page=50').expect(200);
+
+      expect(res.body).toEqual({
+        data: [],
+        meta: { page: 50, limit: 10, total: 3 },
+      });
+    });
+
+    it.each([
+      ['limit=101', 'limit'],
+      ['limit=0', 'limit'],
+      ['page=0', 'page'],
+      ['page=abc', 'page'],
+      ['availability=maybe', 'availability'],
+      ['sort=foo:asc', 'sort'],
+      ['sort=title:asc,title:desc', 'sort'],
+      ['sort=title:asc,author:asc,genre:asc,price:asc,publisher:asc', 'sort'],
+      ['search=' + 'a'.repeat(101), 'search'],
+      ['unknown=1', 'unknown'],
+    ])(
+      'answers 400 for %s, naming the field, without querying',
+      async (query, field) => {
+        const res = await list(`?${query}`).expect(400);
+
+        expect(
+          (res.body as { errors: { field: string }[] }).errors.map(
+            (e) => e.field,
+          ),
+        ).toContain(field);
+        expect($transaction).not.toHaveBeenCalled();
+      },
+    );
+
+    it('is not shadowed by the :id route', async () => {
+      await list().expect(200);
+
       expect(findUnique).not.toHaveBeenCalled();
     });
   });
