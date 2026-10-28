@@ -36,7 +36,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: alta resuelve los tres catálogos y crea el libro en la misma transacción; si el segundo paso falla el error se propaga y no se llama a `book.create`; `findOne` 404; `update` parcial resuelve solo los catálogos recibidos y rechaza el cuerpo vacío; duplicado → 409; `remove` pone `deletedAt` y un segundo borrado da 404; nunca se toca un catálogo al eliminar.
   - Commit: `feat(books): add books service with transactional writes`
 
-- [ ] **C-06 Controlador y documentación** (C2.1, C3.1, C3.3, C4.1, C5.1, C7.1 a C7.3, C10.1)
+- [x] **C-06 Controlador y documentación** (C2.1, C3.1, C3.3, C4.1, C5.1, C7.1 a C7.3, C10.1)
   - `BooksController` (`POST`, `GET :id`, `PATCH :id`, `DELETE :id` con 204 y `ParseUUIDPipe`), `BooksModule` importado en `AppModule`, decoradores de Swagger.
   - Pruebas: el controlador delega en el servicio y no usa Prisma; HTTP con Passport real: 401 sin token en todas las rutas nuevas, `POST` válido 201, inválido 400, `:id` no UUID 400, `DELETE` 204 sin cuerpo; el recorrido del OpenAPI de `auth` sigue pasando.
   - Commit: `feat(books): add books REST endpoints`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-05, C-07, C-11 y C-12.)
+(Se completa en C-01 a C-06, C-07, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -161,3 +161,25 @@ Backend compilado contra la base de desarrollo, llamando a `BooksService` con `P
 | `lint`, tipos, build, `test:cov` y e2e | Pasan: 374 pruebas (19 nuevas del servicio) con 100% de cobertura, y 8 e2e |
 
 Observación: el insert que sobrepasa `Decimal(10,2)` llega como `PrismaClientUnknownRequestError` (un 500 si se omitiera la validación); el DTO lo evita con el máximo de `@IsMoney`, de modo que no es alcanzable desde la API.
+
+### C-06: rutas de libros por HTTP real (2026-10-28)
+Servidor real (`node dist/main`) contra la base de desarrollo, con login del administrador sembrado y `curl`; datos con prefijo `C06` borrados al terminar (0 filas sobrantes).
+
+| Comprobación | Resultado |
+|---|---|
+| `POST`, `GET`, `PATCH` y `DELETE` sin token | 401 las cuatro |
+| `POST` válido con título `"  C06   Dune "` | 201 `{ data }` con título normalizado `C06 Dune`, nombres, `price: 9990.5`, `imageUrl: null`, sin `deletedAt` |
+| `POST` del mismo libro con otra capitalización | 409 con el mensaje de duplicado y el formato de error único |
+| `POST` con título vacío, autor numérico, precio `1e-7`, `availability: "yes"` e `imageUrl` | 400 con un error por campo (incluido `imageUrl should not exist`); el precio da 400, no 500 |
+| `GET` de un libro / de un id que no es UUID / de uno inexistente | 200 / 400 `Validation failed (uuid is expected)` / 404 `Book not found` |
+| `PATCH` de `price` y `availability` | 200; el resto de los campos intacto y `updatedAt` avanza |
+| `PATCH` con `{}` / con `imageUrl` | 400 `At least one field is required` / 400 `property imageUrl should not exist` |
+| `DELETE` | 204 sin cuerpo; la fila sigue en la tabla con `deletedAt` |
+| `GET`, `DELETE` y `PATCH` del libro eliminado | 404 los tres |
+| Texto con `ñ` y `ó` | Ida y vuelta correcta por la API y en la base (`c3 b3` para "ó") |
+| OpenAPI | `POST /books` [201,400,401,409]; `GET`, `PATCH` y `DELETE /books/{id}` documentan 200/204, 400, 401, 404 y (PATCH) 409 |
+| Log del servidor | 0 líneas con contenido de los libros, `Bearer` o contraseñas |
+| Pruebas | Controlador (5), HTTP con Passport real (25): 401 sin token sin tocar la base, 201/400/409/500 sin detalles internos, 404, 204 sin cuerpo y `:id` no UUID. Mutaciones: sin `ParseUUIDPipe` fallan 3; sin `@HttpCode(204)` falla 1 |
+| `lint`, tipos, build, `test:cov` y e2e | Pasan: 404 pruebas (30 nuevas) con 100% de cobertura, y 8 e2e |
+
+El e2e de `auth` recorre ahora también las cuatro operaciones nuevas del OpenAPI y exige 401 sin token.
