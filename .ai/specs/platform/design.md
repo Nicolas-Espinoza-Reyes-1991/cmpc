@@ -15,7 +15,8 @@ cmpc-libros/
 │   │   ├── health/        # HealthModule
 │   │   └── common/
 │   │       ├── filters/       # http-exception.filter.ts
-│   │       ├── interceptors/  # transform.interceptor.ts, logging.interceptor.ts
+│   │       ├── interceptors/  # transform.interceptor.ts
+│   │       ├── middleware/    # http-logger.middleware.ts
 │   │       ├── decorators/    # raw-response.decorator.ts
 │   │       └── dto/           # pagination, respuestas comunes
 │   ├── Dockerfile
@@ -59,7 +60,7 @@ Orden de configuración:
 3. `helmet()` y CORS con la lista de `CORS_ORIGIN` (R6.1).
 4. Límite de cuerpo JSON de 100 KB (R6.2).
 5. `ValidationPipe` global con `whitelist`, `forbidNonWhitelisted`, `transform` y `exceptionFactory` que produce el arreglo `errors` (R4.2, R4.4).
-6. `HttpExceptionFilter`, `TransformInterceptor` y `LoggingInterceptor` globales (R4, R5).
+6. `app.use(createHttpLogger())` primero, para ver todas las peticiones, y luego `HttpExceptionFilter` y `TransformInterceptor` globales (R4, R5).
 7. `enableShutdownHooks()` (R6.4).
 8. Swagger en `/api/docs`, configurado con `DocumentBuilder` y `addBearerAuth` (R6.5).
 9. `listen(PORT, '0.0.0.0')`.
@@ -92,7 +93,10 @@ Detalles de implementación:
   - Si el handler no devuelve nada, la respuesta es `{ data: null }` para que el cliente siempre encuentre la clave `data`.
   - Un `StreamableFile` nunca se envuelve, aunque falte `@RawResponse()`.
   - Los tipos `ApiResponse`, `PaginatedResult` y `PaginationMeta` viven en `common/types/api-response.types.ts`.
-- **`LoggingInterceptor`:** mide la duración con `Date.now()` y escribe una línea con `Logger`: `GET /api/books 200 12ms user=<id|anonymous>`. No registra cuerpos ni cabeceras (R5.2).
+- **Logging HTTP (`createHttpLogger`):** es un middleware de Express (`common/middleware/http-logger.middleware.ts`), no un interceptor. Un interceptor corre después de los guards y no vería las peticiones rechazadas con 401/403 ni las rutas inexistentes (404), y R5.2 exige registrar cada petición. El middleware escucha el evento `finish` de la respuesta, de modo que registra el estado final (el que dejó el filtro de excepciones) y la duración.
+  - Una línea por petición con `Logger('HTTP')`: `GET /api/books 200 12ms user=<id|anonymous>`. Nivel `log` para estados menores de 400, `warn` para 4xx y `error` para 5xx.
+  - La ruta se registra sin query string. No se leen cuerpos ni cabeceras, por lo que no pueden filtrarse contraseñas ni tokens.
+  - El usuario sale de `request.user.id`, que adjuntará la estrategia JWT (tipos `AuthenticatedUser` y `AuthenticatedRequest` en `common/types/`).
 
 ## 6. Prisma
 - `PrismaService extends PrismaClient` e implementa `OnModuleInit` (`$connect`) y `OnModuleDestroy` (`$disconnect`) (R3.4).

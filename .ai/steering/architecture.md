@@ -55,7 +55,7 @@ Si cualquiera falla, no se guarda nada.
 ## Transversales
 - **Errores:** `HttpExceptionFilter` global con formato único `{ statusCode, message, errors?, path, timestamp }`.
 - **Respuestas:** `TransformInterceptor` envuelve las respuestas exitosas en `{ data, meta? }`. Los servicios de listado devuelven `{ items, meta }` y el interceptor lo transforma en `{ data: items, meta }`.
-- **Logging HTTP:** `LoggingInterceptor` registra método, ruta, estado, duración y usuario con el `Logger` de NestJS.
+- **Logging HTTP:** el middleware `createHttpLogger` registra método, ruta (sin query), estado final, duración y usuario con el `Logger` de NestJS. Es un middleware y no un interceptor para ver también las peticiones rechazadas por guards (401/403) y las rutas inexistentes (404).
 - **Auditoría de negocio:** se escribe explícitamente desde el servicio, dentro de la transacción (ver arriba). El login registra `LOGIN_SUCCESS` y `LOGIN_FAILED` desde `AuthService`.
 - **Soft delete:** extensión del cliente Prisma que añade `deletedAt: null` a las consultas de lectura de `Book`, para no depender de que cada servicio se acuerde del filtro.
 

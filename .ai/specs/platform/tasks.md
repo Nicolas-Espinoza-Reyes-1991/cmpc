@@ -41,10 +41,10 @@ Marcar con `[x]` al terminar.
   - Pruebas: envuelve un valor simple; transforma `{ items, meta }`; no envuelve con `@RawResponse()`.
   - Commit: `feat(common): add response transform interceptor`
 
-- [ ] **P-08 Interceptor de logging** (R5.2)
-  - `LoggingInterceptor` con el formato de `design.md` §5.
-  - Pruebas: registra método, ruta, estado y duración; usa `anonymous` sin usuario; nunca incluye cuerpo ni cabeceras.
-  - Commit: `feat(common): add request logging interceptor`
+- [x] **P-08 Logging HTTP** (R5.2)
+  - `createHttpLogger()` (middleware de Express) con el formato de `design.md` §5; se activa en P-10. Cambio respecto a la versión inicial de la spec: un interceptor no vería los 401/403 ni los 404.
+  - Pruebas (HTTP reales): registra método, ruta, estado y duración; usa `anonymous` sin usuario; registra el id del usuario autenticado; registra 404, 403 y 500 con su nivel; nunca incluye query string, cuerpo ni cabeceras.
+  - Commit: `feat(common): add HTTP access logger middleware`
 
 - [ ] **P-09 Health** (R6.3)
   - `HealthModule` con `GET /api/health`, público.
