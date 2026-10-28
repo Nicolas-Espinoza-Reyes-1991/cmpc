@@ -47,7 +47,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the backend verification`
 
 ## Frontend
-- [ ] **C-08 Contrato, servicios y utilidades** (C8.2, C8.3, C9.1, C10.2)
+- [x] **C-08 Contrato, servicios y utilidades** (C8.2, C8.3, C9.1, C10.2)
   - `types/book.ts`, `books.service.ts`, `catalog.service.ts`, `book-schema.ts`, `format.ts`, `useDebounce`, `useBook`, `useCatalogOptions`.
   - Pruebas: cada servicio llama a la ruta y método correctos y desenvuelve `data`; esquema Zod (cada regla y los bordes del precio); formatos de moneda y fecha; `useDebounce` con temporizadores simulados.
   - Commit: `feat(frontend): add book services, schema and debounce hook`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-07, C-11 y C-12.)
+(Se completa en C-01 a C-08, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -206,3 +206,14 @@ Entorno: PostgreSQL 16 del contenedor de desarrollo; base **nueva y vacía** (`c
 **Observación sobre las pruebas.** Una ejecución completa de `test:cov` tuvo 27 fallos (las pruebas HTTP de libros y dos de `argon2`) que no se reprodujeron: las mismas pruebas pasan solas y en tres ejecuciones completas seguidas (405 pruebas, 100% de cobertura). Se atribuye a carga de la máquina (tiempos de espera con `argon2` y Passport en paralelo); queda anotado por si reaparece.
 
 `lint`, tipos, build, `test:cov` y e2e pasan: 405 pruebas con 100% de cobertura (tres ejecuciones seguidas) y 8 pruebas e2e.
+
+### C-08: contrato, servicios y utilidades del frontend (2026-10-28)
+Pruebas con la capa HTTP simulada (`mockApi`, los interceptores reales siguen activos) y `renderHook` con un `QueryClient` sin reintentos (`src/test/query-wrapper.tsx`).
+
+- **Servicios:** `createBook`, `getBook`, `updateBook`, `deleteBook` y `listCatalog` llaman a la ruta y el método correctos, desenvuelven `data`, pasan la señal de cancelación, codifican el id en la ruta (`../auth/me` no cambia el camino) y rechazan con `ApiError` (404, 500 y los errores por campo de un 400). Una búsqueda vacía no se envía.
+- **Esquema:** cada texto (vacío, solo espacios, ausente, no textual, límite y límite + 1, longitud tras colapsar espacios), cada caso del precio y `availability`.
+- **Defecto encontrado:** el esquema aceptaba `1e-7` (la comprobación de decimales con tolerancia lo daba por válido). Corregido con la regla del mínimo de 0,01 (`priceProblem`).
+- **Formato:** `formatPrice` (`$12.990`, `$9.990,50`) y `formatDateTime`; en `es-CL` la fecha sale como `28-10-2026, 10:30 a. m.` (no con mes abreviado, como había supuesto en el diseño).
+- **Hooks:** `useDebounce` (temporizadores simulados, reinicio de la espera, desmontaje), `useBook` (carga, 404 expuesto como `ApiError`, `meta.silent`) y `useCatalogOptions` (primera carga inmediata, espera de 250 ms, texto recortado y fallo silencioso). `useBook` recibe un `id` obligatorio: la página decide qué hacer cuando la ruta no trae `:id`, en vez de que el hook tenga una rama inalcanzable.
+- **Estabilidad:** las pruebas con temporizadores se repitieron 5 veces seguidas sin fallos.
+- **Calidad:** `lint`, tipos y build limpios; 308 pruebas (97 nuevas) con 100% de cobertura en sentencias, ramas, funciones y líneas.
