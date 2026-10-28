@@ -84,6 +84,13 @@ Detalles de implementación de `AuthService` (A-03):
 
 **Límite de intentos**: `ThrottlerModule.forRootAsync` con `ttl = THROTTLE_TTL * 1000` y `limit = THROTTLE_LIMIT`, almacenamiento en memoria. `ThrottlerGuard` se aplica **solo** a `login` con `@UseGuards(ThrottlerGuard)` (no es un guard global), así que ninguna otra ruta cuenta (A4.2). El identificador es `request.ip`.
 
+Detalles de implementación (A-05):
+- El mensaje del 429 es `Too many requests` (opción `errorMessage` en `throttler.config.ts`): el predeterminado de la librería, `ThrottlerException: Too Many Requests`, expone el nombre de una clase interna. La respuesta lleva `Retry-After` en segundos.
+- Los guards se ejecutan antes que la validación, así que un cuerpo mal formado también cuenta como intento. El límite es por IP y no por cuenta: con la contraseña correcta desde una IP bloqueada también se responde 429.
+- Con `trust proxy` = 1, `request.ip` es la última dirección de `X-Forwarded-For`, la que añade nginx. Lo que el cliente ponga antes no cambia su contador (probado con `1.1.1.1, <ip>`); sí podría falsearse llegando directo al backend, que por eso solo se publica en `127.0.0.1`.
+- `LoginDto` normaliza el correo (espacios y minúsculas) antes de validarlo, limita el correo a 254 caracteres y la contraseña a 128, y rechaza propiedades no declaradas. `LoginResponseDto` y `UserDto` solo describen el contenido de `data` para Swagger.
+- Se comprobó contra PostgreSQL real, con el administrador sembrado: 5 intentos pasan y el sexto da 429; no aparecen contraseñas, el token ni el hash en el log del servidor; el log de `/auth/me` muestra `user=<id>`.
+
 **`trust proxy`**: `configureApp` añade `app.set('trust proxy', 1)`, de modo que `request.ip` sea la IP que nginx vio y no la del contenedor de nginx (A4.3). Con un solo salto, un cliente no puede falsear su IP mediante `X-Forwarded-For` a través de nginx, porque nginx añade la dirección real al final. Si alguien llega directo al backend (puerto publicado solo en `127.0.0.1`), sí podría falsearla; por eso ese puerto no se abre a la red.
 
 **Log y auditoría**: con `request.user` presente, el log de accesos de `platform` ya muestra `user=<id>`. Las contraseñas no se registran porque ese log nunca lee cuerpos.

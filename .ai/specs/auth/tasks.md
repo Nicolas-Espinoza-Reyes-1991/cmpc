@@ -26,7 +26,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: usuario existente devuelve `{ id, email }`; usuario ausente y `sub` inválido dan 401; ruta pública pasa sin token; ruta sin `@Public()` exige token; el decorador devuelve `request.user`.
   - Commit: `feat(auth): add JWT strategy, global guard and current user decorator`
 
-- [ ] **A-05 Controlador, límite de intentos y `trust proxy`** (A1.1, A1.5, A3.4, A4.1 a A4.3, A7.2)
+- [x] **A-05 Controlador, límite de intentos y `trust proxy`** (A1.1, A1.5, A3.4, A4.1 a A4.3, A7.2)
   - `AuthController` con `POST /auth/login` (público, `@HttpCode(200)`, `ThrottlerGuard`) y `GET /auth/me`; DTOs con validación y decoradores de Swagger; `ThrottlerModule.forRootAsync`; `app.set('trust proxy', 1)` en `configureApp`.
   - Pruebas HTTP con Passport real y `configureApp`: login correcto y `me`; sin cabecera; esquema distinto de Bearer; token expirado; firma alterada; token con `alg: none`; usuario eliminado; cuerpo inválido con errores por campo; contraseña de más de 128 caracteres; el 429 con `Retry-After` al sexto intento sin afectar a `me`; correo normalizado; ninguna respuesta ni log contiene la contraseña o el hash. Prueba de `configureApp` con `trust proxy`.
   - Commit: `feat(auth): add login and me endpoints with rate limiting`

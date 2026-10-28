@@ -217,6 +217,17 @@ describe('configureApp', () => {
     });
   });
 
+  describe('trust proxy', () => {
+    it('trusts exactly one proxy hop, the nginx in front of the API', () => {
+      // Nest types the underlying Express instance as `any`; only `get` is used.
+      const express = app.getHttpAdapter().getInstance() as {
+        get: (setting: string) => unknown;
+      };
+
+      expect(express.get('trust proxy')).toBe(1);
+    });
+  });
+
   describe('Swagger', () => {
     it('serves the UI at /api/docs', async () => {
       const res = await request(app.getHttpServer())
