@@ -68,13 +68,13 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: cada escenario queda anotado en el registro de verificación.
   - Commit: `docs(books-crud): record the end-to-end verification`
 
-- [ ] **C-12 Verificación de la spec**
+- [x] **C-12 Verificación de la spec**
   - Recorrer C1 a C10 con evidencia nueva (lint, tipos, build, `test:cov` ≥ 80% en ambas aplicaciones y fallando por debajo) y registrar el resultado al final de este archivo. Marcar como resuelta la salvedad 2 de `.ai/specs/platform/tasks.md` (P2002 real) y anotar los pendientes que sigan abiertos (`npm audit`, tamaño del paquete del frontend).
   - Hecho cuando: ningún criterio queda sin comprobación o sin una nota que explique por qué.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-11 y C-12.)
+(Se completa en C-01 a C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -270,3 +270,26 @@ Entorno: `docker compose up --build` (db, backend y frontend sanos; migraciones 
 | Cabecera de nginx | `Content-Security-Policy` presente |
 
 Hallazgo de método: el primer `docker compose up --build` falló en `npm ci --omit=dev` del Dockerfile del backend (error transitorio de red o del registro; la reconstrucción inmediata terminó bien). Anotado por si reaparece.
+
+### C-12: verificación de la spec (2026-10-28)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**33 suites, 405 pruebas, 100 %**) y e2e (**8**); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**30 archivos, 393 pruebas, 100 %** en sentencias, ramas, funciones y líneas); más los registros C-01 a C-11.
+
+| Criterio | Evidencia |
+|---|---|
+| C1.1–C1.5 | C-01: `migrate deploy` desde cero (también en C-07 sobre una base nueva), `migrate diff` vacío, índices y restricciones comprobados con inserciones reales |
+| C2.1–C2.6 | Pruebas de DTO (con el `ValidationPipe` de la aplicación), de `BooksService` y HTTP; C-05, C-06 y C-07 con base real: normalización, reutilización de catálogos sin distinguir mayúsculas, reversión de la transacción, 409 real y altas simultáneas |
+| C3.1–C3.3 | HTTP real (C-06): 200, 400 por id que no es UUID y 404; la respuesta no trae `deletedAt` (C-07) |
+| C4.1–C4.5 | Edición parcial con `updatedAt` que avanza, cuerpo vacío → 400, catálogos resueltos en la misma transacción, 404/409 y propiedades prohibidas → 400 (C-05, C-06, C-07) |
+| C5.1–C5.4 | Borrado lógico real: la fila se conserva, 404 al consultar, editar o volver a eliminar, catálogos intactos, re-alta permitida (C-02, C-07, C-11) |
+| C6.1–C6.3 | Catálogos: orden, `search` sin distinguir mayúsculas con comodines escapados, `limit` de 1 a 50, sin rutas de escritura (C-03) |
+| C7.1–C7.4 | El e2e de `auth` recorre el OpenAPI y exige 401 en las rutas nuevas; el controlador no usa Prisma (prueba de arquitectura); Swagger documenta 200/201/204, 400, 401, 404 y 409; el log del servidor no contiene datos de los libros (C-06) |
+| C8.1–C8.9 | Pruebas del formulario y las páginas; C-09 y C-11 en el navegador: validación reactiva, foco, sugerencias con espera, errores por campo, 409, "Guardando…", navegación al detalle con la caché al día, "Libro no encontrado" |
+| C9.1–C9.5 | Detalle con todos los campos formateados, portada o marcador, diálogo nativo con confirmación (Escape real), eliminación y 404 posterior (C-10, C-11) |
+| C10.1–C10.3 | 33 suites de backend y 30 archivos de frontend con las pruebas citadas; cobertura 100 % en ambas apps; el umbral forzado a 101 % falla en las dos ("does not meet global threshold") |
+| C10.4 | C-07 (PostgreSQL real) y C-11 (Docker y navegador real) |
+
+Resultado: sin criterios pendientes.
+
+Defectos que halló la verificación real y que las pruebas unitarias no veían (todos corregidos y con prueba): la carrera al crear catálogos (`upsert` con `update: {}` no es atómico), los comodines de `LIKE` sin escapar, el precio `1e-7` (500 en el backend y aceptado por el formulario) y el id mal formado en la pantalla de edición.
+
+Pendientes que siguen abiertos (no son de esta spec): `npm audit` del backend en producción con 7 hallazgos (5 altos, 2 moderados; el de `multer` se corrige con `book-image-upload`; `deepmerge-ts` y `js-yaml` exigen `--force` y quedan evaluados para `docs-delivery`); aviso de paquete mayor de 500 kB en el build del frontend (carga diferida de rutas cuando haya más pantallas); la auditoría dentro de las transacciones llega con `audit-log`; y el listado, con filtros, orden y paginación, con `books-listing`.
