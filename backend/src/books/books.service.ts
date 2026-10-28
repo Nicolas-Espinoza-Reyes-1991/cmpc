@@ -336,12 +336,16 @@ export class BooksService {
   /**
    * The book as it is right now, read inside the transaction that is about to
    * change it, so the `before` of the audit entry is exactly what gets
-   * overwritten. A missing or deleted book ends the transaction with a 404.
+   * overwritten. The row is locked first: two edits of the same book queue here
+   * instead of both reading the same state, which would leave a `before` that
+   * is not the `after` of the previous entry (found verifying against
+   * PostgreSQL). A missing or deleted book ends the transaction with a 404.
    */
   private async readForAudit(
-    tx: Pick<PrismaService['live'], 'book'>,
+    tx: Pick<PrismaService['live'], 'book' | '$queryRaw'>,
     id: string,
   ): Promise<BookDto> {
+    await tx.$queryRaw`SELECT 1 FROM books WHERE id = ${id}::uuid FOR UPDATE`;
     const book = await tx.book.findUnique({
       where: { id },
       include: BOOK_INCLUDE,

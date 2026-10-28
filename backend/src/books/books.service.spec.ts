@@ -63,6 +63,7 @@ describe('BooksService', () => {
   // The transaction client handed to the callbacks; `live.book` is the plain read client.
   const tx = {
     book: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
+    $queryRaw: jest.fn(),
   };
   const audit = { log: jest.fn() };
   const findUnique = jest.fn();
@@ -83,6 +84,7 @@ describe('BooksService', () => {
     tx.book.create.mockReset().mockResolvedValue(row);
     tx.book.update.mockReset().mockResolvedValue(row);
     tx.book.findUnique.mockReset().mockResolvedValue(row);
+    tx.$queryRaw.mockReset().mockResolvedValue([]);
     audit.log.mockReset().mockResolvedValue(undefined);
     findUnique.mockReset().mockResolvedValue(row);
     storage.save.mockReset().mockResolvedValue(NEW_NAME);
@@ -1049,6 +1051,44 @@ describe('BooksService', () => {
         audit.log.mockRejectedValue(new Error('audit down'));
 
         await expect(service.remove('b1', ACTOR)).rejects.toThrow('audit down');
+      });
+    });
+
+    describe('the row lock', () => {
+      const lockedBeforeRead = () => {
+        expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+        const [strings, id] = tx.$queryRaw.mock.calls[0] as [string[], string];
+        expect(strings.join('?')).toMatch(
+          /FROM books WHERE id = \?::uuid FOR UPDATE/,
+        );
+        expect(id).toBe('b1');
+        expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+          tx.book.findUnique.mock.invocationCallOrder[0] as number,
+        );
+      };
+
+      it('update locks the book before reading its previous state', async () => {
+        await service.update('b1', { title: 'x' }, ACTOR);
+
+        lockedBeforeRead();
+      });
+
+      it('remove locks the book before reading its previous state', async () => {
+        await service.remove('b1', ACTOR);
+
+        lockedBeforeRead();
+      });
+
+      it('changing the cover locks the book before reading its previous state', async () => {
+        await service.setImage('b1', { buffer: PNG }, ACTOR);
+
+        lockedBeforeRead();
+      });
+
+      it('create has nothing to lock: the book does not exist yet', async () => {
+        await service.create(input, ACTOR);
+
+        expect(tx.$queryRaw).not.toHaveBeenCalled();
       });
     });
 

@@ -132,6 +132,7 @@ describe('book image over HTTP (real multipart and real files)', () => {
       .mockReset()
       .mockImplementation((work: (tx: unknown) => Promise<unknown>) =>
         work({
+          $queryRaw: () => Promise.resolve([]),
           book: { update, findUnique },
           auditLog: { create: auditCreate },
         }),

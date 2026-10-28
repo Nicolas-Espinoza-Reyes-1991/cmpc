@@ -79,6 +79,7 @@ describe('the audit trail over HTTP', () => {
   const tx = {
     book: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
     auditLog: { create: auditCreate },
+    $queryRaw: jest.fn().mockResolvedValue([]),
     author: { findFirst: jest.fn(), upsert: jest.fn() },
     publisher: { findFirst: jest.fn(), upsert: jest.fn() },
     genre: { findFirst: jest.fn(), upsert: jest.fn() },
