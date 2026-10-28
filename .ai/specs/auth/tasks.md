@@ -16,7 +16,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: busca por correo y por id; devuelve `null` si no existe; solo consulta la tabla `users`.
   - Commit: `feat(users): add users service`
 
-- [ ] **A-03 Servicio de autenticación** (A1.1 a A1.4, A1.6, A2.1)
+- [x] **A-03 Servicio de autenticación** (A1.1 a A1.4, A1.6, A2.1)
   - `AuthService` con `login`, `JwtModule` con `registerAsync` (`JWT_SECRET`, `JWT_EXPIRES_IN`, HS256) y el hash de relleno.
   - Pruebas: contraseña correcta devuelve token, `tokenType`, `expiresAt` y usuario; contraseña errónea y correo inexistente dan el mismo `UnauthorizedException('Invalid credentials')`; con correo inexistente se verifica igualmente contra el hash de relleno; el token contiene solo `sub`, `iat` y `exp`; el resultado nunca incluye el hash.
   - Commit: `feat(auth): add credential validation and token signing`

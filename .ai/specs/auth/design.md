@@ -23,6 +23,8 @@ backend/src/
 │   ├── auth.module.ts          # JwtModule, PassportModule, ThrottlerModule y el guard global
 │   ├── auth.controller.ts      # POST /auth/login, GET /auth/me
 │   ├── auth.service.ts         # validar credenciales y firmar el token
+│   ├── password-hasher.ts      # envoltorio inyectable de argon2 (hash, verify)
+│   ├── jwt.config.ts           # opciones de JwtModule: secreto, HS256, duración
 │   ├── jwt.strategy.ts         # verifica el token y carga el usuario
 │   ├── jwt-auth.guard.ts       # guard global; respeta @Public()
 │   └── dto/                    # login.dto.ts, login-response.dto.ts, user.dto.ts
@@ -61,7 +63,14 @@ backend/src/
 4. Firma el token con `JwtService.signAsync({ sub: user.id })` y calcula `expiresAt` a partir de la fecha de expiración (`exp`) del propio token.
 5. Devuelve `{ accessToken, tokenType: 'Bearer', expiresAt, user: { id, email } }`; nunca el hash.
 
-**`JwtModule`** se configura con `registerAsync` leyendo `JWT_SECRET` y `JWT_EXPIRES_IN` de `ConfigService`, con `algorithm: 'HS256'`.
+**`JwtModule`** se configura con `registerAsync` leyendo `JWT_SECRET` y `JWT_EXPIRES_IN` de `ConfigService`, con `algorithm: 'HS256'` para firmar y `verifyOptions: { algorithms: ['HS256'] }` para verificar (`jwt.config.ts`). Así, aunque quien llame a `verify` no pida un algoritmo, un token HS384, `none` o con otro secreto se rechaza.
+
+Detalles de implementación de `AuthService` (A-03):
+- **Una sola verificación en todos los casos.** `login` elige el hash (el del usuario o el de relleno) y llama una vez a `PasswordHasher.verify`; el trabajo realizado no depende de si el correo existe. Además de comprobar `matches`, rechaza si no hay usuario, de modo que el hash de relleno nunca pueda dar acceso.
+- **El hash de relleno se construye en `onModuleInit`**, con un texto aleatorio de 64 caracteres que nadie conoce. Si `argon2` no funciona, la aplicación no arranca en vez de fallar con el primer correo desconocido.
+- **`PasswordHasher`** envuelve `argon2` con sus parámetros por defecto (`argon2id`, `m=65536,p=4,t=3`), los mismos del seed y del administrador sembrado en la base, para que todos los hashes cuesten lo mismo. Si el hash guardado está corrupto, `verify` lanza (500 y registro) en lugar de responder "contraseña incorrecta".
+- **Medición contra PostgreSQL real** (mediana de 15 intentos): correo inexistente **sin** hash de relleno, 2,1 ms; correo inexistente **con** hash de relleno, 82 ms; correo existente con contraseña errónea, 86 ms. Sin la defensa la diferencia sería de unas 42 veces y cualquiera podría medirla; con ella es de un -5%, dentro del ruido (en esta máquina cada intento oscila entre 66 y 367 ms porque `argon2` usa 4 hilos). Las respuestas de error son idénticas byte a byte.
+- Un error de base de datos se propaga como tal; no se disfraza de "credenciales inválidas".
 
 **`JwtStrategy`** (`passport-jwt`):
 - Extrae el token de `Authorization: Bearer`, con `ignoreExpiration: false` y `algorithms: ['HS256']` (A2.2).
