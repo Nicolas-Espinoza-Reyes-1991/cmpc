@@ -19,7 +19,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: acción, entidad, `before`/`after` y actor de cada operación; el registro va después de la escritura y en la misma transacción; si el registro falla la operación se deshace; sin registro si la operación falla o no cambia nada.
   - Commit: `feat(books): record create, update and delete in the audit log`
 
-- [ ] **G-04 Auditoría de inicios de sesión** (G3.1 a G3.4, G3.6)
+- [x] **G-04 Auditoría de inicios de sesión** (G3.1 a G3.4, G3.6)
   - `AuthService.login` registra `LOGIN_SUCCESS` y `LOGIN_FAILED` con mejor esfuerzo; el controlador pasa la IP.
   - Pruebas: éxito, contraseña incorrecta, correo desconocido (misma escritura, sin `userId`), sin correo ni contraseña en lo escrito, el fallo de la auditoría no cambia la respuesta.
   - Commit: `feat(auth): record successful and failed logins in the audit log`

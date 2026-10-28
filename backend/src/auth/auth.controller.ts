@@ -17,6 +17,8 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import type { AuditActor } from '../audit/audit.types';
+import { Actor } from '../common/decorators/actor.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import type { AuthenticatedUser } from '../common/types/authenticated-request.types';
@@ -52,8 +54,11 @@ export class AuthController {
   @ApiTooManyRequestsResponse({
     description: 'Too many attempts from this IP; see the Retry-After header.',
   })
-  login(@Body() dto: LoginDto): Promise<LoginResult> {
-    return this.authService.login(dto.email, dto.password);
+  login(
+    @Body() dto: LoginDto,
+    @Actor() actor: AuditActor,
+  ): Promise<LoginResult> {
+    return this.authService.login(dto.email, dto.password, actor);
   }
 
   @Get('me')
