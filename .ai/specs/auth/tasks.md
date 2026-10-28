@@ -46,7 +46,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: el servicio llama a las rutas correctas y devuelve `data`; el esquema valida correo y contraseña con sus mensajes en español (vacío, formato inválido, espacios, contraseña vacía).
   - Commit: `feat(frontend): add auth service and login schema`
 
-- [ ] **A-09 Sesión observable** (A5.4, A5.6)
+- [x] **A-09 Sesión observable** (A5.4, A5.6)
   - `session.subscribe` y escucha del evento `storage`.
   - Pruebas: `setToken` y `clear` avisan a los oyentes; darse de baja funciona; un evento `storage` con la clave del token avisa; con otra clave no; se quita el oyente de `storage` al no quedar suscriptores.
   - Commit: `feat(frontend): make the session observable across tabs`

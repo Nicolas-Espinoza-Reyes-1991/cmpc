@@ -115,6 +115,12 @@ Las rutas pasan a ser: `/login` (pública) y, dentro de `ProtectedRoute` y `AppL
 
 **`session`** se vuelve observable: `subscribe(listener)` devuelve la función para darse de baja; `setToken` y `clear` avisan a los oyentes, y el evento `storage` de otras pestañas también (A5.6). `useSyncExternalStore(session.subscribe, session.getToken)` da un valor reactivo del token, de modo que un 401 que limpia la sesión actualiza la interfaz sin recargar (A5.4).
 
+Detalles de implementación (A-09):
+- Los miembros de `session` son funciones flecha y no métodos: ninguno usa `this`, así que se pasan sueltos a `useSyncExternalStore` sin envoltorio (ESLint avisaba del riesgo de pasar métodos sueltos).
+- `notify` recorre una copia de los oyentes: uno que se suscribe durante el aviso espera al siguiente cambio y no puede provocar un bucle infinito.
+- El evento `storage` se filtra por `storageArea === localStorage` y por la clave del token; `key === null` (vaciado total) también cuenta. El oyente de `window` existe solo mientras haya suscriptores.
+- Comprobado con **dos pestañas reales** y el módulo `session` auténtico: una pestaña no recibe el evento `storage` de sus propias escrituras (se avisa a sí misma directamente); la otra recibe un evento por cada cambio (token puesto, borrado, de nuevo y vaciado total con `key: null`) y `session` avisa en todos menos en el de otra clave.
+
 **`AuthProvider`** (dentro de `AppProviders`, porque usa el `QueryClient`):
 - `token` reactivo desde `session`.
 - `useQuery(['auth', 'me'], getMe)` habilitada solo con token, con `staleTime: Infinity` y `meta: { silent: true }` (el provider decide qué mostrar).
