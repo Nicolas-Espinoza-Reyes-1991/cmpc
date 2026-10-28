@@ -11,7 +11,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `npm run build`, `npm run lint` y `npm run test:cov` siguen pasando y `npm audit` no suma hallazgos nuevos de estas librerías.
   - Commit: `build(backend): add jwt, passport and throttler dependencies`
 
-- [ ] **A-02 Módulo de usuarios** (§2, A8.1)
+- [x] **A-02 Módulo de usuarios** (§2, A8.1)
   - `UsersModule` y `UsersService` con `findByEmail` y `findById`, sobre `PrismaService`; devuelve el usuario con su hash solo a quien lo pide dentro del backend.
   - Pruebas: busca por correo y por id; devuelve `null` si no existe; solo consulta la tabla `users`.
   - Commit: `feat(users): add users service`

@@ -50,6 +50,10 @@ backend/src/
 
 ## 4. Backend: componentes
 
+**`UsersService`** (`users/`), con dos métodos pensados para exponer lo mínimo:
+- `findByEmail(email)` devuelve el usuario completo, con el hash, porque solo el login lo necesita. Pasa el correo a minúsculas y sin espacios: los correos se guardan así (el seed lo hace) y esa regla vive junto al acceso a los datos, no en cada llamador.
+- `findById(id)` devuelve solo `{ id, email }` (`UserSummary`); el hash ni siquiera se lee de la base. Si `id` no tiene forma de UUID devuelve `null` sin consultar: la columna es de tipo UUID y Prisma lanzaría `P2023` (un 500 con error en el log) para cualquier otro texto. Se comprobó contra PostgreSQL real. Así un `sub` raro en un token termina siempre en 401 y no en un error interno.
+
 **`AuthService.login(email, password)`**
 1. `UsersService.findByEmail(email)` (el correo ya llega normalizado desde el DTO).
 2. Si no existe, verifica la contraseña contra `DUMMY_HASH` (un hash `argon2` generado una vez al arrancar con los mismos parámetros que los hashes reales) y lanza `UnauthorizedException('Invalid credentials')`. Así el tiempo no delata si el correo existe (A1.3).
