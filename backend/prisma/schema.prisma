@@ -11,10 +11,11 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  auditLogs    AuditLog[]
 
   @@map("users")
 }
@@ -76,4 +77,36 @@ model Book {
   @@index([deletedAt, createdAt])
   @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "books_title_trgm_idx")
   @@map("books")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+
+  @@map("audit_action")
+}
+
+// Append-only trail of who did what (see the audit-log spec). `entityId` is deliberately not a
+// foreign key: the record of a deleted book must survive it. `userId` becomes NULL if the user is
+// deleted, so the history outlives the account. `before`/`after` hold business data only.
+model AuditLog {
+  id        String      @id @default(uuid()) @db.Uuid
+  action    AuditAction
+  entity    String
+  entityId  String?     @map("entity_id") @db.Uuid
+  before    Json?
+  after     Json?
+  userId    String?     @map("user_id") @db.Uuid
+  ip        String?
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

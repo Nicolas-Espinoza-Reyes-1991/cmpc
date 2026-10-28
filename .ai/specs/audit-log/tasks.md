@@ -4,7 +4,7 @@ Reglas: seguir el orden; una tarea está hecha solo cuando su criterio se cumple
 Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de decisión se refleja en `design.md`.
 Marcar con `[x]` al terminar.
 
-- [ ] **G-01 Modelo y migración** (G1.1 a G1.3)
+- [x] **G-01 Modelo y migración** (G1.1 a G1.3)
   - `AuditAction` y `AuditLog` en `schema.prisma`, relación inversa en `User`, migración generada y aplicada.
   - Hecho cuando: `prisma migrate deploy` sobre una base con datos funciona, `prisma validate` y `tsc` pasan, y las claves foráneas e índices son los del diseño (comprobado en la base).
   - Commit: `feat(audit): add the audit log model and migration`
