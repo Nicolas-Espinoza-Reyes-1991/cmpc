@@ -1,0 +1,104 @@
+// Modelo relacional de CMPC Libros (PostgreSQL 16).
+// Importar en https://dbdiagram.io (Import → DBML) o abrir docs/erd.svg.
+// Fuente de verdad: backend/prisma/schema.prisma y backend/prisma/migrations/.
+// Este archivo se comprobó contra una base migrada (information_schema y pg_indexes).
+//
+// Los identificadores (uuid) los genera la aplicación (Prisma `uuid()`), no la base:
+// por eso las columnas `id` no muestran un valor por defecto.
+
+Project cmpc_libros {
+  database_type: 'PostgreSQL'
+  Note: 'Inventario de la tienda CMPC-libros. Solo books tiene borrado lógico (deleted_at).'
+}
+
+Enum audit_action {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+}
+
+Table users {
+  id uuid [pk]
+  email text [not null, unique]
+  password_hash text [not null, note: 'argon2id; nunca sale de la API']
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Sin roles ni registro público: el usuario inicial lo crea el seed.'
+}
+
+Table authors {
+  id uuid [pk]
+  name text [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Catálogo. Se crea al registrar un libro si no existe (búsqueda sin distinguir mayúsculas).'
+}
+
+Table publishers {
+  id uuid [pk]
+  name text [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Catálogo. Se crea al registrar un libro si no existe.'
+}
+
+Table genres {
+  id uuid [pk]
+  name text [not null, unique]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Catálogo. Se crea al registrar un libro si no existe.'
+}
+
+Table books {
+  id uuid [pk]
+  title text [not null]
+  price "numeric(10,2)" [not null, note: 'Hasta 99.999.999,99']
+  availability boolean [not null, note: 'Disponible sí/no; no es un stock por unidades']
+  image_url text [null, note: 'Ruta pública de la portada (/api/uploads/<uuid>.<ext>)']
+  author_id uuid [not null]
+  publisher_id uuid [not null]
+  genre_id uuid [not null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, note: 'Lo mantiene Prisma (@updatedAt)']
+  deleted_at timestamp [null, note: 'Borrado lógico: NULL = activo']
+
+  Indexes {
+    author_id [name: 'books_author_id_idx']
+    publisher_id [name: 'books_publisher_id_idx']
+    genre_id [name: 'books_genre_id_idx']
+    availability [name: 'books_availability_idx']
+    (deleted_at, created_at) [name: 'books_deleted_at_created_at_idx', note: 'Listado: activos, más recientes primero']
+    title [name: 'books_title_trgm_idx', type: gin, note: 'GIN con gin_trgm_ops (extensión pg_trgm): búsqueda parcial por título. Migración SQL manual']
+    `lower(title), author_id, publisher_id` [name: 'books_active_title_author_publisher_key', unique, note: 'Índice único PARCIAL WHERE deleted_at IS NULL: no hay dos libros activos con el mismo título, autor y editorial. Migración SQL manual']
+  }
+
+  Note: 'Un autor por libro (N:M queda como mejora futura).'
+}
+
+Table audit_logs {
+  id uuid [pk]
+  action audit_action [not null]
+  entity text [not null, note: '"Book" o "User"']
+  entity_id uuid [null, note: 'Sin clave foránea a propósito: el registro de un libro eliminado se conserva']
+  before jsonb [null, note: 'Datos de negocio antes del cambio (NULL en CREATE y en logins)']
+  after jsonb [null, note: 'Datos de negocio después del cambio (NULL en DELETE y en logins)']
+  user_id uuid [null, note: 'NULL si el correo del intento fallido no existe, o si se elimina el usuario']
+  ip text [null]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Indexes {
+    (entity, entity_id) [name: 'audit_logs_entity_entity_id_idx']
+    user_id [name: 'audit_logs_user_id_idx']
+    created_at [name: 'audit_logs_created_at_idx']
+  }
+
+  Note: 'Solo se inserta (nunca se actualiza ni se borra desde la aplicación). Único escritor: AuditService.'
+}
+
+Ref books_author_id_fkey: books.author_id > authors.id [delete: restrict, update: cascade]
+Ref books_publisher_id_fkey: books.publisher_id > publishers.id [delete: restrict, update: cascade]
+Ref books_genre_id_fkey: books.genre_id > genres.id [delete: restrict, update: cascade]
+Ref audit_logs_user_id_fkey: audit_logs.user_id > users.id [delete: set null, update: cascade]

@@ -19,7 +19,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: cada nodo y flecha existe en el código y los diagramas se renderizan.
   - Commit: `docs: add the architecture diagrams`
 
-- [ ] **D-04 Modelo relacional** (D4.1 a D4.3)
+- [x] **D-04 Modelo relacional** (D4.1 a D4.3)
   - `docs/erd.dbml`, `docs/erd.md`, `docs/tools/dbml-to-svg.py` y `docs/erd.svg`.
   - Hecho cuando: el DBML coincide tabla por tabla, columna por columna e índice por índice con una base migrada, y el SVG se ve bien.
   - Commit: `docs: add the relational model (DBML, Mermaid and SVG)`
