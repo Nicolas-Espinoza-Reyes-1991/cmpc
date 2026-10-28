@@ -42,7 +42,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: cada escenario queda anotado.
   - Commit: `docs(books-listing): record the end-to-end verification`
 
-- [ ] **L-08 Verificación de la spec**
+- [x] **L-08 Verificación de la spec**
   - Recorrer L1 a L6 con evidencia nueva (lint, tipos, build, cobertura ≥ 80 % y fallando por debajo en ambas apps) y registrar el resultado.
   - Commit: `docs(books-listing): record the spec verification`
 
@@ -91,3 +91,21 @@ Entorno: `docker compose up` (db, backend y frontend sanos), navegador integrado
 - La primera carga mostró "No se encontró el recurso solicitado": la **imagen de Docker del backend estaba desactualizada** (solo había reconstruido el frontend y el endpoint del listado es posterior). Se reconstruyó con `docker compose build backend` y funcionó. Conclusión de método: tras cambiar el backend hay que reconstruir su imagen; `docker compose up --build` lo hace siempre.
 - Un instante de la búsqueda mostraba aún 37 resultados: era una captura mía antes de que llegara la respuesta; midiendo cada 200 ms la tabla pasó a 1 resultado a los ~1.000 ms (pausa de 300 ms más la respuesta). No es un defecto.
 - El `docker compose up --build` del frontend falló una vez con un error de caché de Docker (`parent snapshot ... does not exist`); `docker compose build frontend` inmediatamente después terminó bien (transitorio, como el de `npm ci` en C-11).
+
+### L-08: verificación de la spec (2026-10-29)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**36 suites, 537 pruebas, 100 %**) y e2e (**8**); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**37 archivos, 553 pruebas, 100 %** en sentencias, ramas, funciones y líneas); más los registros L-04 y L-07.
+
+| Criterio | Evidencia |
+|---|---|
+| L1.1–L1.4 | Pruebas de servicio, controlador y HTTP con Passport real (200 con `{ data, meta }`, 401 sin token, 400 por parámetros inválidos, página fuera de rango → 200 vacía); L-04 con base real (página 9.999 vacía con el `total` real; eliminados fuera) |
+| L2.1–L2.6 | `buildBookWhere` y DTO con cada regla; L-04: filtros combinados iguales al conteo directo en SQL, comodines `%`, `_` como texto y `EXPLAIN` con el índice `pg_trgm` (2,8 ms con 304.877 libros) |
+| L3.1–L3.4 | `parseSort`, `buildBookOrderBy` y DTO; L-04: el orden de la API coincide con el mismo `ORDER BY` en SQL y recorre todas las páginas de un orden que empata sin repeticiones ni omisiones |
+| L4.1–L4.11 | `BookTable`, `BookFilters`, `Pagination`, `useBookListParams`, `useUrlBoundText` y `BooksPage` (30 pruebas de integración); L-07 en el navegador real: 0 peticiones al escribir y 1 tras la pausa, orden con prioridades, paginación, URL, Atrás, página fuera de rango, valores inválidos, y el listado al día tras eliminar y crear |
+| L5.1–L5.2 | Una consulta de conteo y una de datos en una transacción, con `take` ≤ 100 (L-04: nunca más de `limit` filas; con 304.877 libros entre 10 ms y ~540 ms) |
+| L6.1–L6.4 | Suites citadas; cobertura 100 % en ambas apps; el umbral forzado a 101 % falla en las dos ("does not meet global threshold"); L-04 y L-07 contra PostgreSQL, Docker y navegador reales |
+
+Resultado: sin criterios pendientes.
+
+Defectos que halló la verificación (corregidos y con prueba): dos cambios de URL seguidos perdían el primero (la forma funcional de `setSearchParams` no los encola); la prueba de `router.spec` que simulaba la expiración con un 401 en `GET /books` dejó de ser válida cuando la página empezó a pedir su lista al abrirse; y la imagen de Docker del backend desactualizada (método: reconstruirla al cambiar el backend).
+
+Pendientes (no son de esta spec): `npm audit` del backend en producción (el de `multer` se corrige con `book-image-upload`); el aviso de paquete mayor de 500 kB del build del frontend (ahora de 565 kB; carga diferida de rutas); la exportación a CSV con los mismos filtros llega con `books-export-csv`; y las mejoras de `design.md` §5 (combobox con búsqueda para autor, editorial y género; conteo estimado o cursor para millones de libros).
