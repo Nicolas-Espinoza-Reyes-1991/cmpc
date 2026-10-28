@@ -31,7 +31,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: cada regla de validación (vacíos, longitudes, precio 0, negativo, tres decimales, mayor al máximo, `availability` no booleano, propiedades no declaradas como `id`, `imageUrl` y `deletedAt`); normalización de espacios; el mapper convierte `price` a número y no incluye `deletedAt`.
   - Commit: `feat(books): add book DTOs and mapper`
 
-- [ ] **C-05 Servicio de libros** (C2.1, C2.4 a C2.6, C3.1, C3.3, C4.1 a C4.4, C5.1, C5.3, C5.4)
+- [x] **C-05 Servicio de libros** (C2.1, C2.4 a C2.6, C3.1, C3.3, C4.1 a C4.4, C5.1, C5.3, C5.4)
   - `BooksService` con `create`, `findOne`, `update` y `remove` dentro de `prisma.live.$transaction`; traducción de `P2002` a `ConflictException`.
   - Pruebas: alta resuelve los tres catálogos y crea el libro en la misma transacción; si el segundo paso falla el error se propaga y no se llama a `book.create`; `findOne` 404; `update` parcial resuelve solo los catálogos recibidos y rechaza el cuerpo vacío; duplicado → 409; `remove` pone `deletedAt` y un segundo borrado da 404; nunca se toca un catálogo al eliminar.
   - Commit: `feat(books): add books service with transactional writes`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-04, C-07, C-11 y C-12.)
+(Se completa en C-01 a C-05, C-07, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -141,3 +141,23 @@ Las pruebas de validación usan el `ValidationPipe` con la misma configuración 
 | `UpdateBookDto` | Acepta cada campo por separado y `{}` (el servicio rechazará el cuerpo vacío en C-05); mismas reglas y normalización |
 | Mapper | Nombres en lugar de ids, `price` numérico exacto (hasta 99.999.999,99), sin `deletedAt` ni claves foráneas |
 | `lint`, tipos, build, `test:cov` y e2e | Pasan: 355 pruebas (79 nuevas) con 100% de cobertura, y 8 e2e |
+
+### C-05: servicio de libros contra PostgreSQL real (2026-10-28)
+Backend compilado contra la base de desarrollo, llamando a `BooksService` con `PrismaService` y `CatalogService` reales; datos con prefijo `C05` borrados al terminar (0 filas sobrantes). El servicio todavía no tiene controlador (C-06); la comprobación por HTTP llega allí y en C-07.
+
+| Comprobación | Resultado |
+|---|---|
+| Alta con autor, editorial y género nuevos | Devuelve el libro con nombres y `price: 9990.5`; crea 1 fila en cada catálogo y 1 libro |
+| Segundo libro con `"c05 frank herbert"` y `"C05 CIENCIA FICCIÓN"` | Reutiliza el autor y el género existentes (siguen siendo 1 fila) |
+| Mismo título (otra capitalización), autor y editorial | `ConflictException` (409) con el mensaje de la spec |
+| **Reversión**: catálogos nuevos y precio fuera del rango de la base (1e9, saltándose el DTO) | El insert falla y no queda ningún autor, editorial, género ni libro nuevo |
+| Detalle | Devuelve el libro |
+| Edición de `price` y `publisher` | Cambia solo esos campos, crea la editorial nueva y `updatedAt` avanza |
+| Edición con cuerpo vacío / que produce un duplicado / de un id inexistente | 400 `At least one field is required` / 409 / 404 `Book not found` |
+| Baja lógica | Sin error; la fila sigue en la tabla con `deletedAt` |
+| Detalle, nueva baja y edición del libro ya eliminado | 404 en los tres (la edición no lo revive) |
+| Catálogos tras eliminar | Se conservan |
+| Volver a registrar el libro eliminado | Permitido (nuevo id) |
+| `lint`, tipos, build, `test:cov` y e2e | Pasan: 374 pruebas (19 nuevas del servicio) con 100% de cobertura, y 8 e2e |
+
+Observación: el insert que sobrepasa `Decimal(10,2)` llega como `PrismaClientUnknownRequestError` (un 500 si se omitiera la validación); el DTO lo evita con el máximo de `@IsMoney`, de modo que no es alcanzable desde la API.
