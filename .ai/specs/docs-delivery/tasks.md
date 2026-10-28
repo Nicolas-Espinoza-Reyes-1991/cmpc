@@ -24,7 +24,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: el DBML coincide tabla por tabla, columna por columna e índice por índice con una base migrada, y el SVG se ve bien.
   - Commit: `docs: add the relational model (DBML, Mermaid and SVG)`
 
-- [ ] **D-05 README** (D1.1 a D1.7, D5.1, D5.2)
+- [x] **D-05 README** (D1.1 a D1.7, D5.1, D5.2)
   - Instalación, uso, arquitectura, decisiones, pruebas, seguridad y producción, supuestos, y pendientes con cómo se implementarían.
   - Commit: `docs: add the README`
 
