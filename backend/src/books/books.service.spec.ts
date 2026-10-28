@@ -8,8 +8,9 @@ import { Prisma } from '@prisma/client';
 import { CatalogService } from '../catalog/catalog.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { BookWithCatalogs } from './book.mapper';
-import { BooksService } from './books.service';
+import { BooksService, EXPORT_BATCH_SIZE } from './books.service';
 import type { CreateBookDto } from './dto/create-book.dto';
+import { ExportBooksQueryDto } from './dto/export-books-query.dto';
 import { ListBooksQueryDto } from './dto/list-books-query.dto';
 import { ImageStorage } from './images/image-storage';
 
@@ -60,7 +61,8 @@ describe('BooksService', () => {
   const tx = { book: { create: jest.fn(), update: jest.fn() } };
   const findUnique = jest.fn();
   const count = jest.fn();
-  const findMany = jest.fn();
+  // Typed by its argument so the tests can read what each call asked the database for.
+  const findMany = jest.fn<Promise<unknown>, [Record<string, unknown>]>();
   const $transaction = jest.fn();
   const resolve = jest.fn();
   const storage = {
@@ -491,6 +493,199 @@ describe('BooksService', () => {
       findMany.mockRejectedValue(new Error('db down'));
 
       await expect(service.findAll(query())).rejects.toThrow('db down');
+    });
+  });
+
+  describe('exportRows', () => {
+    const query = (overrides: Partial<ExportBooksQueryDto> = {}) =>
+      Object.assign(new ExportBooksQueryDto(), overrides);
+    const rows = (from: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({ ...row, id: `b${from + i}` }));
+    const collect = async (source: AsyncGenerator<unknown[]>) => {
+      const batches: unknown[][] = [];
+      for await (const batch of source) batches.push(batch);
+      return batches;
+    };
+
+    it('gives one short batch as the only batch, without a cursor', async () => {
+      findMany.mockResolvedValue(rows(1, 3));
+
+      const batches = await collect(service.exportRows(query()));
+
+      expect(batches).toHaveLength(1);
+      expect(batches[0]).toHaveLength(3);
+      expect(findMany).toHaveBeenCalledTimes(1);
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: EXPORT_BATCH_SIZE }),
+      );
+      expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty('cursor');
+      expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty('skip');
+    });
+
+    it('continues after the last book of each full batch with the cursor', async () => {
+      findMany
+        .mockResolvedValueOnce(rows(0, EXPORT_BATCH_SIZE))
+        .mockResolvedValueOnce(rows(EXPORT_BATCH_SIZE, EXPORT_BATCH_SIZE))
+        .mockResolvedValueOnce(rows(2 * EXPORT_BATCH_SIZE, 120));
+
+      const batches = await collect(service.exportRows(query()));
+
+      expect(batches.map((batch) => batch.length)).toEqual([500, 500, 120]);
+      expect(findMany).toHaveBeenCalledTimes(3);
+      expect(findMany.mock.calls[1]?.[0]).toMatchObject({
+        cursor: { id: 'b499' },
+        skip: 1,
+        take: EXPORT_BATCH_SIZE,
+      });
+      expect(findMany.mock.calls[2]?.[0]).toMatchObject({
+        cursor: { id: 'b999' },
+        skip: 1,
+      });
+    });
+
+    it('does not repeat the cursor book: skip 1 leaves it out', async () => {
+      findMany
+        .mockResolvedValueOnce(rows(0, EXPORT_BATCH_SIZE))
+        .mockResolvedValueOnce([]);
+
+      await collect(service.exportRows(query()));
+
+      expect(findMany.mock.calls[1]?.[0]).toMatchObject({ skip: 1 });
+    });
+
+    it('ends after a batch of exactly 500 followed by an empty one, without an empty batch', async () => {
+      findMany
+        .mockResolvedValueOnce(rows(0, EXPORT_BATCH_SIZE))
+        .mockResolvedValueOnce([]);
+
+      const batches = await collect(service.exportRows(query()));
+
+      expect(batches).toHaveLength(1);
+      expect(batches[0]).toHaveLength(EXPORT_BATCH_SIZE);
+      expect(findMany).toHaveBeenCalledTimes(2);
+    });
+
+    it('gives nothing when no book matches', async () => {
+      findMany.mockResolvedValue([]);
+
+      await expect(collect(service.exportRows(query()))).resolves.toEqual([]);
+      expect(findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('filters and orders exactly like the listing, ending with id', async () => {
+      findMany.mockResolvedValue([]);
+
+      await collect(
+        service.exportRows(
+          query({
+            search: 'dune',
+            author: 'herb',
+            availability: false,
+            sort: 'genre:asc,price:desc',
+          }),
+        ),
+      );
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { title: { contains: 'dune', mode: 'insensitive' } },
+              { author: { name: { contains: 'herb', mode: 'insensitive' } } },
+              { availability: false },
+            ],
+          },
+          orderBy: [
+            { genre: { name: 'asc' } },
+            { price: 'desc' },
+            { id: 'asc' },
+          ],
+        }),
+      );
+    });
+
+    it('shows the newest book first when there is no sort', async () => {
+      findMany.mockResolvedValue([]);
+
+      await collect(service.exportRows(query()));
+
+      expect(findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        }),
+      );
+    });
+
+    it('keeps the same filters and order in every batch', async () => {
+      findMany
+        .mockResolvedValueOnce(rows(0, EXPORT_BATCH_SIZE))
+        .mockResolvedValueOnce(rows(EXPORT_BATCH_SIZE, 1));
+
+      await collect(
+        service.exportRows(query({ search: 'dune', sort: 'price:asc' })),
+      );
+
+      const [first, second] = findMany.mock.calls.map(
+        (call) =>
+          call[0] as {
+            where: unknown;
+            orderBy: unknown;
+          },
+      );
+      expect(second?.where).toEqual(first?.where);
+      expect(second?.orderBy).toEqual(first?.orderBy);
+    });
+
+    it('maps every book to the API shape, without the internal fields', async () => {
+      findMany.mockResolvedValue(rows(1, 2));
+
+      const [batch] = await collect(service.exportRows(query()));
+
+      expect(batch?.[0]).toMatchObject({
+        id: 'b1',
+        author: 'Gabriel García Márquez',
+        price: 12990,
+      });
+      expect(batch?.[0]).not.toHaveProperty('deletedAt');
+      expect(batch?.[0]).not.toHaveProperty('authorId');
+    });
+
+    it('does not read ahead: nothing is read until the consumer asks', async () => {
+      findMany.mockResolvedValue(rows(0, EXPORT_BATCH_SIZE));
+      const source = service.exportRows(query());
+
+      expect(findMany).not.toHaveBeenCalled();
+      await source.next();
+      expect(findMany).toHaveBeenCalledTimes(1);
+
+      await source.return();
+    });
+
+    it('stops reading when the consumer stops (a client that disconnects)', async () => {
+      findMany.mockResolvedValue(rows(0, EXPORT_BATCH_SIZE));
+
+      for await (const batch of service.exportRows(query())) {
+        expect(batch).toHaveLength(EXPORT_BATCH_SIZE);
+        break;
+      }
+
+      expect(findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a database failure in a later batch reach the consumer', async () => {
+      findMany
+        .mockResolvedValueOnce(rows(0, EXPORT_BATCH_SIZE))
+        .mockRejectedValueOnce(new Error('db down'));
+      const received: number[] = [];
+
+      const consume = async () => {
+        for await (const batch of service.exportRows(query())) {
+          received.push(batch.length);
+        }
+      };
+
+      await expect(consume()).rejects.toThrow('db down');
+      expect(received).toEqual([EXPORT_BATCH_SIZE]);
     });
   });
 

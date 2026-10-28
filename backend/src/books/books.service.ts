@@ -18,9 +18,13 @@ import { ImageStorage } from './images/image-storage';
 import { sniffImageType } from './images/image-type';
 import type { BookDto } from './dto/book.dto';
 import type { CreateBookDto } from './dto/create-book.dto';
+import type { ExportBooksQueryDto } from './dto/export-books-query.dto';
 import type { ListBooksQueryDto } from './dto/list-books-query.dto';
 import type { UpdateBookDto } from './dto/update-book.dto';
 import type { UploadedImage } from './images/image-upload.config';
+
+/** Books read from the database at a time while exporting. */
+export const EXPORT_BATCH_SIZE = 500;
 
 const NOT_FOUND_MESSAGE = 'Book not found';
 const DUPLICATE_MESSAGE =
@@ -114,6 +118,39 @@ export class BooksService {
     ]);
 
     return { items: books.map(toBookDto), meta: { page, limit, total } };
+  }
+
+  /**
+   * Every active book that matches the filters, in the order of the listing,
+   * as batches. A generator: the next batch is not read until the consumer asks
+   * for it (backpressure), and stopping the consumer stops the reading, so the
+   * memory used is one batch and not the whole table.
+   *
+   * Each batch continues after the last book of the previous one with Prisma's
+   * `cursor`, which is exact because the order ends in the unique `id` (an
+   * offset would make the database walk and discard all the earlier rows on
+   * every batch). A deleted book is only marked, so the cursor row always exists.
+   */
+  async *exportRows(
+    query: ExportBooksQueryDto,
+  ): AsyncGenerator<BookDto[], void, undefined> {
+    const where = buildBookWhere(query);
+    const orderBy = buildBookOrderBy(sortCriteria(query.sort));
+    let cursor: string | undefined;
+
+    for (;;) {
+      const batch = await this.prisma.live.book.findMany({
+        where,
+        orderBy,
+        take: EXPORT_BATCH_SIZE,
+        include: BOOK_INCLUDE,
+        ...(cursor === undefined ? {} : { cursor: { id: cursor }, skip: 1 }),
+      });
+      if (batch.length > 0) yield batch.map(toBookDto);
+      // A short batch is the last one; a full one may be followed by more.
+      if (batch.length < EXPORT_BATCH_SIZE) return;
+      cursor = batch[batch.length - 1]?.id;
+    }
   }
 
   async findOne(id: string): Promise<BookDto> {

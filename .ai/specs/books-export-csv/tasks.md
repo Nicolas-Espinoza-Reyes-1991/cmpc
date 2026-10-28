@@ -11,7 +11,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `lint`, `tsc`, build, `test:cov` y `npm audit --omit=dev` (sin hallazgos nuevos de `fast-csv`) pasan.
   - Commit: `feat(books): add the CSV encoding of a book`
 
-- [ ] **X-02 Lectura por lotes** (X1.2, X1.4, X3.1, X3.2, X3.5)
+- [x] **X-02 Lectura por lotes** (X1.2, X1.4, X3.1, X3.2, X3.5)
   - `ExportBooksQueryDto` (`PickType` del DTO del listado) y `BooksService.exportRows`, un generador asíncrono con cursor y lotes de 500.
   - Pruebas: un lote, varios lotes con el cursor, lote exacto de 500, vacío, mismos filtros y orden que el listado, `id` como último criterio, el generador no pide más lotes si el consumidor se detiene.
   - Commit: `feat(books): add batched reading of the books to export`
