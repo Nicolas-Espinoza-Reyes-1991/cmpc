@@ -21,7 +21,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: cada operación fusiona `deletedAt: null`; respeta un `deletedAt` explícito; no toca otros modelos; la prueba de arquitectura falla si un servicio usa `prisma.book` fuera de `live`.
   - Commit: `feat(prisma): add soft delete extension`
 
-- [ ] **C-03 Catálogos** (C2.4, C6.1 a C6.3, C7.1)
+- [x] **C-03 Catálogos** (C2.4, C6.1 a C6.3, C7.1)
   - `CatalogModule`, `CatalogService` (`list`, `resolve`), `CatalogController` (`/authors`, `/publishers`, `/genres`) y DTOs.
   - Pruebas: listado con y sin `search`, `limit` fuera de rango → 400, orden por nombre; `resolve` devuelve el existente sin distinguir mayúsculas y hace `upsert` si no existe; el controlador no usa Prisma; no hay rutas de escritura.
   - Commit: `feat(catalog): add read-only catalog endpoints and resolver`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01, C-02, C-07, C-11 y C-12.)
+(Se completa en C-01 a C-03, C-07, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -106,3 +106,21 @@ Backend compilado contra la base de desarrollo, con libros creados y eliminados 
 | Catálogos (`live.author`) | Sin filtro |
 | Prueba de arquitectura con un archivo que usa `this.prisma.book` | Falla nombrando el archivo; sin él, pasa |
 | `lint`, tipos, build, `test:cov` y e2e | Pasan: 239 pruebas (26 nuevas) con 100% de cobertura, y 8 pruebas e2e |
+
+### C-03: catálogos contra PostgreSQL real y HTTP real (2026-10-28)
+Backend compilado contra la base de desarrollo; datos de prueba con prefijo `C03` borrados al terminar (0 filas sobrantes en catálogos). Servidor real (`node dist/main`) con login del administrador sembrado.
+
+| Comprobación | Resultado |
+|---|---|
+| `resolve("C03 Planeta")` y luego `resolve("c03 planeta")` | Mismo id; una sola fila |
+| 8 transacciones simultáneas con el mismo autor nuevo | Las 8 terminan bien, 1 fila, 1 id (el `upsert` usa `ON CONFLICT`) |
+| `resolve` y fallo posterior en la misma transacción | El género no queda guardado (0 filas) |
+| Listado: orden por nombre, `search` sin distinguir mayúsculas, `limit` | Correctos |
+| Comodines: `search=a_b` y `C03 %` | **Defecto encontrado**: Prisma no escapa `%` ni `_` (`a_b` devolvía también `axb`; `C03 %` devolvía todo). Corregido con `escapeLike`; repetido: `a_b` solo devuelve `a_b`, `C03 %` devuelve vacío |
+| HTTP: `GET /api/authors` sin token | 401 |
+| HTTP: con token y `?search=c03&limit=5` | `{ data: [...] }` ordenado por nombre |
+| HTTP: `?limit=99` | 400 con `errors: [{ field: "limit", ... }]` |
+| HTTP: `POST /api/authors` | 404 (no hay escritura, C6.3) |
+| OpenAPI | Documenta `/api/authors`, `/api/publishers` y `/api/genres`; el e2e de `auth` las recorre y exige 401 sin token |
+| Log del servidor | 0 líneas con contraseña o cabecera `Bearer` |
+| `lint`, tipos, build, `test:cov` y e2e | Pasan: 276 pruebas (37 nuevas) con 100% de cobertura, y 8 e2e |
