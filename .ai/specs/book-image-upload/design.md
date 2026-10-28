@@ -16,7 +16,7 @@ Implementa los requisitos de `requirements.md`. Los códigos U# remiten a ese ar
 | `POST` y `DELETE` sobre `/books/:id/image` | `PATCH /books/:id` con multipart | Mantiene `PATCH` en JSON puro (límite de 100 KB y DTO validados) y separa el binario |
 | En el alta, primero se crea el libro y después se sube la imagen | Un solo `multipart` para todo | Reutiliza el endpoint de alta y su validación; si la subida falla el libro ya existe y el usuario lo corrige en la edición (U5.4) |
 | El frontend valida tipo y tamaño antes de enviar, pero **el servidor decide** | Solo servidor | Respuesta inmediata y sin gastar ancho de banda; el cliente puede mentir, por eso el servidor repite todo |
-| `multer` se actualiza con `npm audit fix` (no rompe nada) | Dejar la versión | Cierra el hallazgo de DoS que `platform` dejó anotado para esta spec (U4.5) |
+| `multer` se fija en 2.5.0 con `overrides` en `package.json` | `npm audit fix` (no puede: `@nestjs/platform-express` 11.2.8 fija exactamente la 2.4.0), o esperar a una versión de Nest que lo incluya | Cierra el hallazgo de DoS que `platform` dejó anotado para esta spec (U4.5). No es una dependencia nueva, solo la versión de una transitiva; la vulnerabilidad exige un `fileFilter` asíncrono, que esta spec no usa, pero se corrige igual. Cuando Nest publique una 11.x que fije ≥ 2.5.0 se puede quitar el `overrides` |
 
 ## 2. Backend
 

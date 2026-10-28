@@ -5,8 +5,8 @@ Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de deci
 Marcar con `[x]` al terminar.
 
 ## Backend
-- [ ] **U-01 Actualizar `multer`** (U4.5)
-  - `npm audit fix` en el backend (solo la corrección que no rompe) y comprobar que `npm audit --omit=dev` ya no lista `multer`.
+- [x] **U-01 Actualizar `multer`** (U4.5)
+  - `npm audit fix` no puede resolverlo: ninguna versión 11.x de `@nestjs/platform-express` fija todavía `multer` 2.5.0 (la 11.2.8 fija la 2.4.0, vulnerable). Se fija con `overrides` en `package.json` (`multer: 2.5.0`) y se comprueba que `npm audit --omit=dev` ya no lista `multer` (de 7 hallazgos a 5).
   - Hecho cuando: `lint`, `tsc`, build, `test:cov` y e2e siguen pasando.
   - Commit: `build(backend): update multer to fix the denial of service advisory`
 
