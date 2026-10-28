@@ -42,7 +42,7 @@ Marcar con `[x]` al terminar.
   - Commit: `feat(frontend): add the cover image field to the book form`
 
 ## Integración y cierre
-- [ ] **U-08 Verificación de punta a punta** (U6.4)
+- [x] **U-08 Verificación de punta a punta** (U6.4)
   - Docker y navegador real: subir una portada en el alta, verla en el detalle, reemplazarla y quitarla; archivo falso y archivo grande rechazados en pantalla; la imagen sigue tras reiniciar el backend (volumen); cabeceras de caché.
   - Hecho cuando: cada escenario queda anotado.
   - Commit: `docs(book-image-upload): record the end-to-end verification`
@@ -76,3 +76,24 @@ Entorno: backend compilado (`node dist/main`) contra la base de desarrollo, con 
 Observaciones:
 - **Libro eliminado con imagen**: el borrado lógico conserva la fila y, por tanto, su archivo, que sigue sirviéndose en `/api/uploads/<nombre>` (200). Es coherente con el borrado lógico (el libro podría restaurarse) y con que las portadas no son datos sensibles, pero conviene saberlo; la limpieza de archivos de libros eliminados queda como mejora futura en `design.md` §6.
 - Una comprobación de mi script ("ver la imagen sin token" al final del recorrido) dio 404 porque usé la URL de un archivo que el paso anterior (los 2 MB exactos) ya había reemplazado; el 404 es el comportamiento correcto y el acceso público sin token ya quedó probado en el primer paso.
+
+### U-08: recorrido de punta a punta con Docker y navegador real (2026-10-29)
+Entorno: `docker compose up --build` (db, backend y frontend sanos), navegador integrado, administrador sembrado. Las imágenes son reales (PNG, JPEG y WebP de 120×180 píxeles generados en un `canvas` del navegador) y se eligieron en el campo de archivo con un evento `change` real. Se comprobó leyendo el DOM, las cabeceras de las respuestas, el volumen del contenedor y la base. Al terminar se borraron los datos y los archivos y se detuvo el stack.
+
+| Escenario | Resultado |
+|---|---|
+| El volumen del contenedor | `/app/uploads` pertenece al usuario `node` (sin privilegios) y es escribible |
+| Campo «Portada (opcional)» en `/books/new` | Presente, con `accept="image/jpeg,image/png,image/webp"` y el marcador «Sin portada» |
+| Elegir un GIF / un PNG de 2 MB + 1 byte | «La portada debe ser una imagen JPG, PNG o WebP.» / «La portada no puede pesar más de 2 MB.», sin enviar nada |
+| Elegir un PNG real | Vista previa cargada (`naturalWidth` 120); el mensaje de error desaparece |
+| Registrar el libro con la portada | Navega al detalle y la imagen se muestra cargada, con `alt` «Portada de …» |
+| Cabeceras de la imagen y acceso sin token | 200, `image/png`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff` y la CSP; la petición no lleva `Authorization` |
+| Editar: la pantalla muestra la portada actual | «Portada actual del libro» cargada |
+| Reemplazar por un JPEG | Vista previa, guardado y el detalle muestra el `.jpg` nuevo |
+| El archivo anterior | En el disco del contenedor solo queda el `.jpg` nuevo y la base lo referencia. (Un `fetch` de la URL vieja devolvió 200 por la caché `immutable` del navegador; saltando la caché, el servidor responde 404) |
+| «Quitar la imagen actual» | La vista previa pasa a «Sin portada»; al guardar el detalle no muestra imagen y la URL anterior da 404 |
+| Registrar un libro con un archivo que dice ser PNG pero es texto | El navegador lo acepta (va por el nombre y el tipo declarado); el servidor lo rechaza por su contenido; **el libro queda guardado** y se abre su edición con el aviso «El libro se guardó, pero la portada no se pudo subir: El archivo no es una imagen válida: usa un JPG, PNG o WebP.» |
+| Elegir un WebP real en esa pantalla y guardar | El libro queda con la portada (`.webp` cargado); no se creó ningún libro duplicado |
+| Reiniciar el backend (`docker compose restart backend`) | La imagen sigue sirviéndose (200, `image/webp`, caché de un año); el volumen contiene solo el archivo referenciado por la base: sin huérfanos |
+
+Hallazgo de la verificación real: con el archivo falso, el aviso decía «Los datos enviados no son válidos», que no habla de la portada. Se cambió por «El archivo no es una imagen válida: usa un JPG, PNG o WebP.» (un 400 al subir solo puede significar que el contenido no es una imagen), con pruebas en los tres caminos (alta, edición solo con portada y edición con datos y portada); 617 pruebas del frontend con 100 % de cobertura.
