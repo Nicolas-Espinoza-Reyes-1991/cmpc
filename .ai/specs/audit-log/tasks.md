@@ -34,7 +34,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: cada comprobación queda en el registro de verificación.
   - Commit: `docs(audit-log): record the real database verification`
 
-- [ ] **G-07 Verificación de la spec**
+- [x] **G-07 Verificación de la spec**
   - Recorrer G1 a G4 con evidencia nueva (lint, tipos, build, cobertura ≥ 80 % y fallando por debajo; `npm audit`) y registrar el resultado.
   - Commit: `docs(audit-log): record the spec verification`
 
@@ -66,3 +66,26 @@ Entorno: PostgreSQL 16 del contenedor de desarrollo; base **nueva** `g06_check` 
 Observaciones:
 - La IP de las pruebas locales con Docker Desktop es la de la pasarela, no la de un navegador remoto; en un servidor real nginx verá la IP del cliente.
 - Mi primer intento de la prueba de atomicidad configuraba el *trigger* con un parámetro de base de datos que las conexiones del backend no recargan; se cambió por una tabla auxiliar. Era un defecto de la prueba, no del código.
+
+### G-07: verificación de la spec (2026-10-28)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**48 suites, 821 pruebas, 100 %** en sentencias, ramas, funciones y líneas; con el umbral forzado a 101 % falla: "does not meet global threshold") y e2e (**9**); registros G-01 a G-06.
+
+| Criterio | Evidencia |
+|---|---|
+| G1.1–G1.3 | G-01: migración generada por Prisma, aplicada sobre una base nueva; enumeración, tres índices y clave foránea `SET NULL` comprobados en la base; G-06 (índice usado, usuario eliminado) |
+| G1.4 | `audit.architecture.spec`: solo `audit.service.ts` usa `.auditLog`, nada actualiza ni borra entradas |
+| G2.1–G2.3 | `books.service.spec` (acción, entidad, `before`/`after` y orden), `audit.http.spec` y G-06 con la tabla real |
+| G2.4 | `books.service.spec` (si la auditoría falla la operación falla) y G-06: con la auditoría rechazada no queda libro, catálogo ni portada |
+| G2.5 | `audit.http.spec` (400, 401, 404, 409, lecturas) y G-06: 0 filas |
+| G2.6 | `actor.decorator.spec`, `audit.http.spec` (el cliente no puede dar usuario ni IP; la IP viene de `X-Forwarded-For` con un salto de confianza) y G-06 con Docker |
+| G2.7 | `book.mapper.spec` (`toAuditSnapshot`) y G-06 |
+| G3.1–G3.4 | `auth.service.spec`, `audit.http.spec` y G-06: éxito, contraseña incorrecta y correo desconocido (una escritura en cada caso), sin correo, contraseña, token ni hash en la tabla |
+| G3.5 | `audit.service.spec` (el mejor esfuerzo captura y registra sin el contenido), `audit.http.spec` y G-06: con la auditoría rechazada el login sigue en 200/401 |
+| G3.6 | Documentado en `design.md` §3 |
+| G4.1–G4.4 | Suites citadas; cobertura 100 %; G-06 contra PostgreSQL real y Docker |
+
+Resultado: sin criterios pendientes.
+
+Hallazgo de la verificación: carrera entre ediciones simultáneas del mismo libro que rompía la cadena `before`/`after` (corregida con bloqueo de fila, ver G-06).
+
+Pendientes (no son de esta spec): `npm audit --omit=dev` del backend sigue con 5 hallazgos (3 altos y 2 moderados: `deepmerge-ts` y `js-yaml`, que se evalúan en `docs-delivery`); consulta de la auditoría, permisos de la tabla y retención quedan como mejoras futuras (`design.md` §6).
