@@ -68,7 +68,7 @@ Marcar con `[x]` al terminar.
   - Commit: `feat(frontend): add authenticated layout with logout`
 
 ## Integración y cierre
-- [ ] **A-13 Verificación de punta a punta** (A8.4)
+- [x] **A-13 Verificación de punta a punta** (A8.4)
   - Reconstruir el stack con Docker (`docker compose up --build`) y, en un navegador real: `/books` sin sesión lleva a `/login`; contraseña incorrecta muestra el mensaje y conserva el correo; el sexto intento muestra el aviso de demasiados intentos; login correcto lleva a `/books` con el correo en la cabecera; recargar mantiene la sesión sin parpadeo; cerrar sesión lleva a `/login` y vacía los datos; con `JWT_EXPIRES_IN` corto, tras expirar la siguiente acción lleva a `/login`; un token alterado en `localStorage` devuelve a `/login`; cerrar sesión en una pestaña cierra la otra.
   - Comprobar también (A7.1) que la cabecera `Content-Security-Policy` de nginx sigue presente en las páginas y que la aplicación no carga scripts de otros orígenes.
   - Hecho cuando: cada escenario queda anotado en el registro de verificación.
@@ -108,3 +108,21 @@ Hallazgos de esta verificación:
 - Ningún defecto nuevo. El único defecto de la spec auth se encontró en A-04 con una prueba automática (los errores de base de datos se convertían en 401) y aquí queda comprobado en el sistema real: una caída de la base da 500, no 401, de modo que el frontend no cerraría las sesiones.
 - Un usuario temporal creado para la prueba del usuario eliminado se borró; la base de desarrollo quedó con su único usuario.
 - La compilación de las imágenes con las dependencias de auth tardó 253 s (instalación en frío); es un costo de una sola vez.
+
+### A-13: frontend contra el stack de Docker, en un navegador real (2026-10-28)
+Entorno: `docker compose up --build` (db, backend y frontend `healthy`), navegador integrado de la aplicación, administrador sembrado. Las comprobaciones se hicieron leyendo el DOM y `localStorage` de la página (el panel del navegador estaba oculto, sin capturas).
+
+| Escenario | Resultado |
+|---|---|
+| `/books` sin sesión | Lleva a `/login` |
+| Contraseña incorrecta | "Correo o contraseña incorrectos."; el correo se conserva, la contraseña se vacía y el foco pasa a ella |
+| Sexto intento en la ventana de 60 s | "Demasiados intentos. Espera un momento e inténtalo de nuevo."; sin token guardado |
+| Login correcto (tras vencer la ventana) | Lleva a `/books`; la cabecera muestra "CMPC Libros", el correo y "Cerrar sesión" |
+| Recargar con sesión | Se mantiene en `/books` con la cabecera; no se puede observar el parpadeo en vivo (la CSP impide el iframe y se bloquean las ventanas emergentes), por lo que ese punto lo cubren las pruebas de `ProtectedRoute` y `LoginPage` (estado `loading` sin formulario ni redirección) |
+| Token alterado en `localStorage` + recarga | Lleva a `/login` y borra el token |
+| Cerrar sesión | Lleva a `/login` y deja el token en `null`; la caché se vacía según la prueba de `AuthProvider` (no es inspeccionable desde la página) |
+| Cerrar sesión en una pestaña con otra abierta | La otra pestaña pasa a `/login` sin recargar, con el token en `null` |
+| `JWT_EXPIRES_IN=15s`, recarga a los 17 s | Lleva a `/login` y borra el token |
+| A7.1: CSP de nginx | `Content-Security-Policy: default-src 'self'; ...; frame-ancestors 'none'; ...` presente; la página carga un único script del mismo origen y ningún recurso externo |
+
+Hallazgos: ningún defecto. El límite de intentos también rechaza un login correcto durante la ventana de 60 s (es por IP, no por resultado); es el comportamiento diseñado, y queda en la documentación como detalle de uso. El stack se detuvo con `docker compose down` al terminar.
