@@ -4,7 +4,7 @@ Reglas: seguir el orden; una tarea está hecha solo cuando su criterio se cumple
 Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de decisión se refleja en `design.md`.
 Marcar con `[x]` al terminar.
 
-- [ ] **D-01 Dependencias sin hallazgos** (D5.4)
+- [x] **D-01 Dependencias sin hallazgos** (D5.4)
   - `overrides` de `js-yaml` (Swagger) y `deepmerge-ts` (Prisma) a las versiones corregidas; comprobar que Prisma CLI y Swagger siguen funcionando.
   - Hecho cuando: `npm audit --omit=dev` da 0 en ambas apps, y `prisma validate`, `migrate status`, `generate`, build, pruebas y e2e pasan.
   - Commit: `fix(deps): override the vulnerable transitive dependencies of Prisma and Swagger`
