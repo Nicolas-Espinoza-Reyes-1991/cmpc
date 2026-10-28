@@ -63,7 +63,7 @@ Marcar con `[x]` al terminar.
   - Commit: `feat(frontend): add book detail page with delete confirmation`
 
 ## Integración y cierre
-- [ ] **C-11 Verificación de punta a punta** (C10.4)
+- [x] **C-11 Verificación de punta a punta** (C10.4)
   - `docker compose up --build` y, en un navegador real: alta con catálogos nuevos y existentes; validaciones visibles; duplicado (409 en pantalla); edición; detalle; eliminación con confirmación y 404 al volver al detalle; sesión expirada durante un envío lleva a `/login`.
   - Hecho cuando: cada escenario queda anotado en el registro de verificación.
   - Commit: `docs(books-crud): record the end-to-end verification`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-10, C-11 y C-12.)
+(Se completa en C-01 a C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -252,3 +252,21 @@ Verificación automática aquí; la comprobación en el navegador real (diálogo
 - **Mutación comprobada**: con "Eliminar" borrando sin pedir confirmación fallan 7 pruebas.
 - **Diseño**: el primer `ConfirmDialog` usaba `useRef` y tenía una guarda `if (!element)` inalcanzable (93 % de ramas); se rediseñó con un *callback ref* guardado en estado, de modo que el efecto se ejecuta otra vez cuando el elemento existe y la rama es real y está cubierta, sin comentarios de exclusión.
 - **Calidad**: `lint` (0 avisos), `tsc`, build y `test:cov`: **393 pruebas con 100 %** de sentencias, ramas, funciones y líneas (tres ejecuciones seguidas).
+
+### C-11: recorrido de punta a punta con Docker y navegador real (2026-10-28)
+Entorno: `docker compose up --build` (db, backend y frontend sanos; migraciones aplicadas sobre el volumen), navegador integrado, administrador sembrado. Se comprobó leyendo el DOM, la base con `psql` y pulsando Escape con una tecla real. Los datos de prueba se borraron del volumen al terminar y el stack se detuvo.
+
+| Escenario | Resultado |
+|---|---|
+| Login y `/books` | Cabecera con el correo; enlace "Nuevo libro" hacia `/books/new` |
+| Envío vacío | Los 5 mensajes en español y el foco en el título |
+| Alta con catálogos nuevos (`"  Cien   años de soledad "`) | Guardado normalizado; navega al detalle con autor, editorial, género, `$12.990`, "Disponible", "Sin portada", fechas y los botones Editar, Eliminar y Volver |
+| Segundo libro con los mismos catálogos escritos en mayúsculas y un género nuevo | Reutiliza autor y editorial (en la base: 1 autor, 1 editorial, 2 géneros, 2 libros); las sugerencias ofrecen los nombres existentes |
+| Duplicado con otra capitalización | Aviso de duplicado, sigue en el formulario con lo escrito |
+| Editar desde el detalle | Formulario relleno; al cambiar el precio el detalle muestra `$7.500,50` sin recargar |
+| Eliminar | `<dialog>` modal nativo (`:modal`), con el nombre del libro y el foco en "Cancelar"; **Escape real** lo cierra sin eliminar; se puede reabrir; confirmar elimina y vuelve a `/books` |
+| Después de eliminar | La API responde 404; el enlace directo `/books/<id>` (por nginx, recarga completa) muestra "Libro no encontrado"; en la base la fila sigue con `deleted_at` y el autor se conserva |
+| Sesión que expira durante el envío (`JWT_EXPIRES_IN=25s`, envío a los 28 s) | Lleva a `/login` con el token borrado; el libro no se guardó (0 filas) |
+| Cabecera de nginx | `Content-Security-Policy` presente |
+
+Hallazgo de método: el primer `docker compose up --build` falló en `npm ci --omit=dev` del Dockerfile del backend (error transitorio de red o del registro; la reconstrucción inmediata terminó bien). Anotado por si reaparece.
