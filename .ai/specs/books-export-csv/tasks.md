@@ -38,7 +38,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: cada escenario queda anotado.
   - Commit: `docs(books-export-csv): record the end-to-end verification`
 
-- [ ] **X-07 Verificación de la spec**
+- [x] **X-07 Verificación de la spec**
   - Recorrer X1 a X5 con evidencia nueva (lint, tipos, build, cobertura ≥ 80 % y fallando por debajo en ambas apps; `npm audit`) y registrar el resultado.
   - Commit: `docs(books-export-csv): record the spec verification`
 
@@ -102,3 +102,21 @@ Observaciones:
 - **Mi instrumentación y la CSP.** El primer intento leyó el `Blob` con `fetch(blob:...)` y la política de seguridad de la aplicación (`default-src 'self'`) lo bloqueó. Era un defecto de mi forma de medir y no de la aplicación (la descarga con enlace no usa `connect-src`); se cambió por registrar el `Blob` en `createObjectURL`.
 - **No se probó** el cuadro de guardado del sistema ni el nombre final que decide el navegador: el panel integrado no los expone. Lo que se verificó es lo que la aplicación entrega al navegador (nombre, tipo y contenido).
 - Al terminar se eliminó el stack con sus volúmenes (`docker compose down -v`).
+
+### X-07: verificación de la spec (2026-10-28)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**44 suites, 759 pruebas, 100 %**) y e2e (**9**); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**42 archivos, 646 pruebas, 100 %** en sentencias, ramas, funciones y líneas; con el umbral forzado a 101 % falla: "does not meet global threshold"); registros X-04 y X-06.
+
+| Criterio | Evidencia |
+|---|---|
+| X1.1–X1.6 | 28 pruebas HTTP con Passport real (`books-export.http.spec`): ruta, filtros y orden iguales a los del listado, 401 sin token, 400 con `page`/`limit` y con parámetros inválidos, `export` no tomado por `:id`; el e2e recorre el OpenAPI y exige 401; X-04: el CSV coincide con el listado, en el mismo orden, en 7 combinaciones |
+| X2.1–X2.5 | `book-csv.spec` y las pruebas HTTP: encabezados en español, `Sí`/`No`, precio y fechas ISO, UTF-8 con BOM (también sin filas), CRLF, comillas y saltos de línea; X-04: cada celda de 5.000 filas coincide con la base; X-06: acentos y comillas en el navegador |
+| X3.1–X3.4 | `book-csv-stream.spec` (lotes con cursor, contrapresión con prueba de control, cierre del generador al irse el cliente, fallo de la base antes y durante); X-04 con 305.000 libros: memoria +24 MB acotada, primer byte en ~250 ms, coste de lote constante, cliente lento y cliente que se va, libro eliminado entre lotes |
+| X3.5 | Inyección de fórmulas: pruebas de cada carácter peligroso; X-04: 39 celdas escapadas y 0 sin escapar; X-06: `=HYPERLINK(...)` y `+Anónimo` salen con `'` |
+| X4.1–X4.6 | `BooksPage.spec` (descarga con el nombre del servidor, filtros y orden sin página, «Exportando…» con una sola petición, error con reintento y lista intacta), `useExportBooks.spec`, `books.service.spec`, `content-disposition.spec` (rutas y caracteres de control), `download-file.spec` (enlace temporal y `revokeObjectURL`); X-06 en el navegador real |
+| X5.1–X5.4 | Suites citadas; cobertura 100 % en ambas apps; X-04 contra PostgreSQL real y X-06 con Docker y navegador |
+
+Resultado: sin criterios pendientes.
+
+Hallazgos de la verificación: (1) el cliente HTTP del frontend corta a los 15 s y una exportación de cientos de miles de libros tarda minutos: la exportación tiene su propio tiempo máximo de 10 minutos (con prueba) y la exportación en segundo plano queda como mejora futura; (2) el CSV vacío salía sin BOM y el generador de lotes quedaba abierto al irse el cliente (corregidos en X-03 con pruebas).
+
+Pendientes (no son de esta spec): `npm audit --omit=dev` del backend sigue con 5 hallazgos (3 altos y 2 moderados: `deepmerge-ts` y `js-yaml`, cuyas correcciones exigen `--force`; se evalúan en `docs-delivery`); el paquete del frontend pesa ~570 kB (aviso de Vite).
