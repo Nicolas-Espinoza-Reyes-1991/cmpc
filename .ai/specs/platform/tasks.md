@@ -31,7 +31,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: crea el usuario; es idempotente; el hash no es la contraseña en claro; error si faltan variables.
   - Commit: `feat(seed): add idempotent admin user seed`
 
-- [ ] **P-06 Filtro global de excepciones** (R4.1 a R4.5)
+- [x] **P-06 Filtro global de excepciones** (R4.1 a R4.5)
   - `HttpExceptionFilter` según la tabla de `design.md` §4.
   - Pruebas: una por fila de la tabla, más comprobar que el 500 no filtra el mensaje interno ni el stack.
   - Commit: `feat(common): add global exception filter`

@@ -77,6 +77,15 @@ Orden de configuración:
 
 Los mensajes de la API van en inglés; la interfaz los traduce a español (ver `conventions.md`).
 
+Detalles de implementación:
+- Los errores de validación se lanzan como `ValidationException` (`common/exceptions/`), que lleva `errors: FieldError[]` tipado. La `exceptionFactory` del `ValidationPipe` (P-10) debe lanzar esa excepción.
+- Un `HttpException` de Nest con un arreglo de mensajes (el `ValidationPipe` por defecto) se aplana a un solo `message` unido con `; `.
+- Cualquier otro código de Prisma (por ejemplo `P2003`) se trata como error interno 500.
+- `path` usa `request.path`, sin query string, para no devolver datos como tokens.
+- Si la respuesta ya empezó a enviarse (por ejemplo, una descarga CSV), el filtro solo la cierra.
+- Los errores 5xx se registran con su traza; los 4xx no.
+- El filtro se registra globalmente en P-10.
+
 ## 5. Interceptores
 - **`TransformInterceptor`:** transforma `{ items, meta }` en `{ data: items, meta }` y cualquier otro valor en `{ data: valor }` (R5.1). Si el handler lleva el decorador `@RawResponse()` (leído con `Reflector`), la respuesta pasa sin envolver (R5.3); lo usan CSV e imágenes.
 - **`LoggingInterceptor`:** mide la duración con `Date.now()` y escribe una línea con `Logger`: `GET /api/books 200 12ms user=<id|anonymous>`. No registra cuerpos ni cabeceras (R5.2).
