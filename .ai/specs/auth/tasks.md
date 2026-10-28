@@ -36,7 +36,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: lint, tipos, build, `test:cov` y e2e pasan.
   - Commit: `feat(auth): protect every route by default`
 
-- [ ] **A-07 Verificación del backend contra PostgreSQL real** (A8.4, parcial)
+- [x] **A-07 Verificación del backend contra PostgreSQL real** (A8.4, parcial)
   - Con la base de desarrollo y el administrador sembrado, contra el backend compilado: login correcto; contraseña errónea y correo inexistente (misma respuesta; tiempos comparables); `me` con el token; sin token; token alterado; token expirado (con `JWT_EXPIRES_IN` de pocos segundos); el sexto intento de login da 429; el contenedor de Docker responde igual.
   - Hecho cuando: los resultados quedan anotados en el registro de verificación de este archivo.
 
@@ -81,3 +81,30 @@ Marcar con `[x]` al terminar.
 
 ## Registro de verificación
 (Se completa en A-07, A-13 y A-14.)
+
+### A-07: backend contra PostgreSQL real (2026-10-27)
+Entorno: Windows 11, Docker Desktop, Node 22.22. Parte 1 con el backend compilado (`node dist/main`) contra el PostgreSQL de desarrollo y el administrador sembrado; parte 2 con el stack de Docker (`docker compose up --build`) a través de nginx.
+
+| Comprobación | Backend compilado | Docker (por nginx) |
+|---|---|---|
+| Login correcto: respuesta `data` con `accessToken`, `tokenType`, `expiresAt` y `user`; token con solo `exp`, `iat`, `sub`; sin hash ni contraseña | 200, cumple | 200, cumple |
+| Contraseña errónea y correo inexistente: misma respuesta (sin el `timestamp`) | idénticas | idénticas |
+| Tiempos, 12 intentos de cada caso | mediana 290 ms (existente) frente a 285 ms (inexistente), 1,7% de diferencia, medido con `curl` | no repetido (se mide en A-03: 86 ms frente a 82 ms, y 2 ms sin el hash de relleno) |
+| `/auth/me` con token, sin token, basura, payload alterado, `alg: none` y esquema Basic | 200, 401, 401, 401, 401, 401 | 200 y 401 (sin token y basura) |
+| Token con vida de 6 s (`JWT_EXPIRES_IN=6s`): recién emitido y 7 s después | 200 y 401; la respuesta no menciona "expired" ni "jwt" | 200 y 401; ídem |
+| Límite: 5 intentos pasan y el sexto da 429 con `Retry-After: 60` y el mensaje `Too many requests` | cumple | cumple |
+| Con la contraseña correcta desde la IP bloqueada | 429 (el límite es por IP) | 429 |
+| Otra IP no queda bloqueada; `/auth/me` no cuenta para el límite | 200 y 200 | `/auth/me` 200 |
+| Falsear `X-Forwarded-For` (`9.9.9.9`, `1.1.1.1, 2.2.2.2`, `203.0.113.50`) para escapar del límite | prefijo falso ignorado (prueba HTTP) | los tres siguen en 429: gana la dirección que añade nginx |
+| Contraprueba: llegando **directo** al backend con `X-Forwarded-For` propio | n/a | 200 (el cliente sí elige su IP; por eso el puerto solo se publica en `127.0.0.1`) |
+| Usuario eliminado después de iniciar sesión | `/auth/me` con el mismo token da 401; el login también | n/a |
+| Caída real de PostgreSQL con un token válido | `/auth/me` y login 500, `/health` 503, token inválido 401; vuelve a 200 en ~2 s con el mismo token y sin reiniciar | idéntico (500, 503, 401, recuperación en ~2 s) |
+| Logs: contraseñas, hash `argon2` y tokens | 0 apariciones | 0 en el backend y 0 en nginx |
+| Log de acceso | `GET /api/auth/me 200 5ms user=<id>`; las peticiones rechazadas salen con `user=anonymous` | ídem |
+
+Resultado: **todo cumple**. Cubre los criterios A1.1 a A1.3, A1.6, A2.1 a A2.3, A3.1 a A3.4, A4.1 a A4.3 y A5.4 (parte del servidor).
+
+Hallazgos de esta verificación:
+- Ningún defecto nuevo. El único defecto de la spec auth se encontró en A-04 con una prueba automática (los errores de base de datos se convertían en 401) y aquí queda comprobado en el sistema real: una caída de la base da 500, no 401, de modo que el frontend no cerraría las sesiones.
+- Un usuario temporal creado para la prueba del usuario eliminado se borró; la base de desarrollo quedó con su único usuario.
+- La compilación de las imágenes con las dependencias de auth tardó 253 s (instalación en frío); es un costo de una sola vez.
