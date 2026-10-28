@@ -9,6 +9,11 @@ describe('PrismaService', () => {
     service = new PrismaService();
   });
 
+  it('offers a live client that shares the connection settings', () => {
+    expect(service.live).toBeDefined();
+    expect(service.live).not.toBe(service);
+  });
+
   it('connects when the module initializes', async () => {
     const connect = jest.spyOn(service, '$connect').mockResolvedValue();
 
