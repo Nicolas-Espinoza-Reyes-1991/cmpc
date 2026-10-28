@@ -16,7 +16,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: un lote, varios lotes con el cursor, lote exacto de 500, vacío, mismos filtros y orden que el listado, `id` como último criterio, el generador no pide más lotes si el consumidor se detiene.
   - Commit: `feat(books): add batched reading of the books to export`
 
-- [ ] **X-03 Endpoint** (X1.1, X1.3, X1.5, X1.6, X3.3, X3.4)
+- [x] **X-03 Endpoint** (X1.1, X1.3, X1.5, X1.6, X3.3, X3.4)
   - `GET /api/books/export` con `@RawResponse()`, cabeceras, tubería `Readable.from` → `fast-csv` → respuesta con `pipeline`, Swagger y manejo de errores y cierres.
   - Pruebas HTTP con Passport real que leen y analizan el CSV recibido (encabezado, BOM, filas, comillas, saltos de línea, acentos, fórmulas escapadas, cabeceras, 401, 400, vacío, `export` no tomada por `:id`, error a mitad, cierre del cliente).
   - Commit: `feat(books): add the CSV export endpoint`

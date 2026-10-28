@@ -24,8 +24,8 @@ Formato: CUANDO <evento>, EL SISTEMA DEBERÁ <respuesta>. Cada criterio es verif
 ## X2. Contenido del CSV
 - X2.1 La primera fila DEBERÁ ser el encabezado en español: `ID`, `Título`, `Autor`, `Editorial`, `Género`, `Precio`, `Disponible`, `Registrado`, `Actualizado`.
 - X2.2 Cada libro DEBERÁ ocupar una fila con: su id; título, autor, editorial y género como texto; `Precio` como número con punto decimal y sin símbolo ni separador de miles (`12990.5`); `Disponible` como `Sí` o `No`; y las fechas en ISO 8601 (UTC).
-- X2.3 EL SISTEMA DEBERÁ seguir RFC 4180: separador coma, fin de línea CRLF, y comillas dobles para los campos que contengan comas, comillas, saltos de línea o espacios en los extremos, duplicando las comillas internas.
-- X2.4 EL SISTEMA DEBERÁ empezar el archivo con la marca BOM de UTF-8 para que Excel interprete bien los acentos y la `ñ`.
+- X2.3 EL SISTEMA DEBERÁ seguir RFC 4180: separador coma, fin de línea CRLF, y comillas dobles para los campos que contengan comas, comillas o saltos de línea, duplicando las comillas internas (los textos se guardan sin espacios en los extremos, por lo que no hace falta entrecomillarlos por eso).
+- X2.4 EL SISTEMA DEBERÁ empezar el archivo con la marca BOM de UTF-8 para que Excel interprete bien los acentos y la `ñ`. Esto DEBERÁ cumplirse también cuando no haya libros (el encabezado lleva acentos).
 - X2.5 **Inyección de fórmulas.** CUANDO una celda de texto empiece con `=`, `+`, `-`, `@`, tabulador o retorno de carro, EL SISTEMA DEBERÁ anteponerle una comilla simple (`'`) para que una hoja de cálculo no la ejecute como fórmula (`conventions.md`). Las celdas numéricas y de fecha no se tocan.
 - X2.6 EL SISTEMA NO DEBERÁ incluir la URL de la portada, `deletedAt` ni ningún dato interno.
 

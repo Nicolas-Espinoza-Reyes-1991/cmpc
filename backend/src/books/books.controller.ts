@@ -10,11 +10,15 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Logger,
   Query,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import { pipeline } from 'node:stream/promises';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -27,13 +31,22 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiPayloadTooLargeResponse,
+  ApiProduces,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { RawResponse } from '../common/decorators/raw-response.decorator';
 import type { PaginatedResult } from '../common/types/api-response.types';
 import { BooksService } from './books.service';
+import { csvFileName } from './export/book-csv';
+import {
+  bookCsvRows,
+  createBomWriter,
+  createCsvFormatter,
+} from './export/book-csv-stream';
 import { BookDto } from './dto/book.dto';
 import { CreateBookDto } from './dto/create-book.dto';
+import { ExportBooksQueryDto } from './dto/export-books-query.dto';
 import { ListBooksQueryDto } from './dto/list-books-query.dto';
 import { PaginatedBooksDto } from './dto/paginated-books.dto';
 import {
@@ -52,6 +65,8 @@ import { UpdateBookDto } from './dto/update-book.dto';
 @ApiUnauthorizedResponse({ description: 'Missing, invalid or expired token.' })
 @Controller('books')
 export class BooksController {
+  private readonly logger = new Logger(BooksController.name);
+
   constructor(private readonly books: BooksService) {}
 
   @Post()
@@ -82,6 +97,60 @@ export class BooksController {
   })
   list(@Query() query: ListBooksQueryDto): Promise<PaginatedResult<BookDto>> {
     return this.books.findAll(query);
+  }
+
+  /**
+   * Declared before `GET :id`, or `export` would be read as a book id.
+   *
+   * The file is streamed: the books are read in batches and written as they
+   * arrive, so memory does not grow with the number of books. The first batch
+   * is read before any header is sent, so a database failure at the start is a
+   * normal error response. A failure later, or the client closing the
+   * connection, aborts the transfer (`pipeline` closes every stage, which also
+   * stops reading the database).
+   */
+  @Get('export')
+  @RawResponse()
+  @ApiOperation({
+    summary: 'Export books to CSV',
+    description:
+      'Every active book that matches the filters, in the order of the listing, as a CSV file (RFC 4180, UTF-8 with a byte order mark, comma separated, Spanish headers). It accepts the filters and `sort` of the listing and no pagination. Text that a spreadsheet could read as a formula is prefixed with a quote.',
+  })
+  @ApiProduces('text/csv')
+  @ApiOkResponse({
+    description: 'The CSV file, sent as an attachment.',
+    content: { 'text/csv': { schema: { type: 'string' } } },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid filters or order, or `page` / `limit`, which the export does not take.',
+  })
+  async exportCsv(
+    @Query() query: ExportBooksQueryDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const batches = this.books.exportRows(query);
+    const first = await batches.next();
+
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${csvFileName(new Date())}"`,
+      // An inventory report should not be kept by a shared cache.
+      'Cache-Control': 'no-store',
+    });
+
+    try {
+      await pipeline(
+        bookCsvRows(first, batches),
+        createCsvFormatter(),
+        createBomWriter(),
+        res,
+      );
+    } catch (error) {
+      // Headers are already sent: the transfer was aborted (the client left, or
+      // the database failed halfway). Nothing internal goes to the client.
+      this.logger.warn(`CSV export aborted: ${String(error)}`);
+    }
   }
 
   @Get(':id')
