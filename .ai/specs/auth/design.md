@@ -76,7 +76,9 @@ Detalles de implementación de `AuthService` (A-03):
 - Extrae el token de `Authorization: Bearer`, con `ignoreExpiration: false` y `algorithms: ['HS256']` (A2.2).
 - `validate({ sub })`: si `sub` no es texto, o `UsersService.findById(sub)` no encuentra al usuario, lanza `UnauthorizedException`. Devuelve `{ id, email }` (`AuthenticatedUser`), que Passport deja en `request.user` (A3.3).
 
-**`JwtAuthGuard`** extiende `AuthGuard('jwt')`; en `canActivate` consulta con `Reflector` si la ruta lleva `IS_PUBLIC_KEY` (decorador `@Public()` de `platform`) y, en ese caso, deja pasar. Se registra con `APP_GUARD` en `AuthModule`. Cualquier fallo se convierte en un 401 genérico (se descarta el motivo, como "jwt expired", para no revelarlo).
+**`JwtAuthGuard`** extiende `AuthGuard('jwt')`; en `canActivate` consulta con `Reflector` si la ruta lleva `IS_PUBLIC_KEY` (decorador `@Public()` de `platform`) y, en ese caso, deja pasar. Se registra con `APP_GUARD` en `AuthModule`. Los problemas del token (cabecera ausente, expirado, firma inválida) llegan a `handleRequest` como "no hay usuario" y, igual que un usuario inexistente, producen el mismo 401 genérico: el motivo (por ejemplo "jwt expired") no se revela.
+
+**Los errores de infraestructura no se convierten en 401.** Si `validate` lanza algo que no es un 401 (por ejemplo, la base de datos caída), `handleRequest` lo relanza intacto y llega al filtro como un 500. La primera versión del guard hacía `if (err || !user) throw 401`; una prueba HTTP lo detectó: una caída de la base de datos se veía como una sesión expirada y, como el frontend cierra la sesión ante cualquier 401, **habría deslogueado a todos los usuarios durante la caída**. Solo "no hay usuario" es un 401. Se comprobó con una caída real de PostgreSQL (el error `PrismaClientInitializationError` llega al guard y se queda en 500).
 
 **`@CurrentUser()`**: decorador de parámetro que devuelve `request.user` tipado como `AuthenticatedUser`.
 

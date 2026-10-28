@@ -21,7 +21,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: contraseña correcta devuelve token, `tokenType`, `expiresAt` y usuario; contraseña errónea y correo inexistente dan el mismo `UnauthorizedException('Invalid credentials')`; con correo inexistente se verifica igualmente contra el hash de relleno; el token contiene solo `sub`, `iat` y `exp`; el resultado nunca incluye el hash.
   - Commit: `feat(auth): add credential validation and token signing`
 
-- [ ] **A-04 Estrategia, guard global y decorador** (A2.2, A2.3, A3.1 a A3.3, A3.5)
+- [x] **A-04 Estrategia, guard global y decorador** (A2.2, A2.3, A3.1 a A3.3, A3.5)
   - `JwtStrategy` (solo HS256, consulta al usuario), `JwtAuthGuard` (respeta `@Public()`) y `@CurrentUser()`.
   - Pruebas: usuario existente devuelve `{ id, email }`; usuario ausente y `sub` inválido dan 401; ruta pública pasa sin token; ruta sin `@Public()` exige token; el decorador devuelve `request.user`.
   - Commit: `feat(auth): add JWT strategy, global guard and current user decorator`
