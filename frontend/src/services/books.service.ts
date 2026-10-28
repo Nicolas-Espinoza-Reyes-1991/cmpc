@@ -1,5 +1,6 @@
 import { apiClient } from '../lib/api-client';
-import { toApiQuery } from '../lib/book-list-params';
+import { toApiQuery, toExportQuery } from '../lib/book-list-params';
+import { fileNameFromDisposition } from '../lib/content-disposition';
 import type { ApiResponse } from '../types/api';
 import type {
   Book,
@@ -83,4 +84,38 @@ export async function deleteBookImage(id: string): Promise<Book> {
     `/books/${encodeURIComponent(id)}/image`,
   );
   return response.data.data;
+}
+
+/**
+ * A big export takes minutes (300,000 books took one to five in the
+ * measurements), far more than the 15 s every other request gets.
+ */
+export const EXPORT_TIMEOUT_MS = 10 * 60_000;
+
+export interface CsvExport {
+  blob: Blob;
+  fileName: string;
+}
+
+/**
+ * Every book that matches the filters and the order of the view, as a CSV
+ * file. The page is not sent: the file is not paginated. `Authorization`
+ * travels in the header, which is why this is a request and not a link.
+ */
+export async function exportBooksCsv(
+  params: BookListParams,
+): Promise<CsvExport> {
+  const response = await apiClient.get<Blob>('/books/export', {
+    params: toExportQuery(params),
+    responseType: 'blob',
+    timeout: EXPORT_TIMEOUT_MS,
+    headers: { Accept: 'text/csv' },
+  });
+  return {
+    blob: response.data,
+    fileName: fileNameFromDisposition(
+      // Axios types headers as `any`-ish values; a header is a string or absent.
+      response.headers['content-disposition'] as string | undefined,
+    ),
+  };
 }

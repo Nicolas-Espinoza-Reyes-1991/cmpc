@@ -27,7 +27,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-export-csv): record the backend verification`
 
 ## Frontend
-- [ ] **X-05 Servicio, utilidades y botón** (X4.1 a X4.6, X5.2)
+- [x] **X-05 Servicio, utilidades y botón** (X4.1 a X4.6, X5.2)
   - `exportBooksCsv`, `fileNameFromDisposition`, `saveBlob`, `useExportBooks` y el botón «Exportar CSV» en `BooksPage`.
   - Pruebas: parámetros sin `page`/`limit`; nombre de la cabecera y el de respaldo; recorte de rutas; descarga con enlace temporal y `revokeObjectURL`; botón con filtros vigentes, «Exportando…», una descarga a la vez, error con reintento y listado intacto.
   - Commit: `feat(frontend): add the CSV export button to the books page`

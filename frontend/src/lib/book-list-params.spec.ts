@@ -9,6 +9,7 @@ import {
   parseSortParam,
   readParams,
   toApiQuery,
+  toExportQuery,
   writeParams,
 } from './book-list-params';
 
@@ -209,6 +210,43 @@ describe('toApiQuery', () => {
     expect(
       toApiQuery({ ...DEFAULT_PARAMS, availability: false }).availability,
     ).toBe(false);
+  });
+});
+
+describe('toExportQuery', () => {
+  it('sends the filters and the order, never the page or the size', () => {
+    const query = toExportQuery({
+      page: 3,
+      limit: 50,
+      search: 'dune',
+      author: 'herb',
+      publisher: 'ace',
+      genre: 'novela',
+      availability: false,
+      sort: sort(['genre', 'asc'], ['price', 'desc']),
+    });
+
+    expect(query).toEqual({
+      search: 'dune',
+      author: 'herb',
+      publisher: 'ace',
+      genre: 'novela',
+      availability: false,
+      sort: 'genre:asc,price:desc',
+    });
+    expect(query).not.toHaveProperty('page');
+    expect(query).not.toHaveProperty('limit');
+  });
+
+  it('leaves out what is empty', () => {
+    expect(toExportQuery(DEFAULT_PARAMS)).toEqual({
+      search: undefined,
+      author: undefined,
+      publisher: undefined,
+      genre: undefined,
+      availability: undefined,
+      sort: undefined,
+    });
   });
 });
 
