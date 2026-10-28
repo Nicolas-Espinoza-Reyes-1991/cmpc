@@ -172,6 +172,62 @@ describe('HttpExceptionFilter', () => {
     });
   });
 
+  describe('client errors thrown by Express middleware', () => {
+    function withStatus(status: unknown, message: string): Error {
+      return Object.assign(new Error(message), { status });
+    }
+
+    it.each([
+      [413, 'Payload Too Large'],
+      [400, 'Bad Request'],
+    ])('keeps the %i status with its standard reason', (code, reason) => {
+      const { host, status, json } = createHost();
+
+      filter.catch(withStatus(code, 'Unexpected token } at position 5'), host);
+
+      expect(status).toHaveBeenCalledWith(code);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: reason }),
+      );
+      expect(logError).not.toHaveBeenCalled();
+    });
+
+    it('never echoes the original message, which may contain the payload', () => {
+      const { host, json } = createHost();
+
+      filter.catch(withStatus(400, 'password hunter2 is not valid JSON'), host);
+
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Bad Request' }),
+      );
+    });
+
+    it('falls back to Bad Request for a status without a standard phrase', () => {
+      const { host, json } = createHost();
+
+      filter.catch(withStatus(499, 'client closed'), host);
+
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ statusCode: 499, message: 'Bad Request' }),
+      );
+    });
+
+    it.each([
+      ['a non numeric status', 'oops'],
+      ['a redirect status', 302],
+      ['a server error status', 502],
+    ])('does not treat an error with %s as a client error', (_label, value) => {
+      const { host, status, json } = createHost();
+
+      filter.catch(withStatus(value, 'upstream detail'), host);
+
+      expect(status).toHaveBeenCalledWith(500);
+      expect(json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Internal server error' }),
+      );
+    });
+  });
+
   describe('unexpected errors', () => {
     it('answers a generic 500 and never leaks internals', () => {
       const { host, status, json } = createHost();

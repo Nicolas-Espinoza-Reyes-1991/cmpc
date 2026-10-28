@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
+import { STATUS_CODES } from 'node:http';
 import {
   FieldError,
   ValidationException,
@@ -30,6 +31,24 @@ interface ErrorDetails {
 
 const INTERNAL_ERROR_MESSAGE = 'Internal server error';
 const FIRST_SERVER_ERROR_STATUS = 500;
+const FIRST_CLIENT_ERROR_STATUS = 400;
+
+/**
+ * Express middleware such as body-parser throws plain errors that carry a
+ * `status` (e.g. 413 for an oversized body). They are the client's fault, so
+ * they must not turn into a 500.
+ */
+function isClientHttpError(
+  error: unknown,
+): error is Error & { status: number } {
+  return (
+    error instanceof Error &&
+    'status' in error &&
+    typeof error.status === 'number' &&
+    error.status >= FIRST_CLIENT_ERROR_STATUS &&
+    error.status < FIRST_SERVER_ERROR_STATUS
+  );
+}
 
 /**
  * Catches everything and answers with the same error shape. Internal details
@@ -86,6 +105,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       const mapped = this.fromPrismaCode(exception.code);
       if (mapped) return mapped;
+    }
+
+    if (isClientHttpError(exception)) {
+      return {
+        statusCode: exception.status,
+        // The standard reason phrase: the original message may echo the payload.
+        message: STATUS_CODES[exception.status] ?? 'Bad Request',
+      };
     }
 
     return {

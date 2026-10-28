@@ -51,7 +51,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: 200 con la base disponible; 503 cuando `$queryRaw` falla.
   - Commit: `feat(health): add health endpoint`
 
-- [ ] **P-10 Arranque de la aplicación** (R2, R4.2, R4.4, R6, R9)
+- [x] **P-10 Arranque de la aplicación** (R2, R4.2, R4.4, R6, R9)
   - `main.ts` en el orden de `design.md` §3, `ValidationPipe` con `exceptionFactory` (extraída a una función exportada y probada), Swagger base, `helmet`, CORS, límite de cuerpo y shutdown hooks.
   - Pruebas: la función `exceptionFactory` produce el arreglo `errors` con campo y mensajes.
   - Hecho cuando: `npm run start` con una base local responde en `/api/health` y muestra Swagger en `/api/docs`.

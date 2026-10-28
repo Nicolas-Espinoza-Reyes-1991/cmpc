@@ -65,6 +65,15 @@ Orden de configuración:
 8. Swagger en `/api/docs`, configurado con `DocumentBuilder` y `addBearerAuth` (R6.5).
 9. `listen(PORT, '0.0.0.0')`.
 
+Implementación:
+- Los pasos 2 a 6 y 8 viven en `configureApp(app)` (`src/app.setup.ts`), no en `main.ts`, para que las pruebas arranquen la aplicación exactamente como producción. `main.ts` solo crea la aplicación, llama a `configureApp`, activa `enableShutdownHooks()` y escucha en `PORT`.
+- `helmet` se aplica con su política de seguridad de contenido (CSP) por defecto a la API; las rutas `/api/docs*` reciben el resto de encabezados de `helmet` pero sin CSP, porque bloquearía los scripts de Swagger UI.
+- CORS acepta solo los orígenes de `CORS_ORIGIN` y expone `Content-Disposition` para que el navegador lea el nombre del CSV.
+- `ValidationPipe` usa `validationExceptionFactory` (`common/validation/`), que convierte el árbol de `class-validator` en `FieldError[]` y usa ruta con puntos para propiedades anidadas.
+- Swagger: título "CMPC Libros API", autenticación `bearer`, UI en `/api/docs` y JSON en `/api/docs-json`.
+- Se retiró el controlador y servicio "Hello World" que genera Nest.
+- El cierre ordenado (R6.4) depende de `enableShutdownHooks()`; las señales no se pueden probar en Windows, así que se comprueba al ejecutar Docker en P-16.
+
 ## 4. Manejo de errores
 `HttpExceptionFilter` (`@Catch()` sin argumentos) normaliza todo error al formato de R4.1:
 
@@ -74,6 +83,7 @@ Orden de configuración:
 | `ValidationPipe` | 400 | `Validation failed`, con `errors: [{ field, messages[] }]` |
 | `PrismaClientKnownRequestError` `P2025` | 404 | `Resource not found` |
 | `PrismaClientKnownRequestError` `P2002` | 409 | `Resource already exists` |
+| Error de middleware de Express con `status` 4xx (cuerpo mayor de 100 KB: 413) | el suyo | frase HTTP estándar (`Payload Too Large`); nunca el mensaje original, que puede reflejar el contenido enviado |
 | Cualquier otro | 500 | `Internal server error` (detalle solo en el log, R4.3) |
 
 Los mensajes de la API van en inglés; la interfaz los traduce a español (ver `conventions.md`).
