@@ -2,11 +2,11 @@ import { Controller, Get, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
-  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ApiDataResponse } from '../common/swagger/api-data-response.decorator';
 import { CatalogService } from './catalog.service';
 import { CatalogItemDto } from './dto/catalog-item.dto';
 import { CatalogQueryDto } from './dto/catalog-query.dto';
@@ -25,21 +25,30 @@ export class CatalogController {
 
   @Get('authors')
   @ApiOperation({ summary: 'List authors by name' })
-  @ApiOkResponse({ type: CatalogItemDto, isArray: true })
+  @ApiDataResponse(CatalogItemDto, {
+    description: 'The matching names, in `data`.',
+    isArray: true,
+  })
   authors(@Query() query: CatalogQueryDto): Promise<CatalogItemDto[]> {
     return this.catalog.list('author', query);
   }
 
   @Get('publishers')
   @ApiOperation({ summary: 'List publishers by name' })
-  @ApiOkResponse({ type: CatalogItemDto, isArray: true })
+  @ApiDataResponse(CatalogItemDto, {
+    description: 'The matching names, in `data`.',
+    isArray: true,
+  })
   publishers(@Query() query: CatalogQueryDto): Promise<CatalogItemDto[]> {
     return this.catalog.list('publisher', query);
   }
 
   @Get('genres')
   @ApiOperation({ summary: 'List genres by name' })
-  @ApiOkResponse({ type: CatalogItemDto, isArray: true })
+  @ApiDataResponse(CatalogItemDto, {
+    description: 'The matching names, in `data`.',
+    isArray: true,
+  })
   genres(@Query() query: CatalogQueryDto): Promise<CatalogItemDto[]> {
     return this.catalog.list('genre', query);
   }

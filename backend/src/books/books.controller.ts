@@ -25,7 +25,6 @@ import {
   ApiBody,
   ApiConsumes,
   ApiConflictResponse,
-  ApiCreatedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -37,6 +36,7 @@ import {
 } from '@nestjs/swagger';
 import type { AuditActor } from '../audit/audit.types';
 import { Actor } from '../common/decorators/actor.decorator';
+import { ApiDataResponse } from '../common/swagger/api-data-response.decorator';
 import { RawResponse } from '../common/decorators/raw-response.decorator';
 import type { PaginatedResult } from '../common/types/api-response.types';
 import { BooksService } from './books.service';
@@ -77,7 +77,10 @@ export class BooksController {
     description:
       'Author, publisher and genre are given by name and created when they do not exist.',
   })
-  @ApiCreatedResponse({ type: BookDto })
+  @ApiDataResponse(BookDto, {
+    description: 'The registered book, in `data`.',
+    status: HttpStatus.CREATED,
+  })
   @ApiBadRequestResponse({ description: 'Invalid body (errors per field).' })
   @ApiConflictResponse({
     description:
@@ -96,7 +99,10 @@ export class BooksController {
     description:
       'Filtered, ordered and paginated on the server. The answer is `{ data, meta: { page, limit, total } }`.',
   })
-  @ApiOkResponse({ type: PaginatedBooksDto })
+  @ApiOkResponse({
+    type: PaginatedBooksDto,
+    description: 'One page of books in `data` and the totals in `meta`.',
+  })
   @ApiBadRequestResponse({
     description: 'Invalid query parameters (errors per field).',
   })
@@ -160,7 +166,7 @@ export class BooksController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get one book' })
-  @ApiOkResponse({ type: BookDto })
+  @ApiDataResponse(BookDto, { description: 'The book, in `data`.' })
   @ApiBadRequestResponse({ description: '`id` is not a UUID.' })
   @ApiNotFoundResponse({ description: 'No active book with that id.' })
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<BookDto> {
@@ -172,7 +178,7 @@ export class BooksController {
     summary: 'Change some fields of a book',
     description: 'Send only the fields to change; at least one is required.',
   })
-  @ApiOkResponse({ type: BookDto })
+  @ApiDataResponse(BookDto, { description: 'The book, in `data`.' })
   @ApiBadRequestResponse({
     description: 'Invalid or empty body, or `id` is not a UUID.',
   })
@@ -205,7 +211,7 @@ export class BooksController {
       properties: { [IMAGE_FIELD]: { type: 'string', format: 'binary' } },
     },
   })
-  @ApiOkResponse({ type: BookDto })
+  @ApiDataResponse(BookDto, { description: 'The book, in `data`.' })
   @ApiBadRequestResponse({
     description:
       'No file, more than one, another field, or the content is not a JPEG, PNG or WebP image; or `id` is not a UUID.',
@@ -230,7 +236,7 @@ export class BooksController {
     summary: 'Remove the cover image of a book',
     description: 'A book without a cover is returned unchanged.',
   })
-  @ApiOkResponse({ type: BookDto })
+  @ApiDataResponse(BookDto, { description: 'The book, in `data`.' })
   @ApiBadRequestResponse({ description: '`id` is not a UUID.' })
   @ApiNotFoundResponse({ description: 'No active book with that id.' })
   removeImage(

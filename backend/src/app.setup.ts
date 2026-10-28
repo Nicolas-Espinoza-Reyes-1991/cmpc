@@ -44,7 +44,9 @@ function setupSwagger(app: NestExpressApplication): void {
     app,
     new DocumentBuilder()
       .setTitle('CMPC Libros API')
-      .setDescription('Inventory API of the CMPC-libros bookstore')
+      .setDescription(
+        'Inventory API of the CMPC-libros bookstore. To try the protected routes, call POST /api/auth/login, press Authorize and paste the accessToken it returns.',
+      )
       .setVersion('1.0')
       .addBearerAuth()
       .build(),

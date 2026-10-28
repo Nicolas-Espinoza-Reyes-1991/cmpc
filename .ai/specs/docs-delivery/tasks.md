@@ -9,7 +9,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `npm audit --omit=dev` da 0 en ambas apps, y `prisma validate`, `migrate status`, `generate`, build, pruebas y e2e pasan.
   - Commit: `fix(deps): override the vulnerable transitive dependencies of Prisma and Swagger`
 
-- [ ] **D-02 Documentación de la API** (D2.1 a D2.3)
+- [x] **D-02 Documentación de la API** (D2.1 a D2.3)
   - Revisar el documento OpenAPI real; completar lo que falte (resúmenes, respuestas, esquemas, seguridad); añadir `openapi.spec`, la prueba que exige resumen y respuesta de éxito en cada operación.
   - Hecho cuando: la prueba pasa y falla si se quita un resumen (mutación), y Swagger UI muestra todo en el navegador con *Authorize*.
   - Commit: `docs(api): complete the OpenAPI document and guard it with a test`
