@@ -106,7 +106,7 @@ docker compose up -d db     # PostgreSQL en localhost:5442
 # Backend (http://localhost:3000)
 cd backend
 npm ci
-npx prisma migrate dev      # aplica las migraciones y genera el cliente
+npm run prisma:migrate      # aplica las migraciones y genera el cliente
 npm run seed                # crea el administrador de .env
 npm run start:dev
 
@@ -116,7 +116,7 @@ npm ci
 npm run dev                 # Vite reenvía /api al backend
 ```
 
-El backend lee `backend/.env` o el `.env` de la raíz; `DATABASE_URL` de `.env.example` ya apunta a la base del paso anterior.
+El backend, el seed y los *scripts* `prisma:*` leen el `.env` de la raíz (o `backend/.env`); `DATABASE_URL` de `.env.example` ya apunta a la base del paso anterior. Si cambiaste `POSTGRES_PASSWORD`, pon la misma contraseña en `DATABASE_URL`.
 
 | Comando | Backend (`backend/`) | Frontend (`frontend/`) |
 |---|---|---|
@@ -125,7 +125,7 @@ El backend lee `backend/.env` o el `.env` de la raíz; `DATABASE_URL` de `.env.e
 | Pruebas e2e | `npm run test:e2e` | — |
 | Lint | `npm run lint` | `npm run lint` |
 | Build | `npm run build` | `npm run build` |
-| Migraciones | `npx prisma migrate dev` / `npx prisma migrate deploy` | — |
+| Migraciones | `npm run prisma:migrate` (desarrollo) / `npm run prisma:deploy` (producción) | — |
 
 ---
 
@@ -140,7 +140,7 @@ El backend lee `backend/.env` o el `.env` de la raíz; `DATABASE_URL` de `.env.e
 6. **Exportar CSV**: el botón del listado descarga **todos** los libros que cumplen los filtros y el orden actuales (no solo la página visible). El archivo abre bien en Excel (UTF-8 con BOM). Si el valor de una celda empezara como una fórmula (`=`, `+`, `-`, `@`), se escapa para que la hoja de cálculo no la ejecute.
 
 ### Con la API
-Referencia completa e interactiva en <http://localhost:8080/api/docs> (botón **Authorize**: pega el `accessToken` del login).
+Referencia completa e interactiva en <http://localhost:8080/api/docs> (botón **Authorize**: pega el `accessToken` del login). Los ejemplos son de bash (en Windows, Git Bash o WSL; si un acento sale mal, es la codificación de la consola, no la API).
 
 ```bash
 BASE=http://localhost:8080/api
