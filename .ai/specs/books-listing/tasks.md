@@ -37,7 +37,7 @@ Marcar con `[x]` al terminar.
   - Commit: `feat(frontend): add the books table with filters, sorting and pagination`
 
 ## Integración y cierre
-- [ ] **L-07 Verificación de punta a punta** (L6.4)
+- [x] **L-07 Verificación de punta a punta** (L6.4)
   - Docker y navegador real con varios libros: búsqueda con espera, filtros, orden múltiple, paginación, recarga, «Atrás» y enlace compartido.
   - Hecho cuando: cada escenario queda anotado.
   - Commit: `docs(books-listing): record the end-to-end verification`
@@ -67,3 +67,27 @@ Entorno: PostgreSQL 16 del contenedor de desarrollo; base **nueva** migrada con 
 Tiempos con 304.877 libros (incluyen conteo y página): título raro `a1b2c3d4` (trigrama) **10 ms**; autor + editorial + género **113 ms**; orden `genre:asc,price:desc` en la página 100 **205 ms**; disponibilidad + `price:desc` en la página 500 **231 ms**; orden por defecto **418 ms** y búsqueda del texto más común (`relleno`, 300.000 coincidencias) **542 ms**. El conteo recorre todas las filas que cumplen el filtro, así que el costo crece con el tamaño del resultado, no con la página. Es holgado para el tamaño de una tienda; con millones de libros se resolvería con un conteo estimado o paginación por cursor (anotado como mejora futura en `design.md` §5).
 
 Hallazgo de método: una de mis comprobaciones daba `false` para el orden por precio y título. Era un error de la comprobación (comparé títulos con el orden de JavaScript, no con la colación de la base); contra el mismo `ORDER BY` en SQL el resultado coincide. El código no cambió.
+
+### L-07: recorrido de punta a punta con Docker y navegador real (2026-10-29)
+Entorno: `docker compose up` (db, backend y frontend sanos), navegador integrado, administrador sembrado y **37 libros creados por la API real** (5 autores, 3 editoriales, 4 géneros, 4 precios que empatan). Se comprobó leyendo el DOM, las peticiones XHR reales y la base. Al terminar se borraron los datos y se detuvo el stack.
+
+| Escenario | Resultado |
+|---|---|
+| Abrir `/books` | "37 resultados", "Página 1 de 4", 10 filas, lo más nuevo primero; todas las columnas con `aria-sort="none"` |
+| Escribir `cien años` letra a letra (70 ms entre teclas) | **0 peticiones mientras se escribe y 1 tras la pausa** (`search=cien+años`); la URL pasa a `?q=cien+años` y a los ~1 s la tabla muestra "1 resultado" |
+| Autor `allende` | Una petición `author=allende`; 8 resultados; URL `?author=allende` |
+| Disponibilidad "Disponibles" sobre el filtro anterior | Una petición con `author` y `availability=true`; 5 resultados |
+| Orden: Género, luego Precio dos veces | URL `?sort=genre:asc,price:desc`; encabezados `Género↑1` (ascending) y `Precio↓2` (descending); el orden de la página verificado fila a fila en el DOM |
+| «Quitar orden» | Sin orden en la URL ni en los encabezados; vuelve lo más nuevo primero |
+| Paginación | Siguiente → `?page=2` (10 filas); hasta la página 4 (7 filas) con "Siguiente" deshabilitado; "Anterior" deshabilitado en la 1 |
+| Tamaño de página 20 desde la página 4 | Vuelve a la 1: "Página 1 de 2", 20 filas, `?limit=20` |
+| Botón Atrás del navegador | Vuelve a la vista anterior (`?page=4`) |
+| `/books?page=99` | Muestra la última página ("Página 4 de 4", 7 filas) y reemplaza la URL por `?page=4` |
+| `/books?page=0&limit=7&sort=foo:asc&availability=maybe` | Vista por defecto (37 resultados, 10 filas, tamaño 10), sin error |
+| Abrir un libro de la lista y eliminarlo | Al volver a `/books` el conteo baja a 36 sin recargar |
+| Registrar un libro nuevo | Al volver al listado el conteo sube a 37 y el nuevo libro aparece primero, sin recargar |
+
+**Hallazgos de la verificación real**
+- La primera carga mostró "No se encontró el recurso solicitado": la **imagen de Docker del backend estaba desactualizada** (solo había reconstruido el frontend y el endpoint del listado es posterior). Se reconstruyó con `docker compose build backend` y funcionó. Conclusión de método: tras cambiar el backend hay que reconstruir su imagen; `docker compose up --build` lo hace siempre.
+- Un instante de la búsqueda mostraba aún 37 resultados: era una captura mía antes de que llegara la respuesta; midiendo cada 200 ms la tabla pasó a 1 resultado a los ~1.000 ms (pausa de 300 ms más la respuesta). No es un defecto.
+- El `docker compose up --build` del frontend falló una vez con un error de caché de Docker (`parent snapshot ... does not exist`); `docker compose build frontend` inmediatamente después terminó bien (transitorio, como el de `npm ci` en C-11).
