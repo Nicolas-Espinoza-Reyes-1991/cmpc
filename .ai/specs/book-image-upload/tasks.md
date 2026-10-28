@@ -31,7 +31,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(book-image-upload): record the backend verification`
 
 ## Frontend
-- [ ] **U-06 Servicio y validación del archivo** (U5.2, U6.2)
+- [x] **U-06 Servicio y validación del archivo** (U5.2, U6.2)
   - `validateImageFile`, `uploadBookImage` y `deleteBookImage`.
   - Pruebas: cada tipo y tamaño permitido y rechazado (el límite exacto de 2 MB); el servicio envía `FormData` con el campo `image` y desenvuelve `data`.
   - Commit: `feat(frontend): add image file validation and upload services`

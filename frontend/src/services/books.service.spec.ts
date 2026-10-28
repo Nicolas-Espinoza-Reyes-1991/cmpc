@@ -6,8 +6,10 @@ import {
   createBook,
   deleteBook,
   getBook,
+  deleteBookImage,
   listBooks,
   updateBook,
+  uploadBookImage,
 } from './books.service';
 
 const ID = '3f6c2a52-7f0e-4c3e-9d57-1d8f0f6a9b11';
@@ -81,6 +83,87 @@ describe('books service', () => {
     expect(updated.price).toBe(11000);
     expect(sent()?.method).toBe('patch');
     expect(body()).toEqual({ price: 11000 });
+  });
+
+  describe('book image', () => {
+    const withImage = { ...book, imageUrl: '/api/uploads/x.png' };
+    const png = () =>
+      new File([new Uint8Array([1, 2, 3])], 'portada.png', {
+        type: 'image/png',
+      });
+
+    it('uploadBookImage posts the file as multipart in the field "image"', async () => {
+      api = mockApi({
+        [`POST /books/${ID}/image`]: { data: { data: withImage } },
+      });
+      const file = png();
+
+      await expect(uploadBookImage(ID, file)).resolves.toEqual(withImage);
+
+      const request = sent();
+      expect(request?.method).toBe('post');
+      expect(request?.data).toBeInstanceOf(FormData);
+      const body = request?.data as FormData;
+      expect([...body.keys()]).toEqual(['image']);
+      const sentFile = body.get('image') as File;
+      expect(sentFile.name).toBe('portada.png');
+      expect(sentFile.type).toBe('image/png');
+      expect(sentFile.size).toBe(3);
+    });
+
+    it('does not force a Content-Type: the browser must add the boundary', async () => {
+      api = mockApi({
+        [`POST /books/${ID}/image`]: { data: { data: withImage } },
+      });
+
+      await uploadBookImage(ID, png());
+
+      const contentType = sent()?.headers.get('Content-Type');
+      expect(String(contentType ?? '')).not.toContain('application/json');
+    });
+
+    it('encodes the id in the path', async () => {
+      api = mockApi({
+        'POST /books/..%2Fauth/image': { data: { data: withImage } },
+      });
+
+      await expect(uploadBookImage('../auth', png())).resolves.toEqual(
+        withImage,
+      );
+    });
+
+    it('deleteBookImage sends a DELETE and returns the book without a cover', async () => {
+      api = mockApi({
+        [`DELETE /books/${ID}/image`]: { data: { data: book } },
+      });
+
+      await expect(deleteBookImage(ID)).resolves.toEqual(book);
+
+      expect(sent()?.method).toBe('delete');
+    });
+
+    it.each([
+      ['uploadBookImage', () => uploadBookImage(ID, png())],
+      ['deleteBookImage', () => deleteBookImage(ID)],
+    ])(
+      '%s rejects with an ApiError carrying the status',
+      async (_name, call) => {
+        api = mockApi({
+          [`POST /books/${ID}/image`]: { status: 413, data: {} },
+          [`DELETE /books/${ID}/image`]: { status: 404, data: {} },
+        });
+
+        await expect(call()).rejects.toBeInstanceOf(ApiError);
+      },
+    );
+
+    it('uploadBookImage exposes the 413 of a file that is too large', async () => {
+      api = mockApi({ [`POST /books/${ID}/image`]: { status: 413, data: {} } });
+
+      await expect(uploadBookImage(ID, png())).rejects.toMatchObject({
+        status: 413,
+      });
+    });
   });
 
   describe('listBooks', () => {
