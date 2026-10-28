@@ -175,3 +175,4 @@ Frontend: `react-hook-form@^7.91`, `zod@^4.6` y `@hookform/resolvers@^6.0.1` (de
 - Bloqueo progresivo por cuenta y almacenamiento del límite en Redis para varias instancias.
 - Roles y permisos, registro de usuarios y cambio o recuperación de contraseña.
 - Autenticación de dos factores.
+- Proteger o desactivar Swagger en producción. Hoy `/api/docs` y `/api/docs-json` son públicos: Nest los sirve fuera de los guards y los evaluadores deben poder verlos sin iniciar sesión. Solo describen la forma de la API (no contienen datos ni secretos), pero exponen su superficie.

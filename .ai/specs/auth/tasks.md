@@ -31,7 +31,7 @@ Marcar con `[x]` al terminar.
   - Pruebas HTTP con Passport real y `configureApp`: login correcto y `me`; sin cabecera; esquema distinto de Bearer; token expirado; firma alterada; token con `alg: none`; usuario eliminado; cuerpo inválido con errores por campo; contraseña de más de 128 caracteres; el 429 con `Retry-After` al sexto intento sin afectar a `me`; correo normalizado; ninguna respuesta ni log contiene la contraseña o el hash. Prueba de `configureApp` con `trust proxy`.
   - Commit: `feat(auth): add login and me endpoints with rate limiting`
 
-- [ ] **A-06 Integración en la aplicación** (A3.1)
+- [x] **A-06 Integración en la aplicación** (A3.1)
   - Importar `AuthModule` en `AppModule`; actualizar la prueba e2e: `/api/health` sigue público, `/api/auth/me` sin token da 401 con el formato único y el documento OpenAPI incluye las rutas de auth.
   - Hecho cuando: lint, tipos, build, `test:cov` y e2e pasan.
   - Commit: `feat(auth): protect every route by default`
