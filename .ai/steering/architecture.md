@@ -38,18 +38,18 @@ Un controlador solo conoce su servicio; un servicio no conoce controladores. Cad
 Relaciones: `Book` N:1 con `Author`, `Publisher` y `Genre`; `AuditLog` N:1 con `User` (opcional, para logins fallidos).
 
 Índices:
-- `Book`: `authorId`, `publisherId`, `genreId`, `availability`, `(deletedAt, createdAt)` y un índice GIN con `pg_trgm` sobre `title` (migración SQL manual) para la búsqueda parcial.
+- `Book`: `authorId`, `publisherId`, `genreId`, `availability`, `(deletedAt, createdAt)` y un índice GIN con `pg_trgm` sobre `title` (migración SQL manual) para la búsqueda parcial, y un índice único parcial `(lower(title), authorId, publisherId)` sobre los libros no eliminados (migración SQL manual) que evita duplicados y permite volver a registrar un libro eliminado.
 - `AuditLog`: `(entity, entityId)`, `userId` y `createdAt`.
 
 Decisiones:
 - `availability` es booleano (disponible o no). Gestión de stock queda fuera de alcance.
-- Al crear o editar un libro, la API recibe nombres de autor, editorial y género; el servicio los resuelve con `connectOrCreate` dentro de la misma transacción. Los endpoints de catálogo son de solo lectura.
+- Al crear o editar un libro, la API recibe nombres de autor, editorial y género; el servicio los resuelve dentro de la misma transacción: busca el nombre sin distinguir mayúsculas y, si no existe, hace un `upsert` por nombre (no `connectOrCreate`, que distingue mayúsculas y duplicaría "Planeta" y "planeta"; el `upsert` usa `ON CONFLICT`, así dos altas simultáneas con el mismo nombre nuevo no chocan). Los endpoints de catálogo son de solo lectura.
 
 ## Transacciones
 Toda escritura sobre `Book` (crear, editar, eliminar) usa `prisma.$transaction` e incluye, en la misma transacción:
-1. la resolución o creación de los catálogos (`connectOrCreate`),
+1. la resolución o creación de los catálogos (búsqueda sin distinguir mayúsculas + `upsert`),
 2. la escritura del libro,
-3. el registro en `AuditLog` mediante `auditService.log(tx, entry)`.
+3. el registro en `AuditLog` mediante `auditService.log(tx, entry)` (lo añade la spec `audit-log`; `books-crud` deja la transacción preparada para recibirlo).
 Si cualquiera falla, no se guarda nada.
 
 ## Transversales

@@ -5,7 +5,7 @@ Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de deci
 Marcar con `[x]` al terminar.
 
 ## Preparación
-- [ ] **C-00 Alinear la arquitectura** (§1)
+- [x] **C-00 Alinear la arquitectura** (§1)
   - Actualizar `architecture.md`: la resolución de catálogos usa búsqueda sin distinguir mayúsculas + `upsert` (no `connectOrCreate` literal), y `AuditLog` se añade en `audit-log`.
   - Hecho cuando: `architecture.md` y `design.md` no se contradicen.
   - Commit: `docs(books-crud): align the architecture notes with the spec`
