@@ -2,10 +2,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { ApiError } from '../lib/api-error';
+import { FormMessageError } from '../lib/form-message-error';
 import type { BookFormValues } from '../lib/book-schema';
 import { emptyCatalogs } from '../test/catalog-routes';
 import { mockApi, type MockApi } from '../test/mock-api';
 import { createQueryWrapper } from '../test/query-wrapper';
+import type { ImageChoice } from '../types/book';
 import { BookForm } from './BookForm';
 
 const DEFAULTS = {
@@ -18,11 +20,13 @@ const DEFAULTS = {
 
 function renderForm(
   options: {
-    onSubmit?: (values: BookFormValues) => Promise<void>;
+    onSubmit?: (values: BookFormValues, image: ImageChoice) => Promise<void>;
     defaultValues?: Parameters<typeof BookForm>[0]['defaultValues'];
   } = {},
 ) {
-  const onSubmit = vi.fn(options.onSubmit ?? (() => Promise.resolve()));
+  const onSubmit = vi.fn<
+    (values: BookFormValues, image: ImageChoice) => Promise<void>
+  >(options.onSubmit ?? (() => Promise.resolve()));
   const { wrapper } = createQueryWrapper();
   render(
     <MemoryRouter>
@@ -354,7 +358,7 @@ describe('BookForm', () => {
 
     it('clears the alert when the user tries again', async () => {
       const onSubmit = vi
-        .fn<(values: BookFormValues) => Promise<void>>()
+        .fn<(values: BookFormValues, image: ImageChoice) => Promise<void>>()
         .mockRejectedValueOnce(new ApiError(500, 'Error del servidor.'))
         .mockResolvedValue(undefined);
       const { wrapper } = createQueryWrapper();
@@ -379,6 +383,119 @@ describe('BookForm', () => {
         expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
       );
       expect(onSubmit).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('the cover', () => {
+    const file = () =>
+      new File([new Uint8Array([1, 2, 3])], 'portada.png', {
+        type: 'image/png',
+      });
+    const coverInput = () => screen.getByLabelText('Portada (opcional)');
+    // The file dialog filters by `accept`; the test drops the file directly.
+    const upload = (chosen: File) =>
+      userEvent.setup({ applyAccept: false }).upload(coverInput(), chosen);
+
+    it('sends no cover when none is chosen', async () => {
+      const { onSubmit } = renderForm();
+      await fillValid();
+
+      await userEvent.click(submitButton());
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0]?.[1]).toEqual({
+        image: null,
+        removeImage: false,
+      });
+    });
+
+    it('sends the chosen file together with the values', async () => {
+      const { onSubmit } = renderForm();
+      await fillValid();
+      const chosen = file();
+      await upload(chosen);
+
+      await userEvent.click(submitButton());
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0]?.[1]).toEqual({
+        image: chosen,
+        removeImage: false,
+      });
+      expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ title: 'Dune' });
+    });
+
+    it('does not block the form because of a rejected file', async () => {
+      const { onSubmit } = renderForm();
+      await fillValid();
+      await upload(new File(['x'], 'a.gif', { type: 'image/gif' }));
+      expect(
+        screen.getByText('La portada debe ser una imagen JPG, PNG o WebP.'),
+      ).toBeInTheDocument();
+
+      await userEvent.click(submitButton());
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0]?.[1]).toEqual({
+        image: null,
+        removeImage: false,
+      });
+    });
+
+    it('shows the current cover when editing and sends the removal', async () => {
+      const onSubmit = vi.fn<
+        (values: BookFormValues, image: ImageChoice) => Promise<void>
+      >(() => Promise.resolve());
+      const { wrapper } = createQueryWrapper();
+      render(
+        <MemoryRouter>
+          <BookForm
+            defaultValues={{
+              title: 'Dune',
+              author: 'Frank Herbert',
+              publisher: 'Ace',
+              genre: 'Novela',
+              price: 100,
+              availability: true,
+            }}
+            submitLabel="Guardar cambios"
+            cancelTo="/books/b1"
+            currentImageUrl="/api/uploads/x.png"
+            onSubmit={onSubmit}
+          />
+        </MemoryRouter>,
+        { wrapper },
+      );
+      expect(
+        screen.getByRole('img', { name: 'Portada actual del libro' }),
+      ).toHaveAttribute('src', '/api/uploads/x.png');
+      await userEvent.click(screen.getByLabelText('Quitar la imagen actual'));
+
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Guardar cambios' }),
+      );
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect((onSubmit.mock.calls[0] as unknown as unknown[])[1]).toEqual({
+        image: null,
+        removeImage: true,
+      });
+    });
+
+    it('shows a message written for the user exactly as it is', async () => {
+      renderForm({
+        onSubmit: () =>
+          Promise.reject(
+            new FormMessageError('Los datos se guardaron, pero la portada no.'),
+          ),
+      });
+      await fillValid();
+
+      await userEvent.click(submitButton());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Los datos se guardaron, pero la portada no.',
+      );
     });
   });
 

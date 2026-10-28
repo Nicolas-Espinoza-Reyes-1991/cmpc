@@ -36,7 +36,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: cada tipo y tamaño permitido y rechazado (el límite exacto de 2 MB); el servicio envía `FormData` con el campo `image` y desenvuelve `data`.
   - Commit: `feat(frontend): add image file validation and upload services`
 
-- [ ] **U-07 Campo de imagen en el formulario** (U5.1, U5.3 a U5.6)
+- [x] **U-07 Campo de imagen en el formulario** (U5.1, U5.3 a U5.6)
   - `ImageField` con vista previa, imagen actual, «Quitar imagen» y errores; integración en `BookForm` y en el flujo de `BookFormPage` (alta, edición, solo imagen y fallo de subida con aviso en la edición).
   - Pruebas: vista previa y revocación de la URL; error de tipo y de tamaño sin enviar nada; alta con imagen; edición con reemplazo; quitar; solo imagen sin `PATCH`; fallo de subida deja el libro guardado y avisa; la caché queda al día.
   - Commit: `feat(frontend): add the cover image field to the book form`

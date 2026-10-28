@@ -1,20 +1,27 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { BookForm } from '../components/BookForm';
 import { BookNotFound } from '../components/BookNotFound';
 import { bookKey, useBook } from '../hooks/useBook';
+import { getErrorMessage } from '../lib/api-error';
 import type { BookFormValues } from '../lib/book-schema';
 import { changedFields } from '../lib/book-changes';
 import { isMissingBook } from '../lib/book-errors';
-import { createBook, updateBook } from '../services/books.service';
-import type { Book } from '../types/book';
+import { FormMessageError } from '../lib/form-message-error';
+import {
+  createBook,
+  deleteBookImage,
+  updateBook,
+  uploadBookImage,
+} from '../services/books.service';
+import type { Book, ImageChoice } from '../types/book';
 
 /** What a saved book changes in the app: its cache, the lists and the catalogs. */
 function useAfterSave() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  return (book: Book): void => {
+  return (book: Book, destination?: { to: string; state?: unknown }): void => {
     queryClient.setQueryData(bookKey(book.id), book);
     // Every list of books is stale now; the book just saved is already up to date.
     void queryClient.invalidateQueries({
@@ -23,7 +30,9 @@ function useAfterSave() {
     });
     // The save may have created an author, a publisher or a genre.
     void queryClient.invalidateQueries({ queryKey: ['catalog'] });
-    void navigate(`/books/${book.id}`);
+    void navigate(destination?.to ?? `/books/${book.id}`, {
+      state: destination?.state,
+    });
   };
 }
 
@@ -58,17 +67,49 @@ function CreateBook() {
         }}
         submitLabel="Registrar libro"
         cancelTo="/books"
-        onSubmit={async (values) => {
-          afterSave(await createBook(values));
+        onSubmit={async (values, { image }) => {
+          const created = await createBook(values);
+          if (!image) {
+            afterSave(created);
+            return;
+          }
+          try {
+            afterSave(await uploadBookImage(created.id, image));
+          } catch (error) {
+            // The book exists now: retrying here would create a duplicate (409).
+            // Go to its edit screen, where the cover can be tried again.
+            afterSave(created, {
+              to: `/books/${created.id}/edit`,
+              state: { imageError: getErrorMessage(error) },
+            });
+          }
         }}
       />
     </Page>
   );
 }
 
+/**
+ * The notice a creation leaves when the book was saved but its cover was not
+ * (route state travels as `unknown`).
+ */
+function readImageError(state: unknown): string | null {
+  if (
+    typeof state === 'object' &&
+    state !== null &&
+    'imageError' in state &&
+    typeof state.imageError === 'string'
+  ) {
+    return state.imageError;
+  }
+  return null;
+}
+
 function EditBook({ id }: { id: string }) {
   const afterSave = useAfterSave();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const imageError = readImageError(useLocation().state);
   const { data: book, error, isPending, refetch } = useBook(id);
 
   if (isPending) {
@@ -102,18 +143,50 @@ function EditBook({ id }: { id: string }) {
     );
   }
 
-  const save = async (values: BookFormValues): Promise<void> => {
+  const save = async (
+    values: BookFormValues,
+    { image, removeImage }: ImageChoice,
+  ): Promise<void> => {
     const changes = changedFields(book, values);
-    // Nothing changed: the API would answer 400 to an empty update, so just go back.
-    if (Object.keys(changes).length === 0) {
+    const dataChanged = Object.keys(changes).length > 0;
+    const coverChanged = image !== null || removeImage;
+    // Nothing to save: the API would answer 400 to an empty update, so just go back.
+    if (!dataChanged && !coverChanged) {
       void navigate(`/books/${id}`);
       return;
     }
-    afterSave(await updateBook(id, changes));
+
+    let saved = book;
+    if (dataChanged) saved = await updateBook(id, changes);
+    if (coverChanged) {
+      try {
+        saved = image
+          ? await uploadBookImage(id, image)
+          : await deleteBookImage(id);
+      } catch (error) {
+        if (!dataChanged) throw error;
+        // The data went through. Keep it in the cache, so a retry has nothing
+        // left to send but the cover, and say clearly what happened.
+        queryClient.setQueryData(bookKey(id), saved);
+        throw new FormMessageError(
+          `Los datos se guardaron, pero la portada no se pudo actualizar: ${getErrorMessage(error)}`,
+        );
+      }
+    }
+    afterSave(saved);
   };
 
   return (
     <Page title="Editar libro">
+      {imageError && (
+        <p
+          role="alert"
+          className="mb-6 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          El libro se guardó, pero la portada no se pudo subir: {imageError}{' '}
+          Elige la imagen de nuevo y guarda.
+        </p>
+      )}
       <BookForm
         defaultValues={{
           title: book.title,
@@ -125,6 +198,7 @@ function EditBook({ id }: { id: string }) {
         }}
         submitLabel="Guardar cambios"
         cancelTo={`/books/${id}`}
+        currentImageUrl={book.imageUrl}
         onSubmit={save}
       />
     </Page>

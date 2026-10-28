@@ -162,6 +162,281 @@ describe('BookFormPage', () => {
     });
   });
 
+  describe('the cover', () => {
+    const png = () =>
+      new File([new Uint8Array([1, 2, 3])], 'portada.png', {
+        type: 'image/png',
+      });
+    const withCover = { ...book, imageUrl: '/api/uploads/new.png' };
+    const choose = (file: File) =>
+      userEvent
+        .setup({ applyAccept: false })
+        .upload(screen.getByLabelText('Portada (opcional)'), file);
+    const posts = () => api.requests.filter((r) => r.method === 'post');
+    const patches = () => api.requests.filter((r) => r.method === 'patch');
+    const deletes = () => api.requests.filter((r) => r.method === 'delete');
+
+    describe('creating a book', () => {
+      async function fillAndChoose(file: File) {
+        await userEvent.type(field('Título'), 'Dune');
+        await userEvent.type(field('Autor'), 'Frank Herbert');
+        await userEvent.type(field('Editorial'), 'Ace');
+        await userEvent.type(field('Género'), 'Ciencia ficción');
+        await userEvent.type(field('Precio'), '9990.5');
+        await choose(file);
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Registrar libro' }),
+        );
+      }
+
+      it('creates the book first and uploads the cover after, then opens the detail', async () => {
+        start({
+          'POST /books': { status: 201, data: { data: book } },
+          [`POST /books/${ID}/image`]: { data: { data: withCover } },
+        });
+        const { router, queryClient } = renderAt('/books/new');
+        const file = png();
+
+        await fillAndChoose(file);
+
+        expect(
+          await screen.findByText('detalle del libro'),
+        ).toBeInTheDocument();
+        expect(posts().map((r) => r.url)).toEqual([
+          '/books',
+          `/books/${ID}/image`,
+        ]);
+        const sent = (posts()[1]?.data as FormData).get('image') as File;
+        expect(sent.name).toBe('portada.png');
+        expect(router.state.location.pathname).toBe(`/books/${ID}`);
+        expect(queryClient.getQueryData(bookKey(ID))).toEqual(withCover);
+      });
+
+      it('uploads nothing when no cover was chosen', async () => {
+        start({ 'POST /books': { status: 201, data: { data: book } } });
+        renderAt('/books/new');
+        await userEvent.type(field('Título'), 'Dune');
+        await userEvent.type(field('Autor'), 'Frank Herbert');
+        await userEvent.type(field('Editorial'), 'Ace');
+        await userEvent.type(field('Género'), 'Novela');
+        await userEvent.type(field('Precio'), '100');
+
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Registrar libro' }),
+        );
+
+        await screen.findByText('detalle del libro');
+        expect(posts()).toHaveLength(1);
+      });
+
+      it('keeps the book and goes to its edit screen with a notice when the cover fails', async () => {
+        start({
+          'POST /books': { status: 201, data: { data: book } },
+          [`POST /books/${ID}/image`]: { status: 413, data: {} },
+          [`GET /books/${ID}`]: { data: { data: book } },
+        });
+        const { router, queryClient } = renderAt('/books/new');
+
+        await fillAndChoose(png());
+
+        expect(
+          await screen.findByRole('heading', { name: 'Editar libro' }),
+        ).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe(`/books/${ID}/edit`);
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'El libro se guardó, pero la portada no se pudo subir:',
+        );
+        // The book was created once: no duplicate to fight with.
+        expect(posts().filter((r) => r.url === '/books')).toHaveLength(1);
+        expect(queryClient.getQueryData(bookKey(ID))).toEqual(book);
+      });
+
+      it('stays on the form when the book itself cannot be created, and uploads nothing', async () => {
+        start({ 'POST /books': { status: 409, data: {} } });
+        const { router } = renderAt('/books/new');
+
+        await fillAndChoose(png());
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'Ya existe un libro',
+        );
+        expect(router.state.location.pathname).toBe('/books/new');
+        expect(posts()).toHaveLength(1);
+      });
+    });
+
+    describe('editing a book', () => {
+      const open = (extra: Record<string, MockRoute> = {}) => {
+        start({ [`GET /books/${ID}`]: { data: { data: book } }, ...extra });
+        return renderAt(`/books/${ID}/edit`);
+      };
+
+      it('shows the notice that a creation left, and the form', async () => {
+        start({ [`GET /books/${ID}`]: { data: { data: book } } });
+        const { wrapper } = createQueryWrapper();
+        const router = createMemoryRouter(routes, {
+          initialEntries: [
+            {
+              pathname: `/books/${ID}/edit`,
+              state: { imageError: 'El archivo es muy grande.' },
+            },
+          ],
+        });
+        render(<RouterProvider router={router} />, { wrapper });
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'El libro se guardó, pero la portada no se pudo subir: El archivo es muy grande.',
+        );
+        expect(field('Título')).toHaveValue('Dune');
+      });
+
+      it('ignores route state that is not a notice', async () => {
+        start({ [`GET /books/${ID}`]: { data: { data: book } } });
+        const { wrapper } = createQueryWrapper();
+        const router = createMemoryRouter(routes, {
+          initialEntries: [
+            { pathname: `/books/${ID}/edit`, state: { imageError: 42 } },
+          ],
+        });
+        render(<RouterProvider router={router} />, { wrapper });
+
+        await screen.findByLabelText('Título');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      });
+
+      it('shows the current cover of the book', async () => {
+        open({ [`GET /books/${ID}`]: { data: { data: withCover } } });
+
+        expect(
+          await screen.findByRole('img', { name: 'Portada actual del libro' }),
+        ).toHaveAttribute('src', '/api/uploads/new.png');
+      });
+
+      it('replaces only the cover: no PATCH when the data did not change', async () => {
+        const { router, queryClient } = open({
+          [`POST /books/${ID}/image`]: { data: { data: withCover } },
+        });
+        await screen.findByLabelText('Título');
+
+        await choose(png());
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        expect(
+          await screen.findByText('detalle del libro'),
+        ).toBeInTheDocument();
+        expect(patches()).toHaveLength(0);
+        expect(posts().map((r) => r.url)).toEqual([`/books/${ID}/image`]);
+        expect(router.state.location.pathname).toBe(`/books/${ID}`);
+        expect(queryClient.getQueryData(bookKey(ID))).toEqual(withCover);
+      });
+
+      it('saves the data first and the cover after when both changed', async () => {
+        open({
+          [`PATCH /books/${ID}`]: { data: { data: { ...book, price: 11000 } } },
+          [`POST /books/${ID}/image`]: {
+            data: { data: { ...withCover, price: 11000 } },
+          },
+        });
+        await screen.findByLabelText('Título');
+
+        await userEvent.clear(field('Precio'));
+        await userEvent.type(field('Precio'), '11000');
+        await choose(png());
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        await screen.findByText('detalle del libro');
+        const order = api.requests
+          .filter((r) => r.method !== 'get')
+          .map((r) => `${r.method} ${r.url}`);
+        expect(order).toEqual([
+          `patch /books/${ID}`,
+          `post /books/${ID}/image`,
+        ]);
+      });
+
+      it('removes the cover with the checkbox and sends no PATCH', async () => {
+        const { queryClient } = open({
+          [`GET /books/${ID}`]: { data: { data: withCover } },
+          [`DELETE /books/${ID}/image`]: { data: { data: book } },
+        });
+        await screen.findByLabelText('Título');
+
+        await userEvent.click(screen.getByLabelText('Quitar la imagen actual'));
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        await screen.findByText('detalle del libro');
+        expect(deletes()).toHaveLength(1);
+        expect(patches()).toHaveLength(0);
+        expect(queryClient.getQueryData(bookKey(ID))).toEqual(book);
+      });
+
+      it('shows the error and stays when only the cover fails', async () => {
+        const { router } = open({
+          [`POST /books/${ID}/image`]: { status: 413, data: {} },
+        });
+        await screen.findByLabelText('Título');
+
+        await choose(png());
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'demasiado grande',
+        );
+        expect(router.state.location.pathname).toBe(`/books/${ID}/edit`);
+        expect(patches()).toHaveLength(0);
+      });
+
+      it('says the data was saved when the data went through but the cover failed', async () => {
+        let attempts = 0;
+        const { router, queryClient } = open({
+          [`PATCH /books/${ID}`]: { data: { data: { ...book, price: 11000 } } },
+          [`POST /books/${ID}/image`]: () => {
+            attempts += 1;
+            return attempts === 1
+              ? { status: 500, data: {} }
+              : { data: { data: { ...withCover, price: 11000 } } };
+          },
+        });
+        await screen.findByLabelText('Título');
+        await userEvent.clear(field('Precio'));
+        await userEvent.type(field('Precio'), '11000');
+        await choose(png());
+
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'Los datos se guardaron, pero la portada no se pudo actualizar:',
+        );
+        expect(router.state.location.pathname).toBe(`/books/${ID}/edit`);
+        expect(queryClient.getQueryData(bookKey(ID))).toMatchObject({
+          price: 11000,
+        });
+        expect(field('Precio')).toHaveValue(11000);
+
+        // Retrying sends only the cover: the data is already saved.
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        expect(
+          await screen.findByText('detalle del libro'),
+        ).toBeInTheDocument();
+        expect(patches()).toHaveLength(1);
+        expect(posts()).toHaveLength(2);
+      });
+    });
+  });
+
   describe('edit a book (/books/:id/edit)', () => {
     it('shows a loading state while the book is read', async () => {
       let release: () => void = () => undefined;
