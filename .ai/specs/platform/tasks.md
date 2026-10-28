@@ -158,7 +158,7 @@ Estado en el momento de la verificación:
 
 ### Pendientes conocidos para las demás specs
 - ~~**`trust proxy`**~~ **Resuelto en la spec `auth` (A-04, `app.setup.ts`) y verificado en A-07 por nginx; `audit-log` solo debe leer `request.ip`.** Antes: detrás de nginx el backend ve la IP del contenedor de nginx; sin `app.set('trust proxy', 1)`, el límite de intentos del login y el campo `ip` de `AuditLog` usarían esa IP para todos.
-- **`npm audit` del backend: 15 hallazgos** (8 bajos, 2 moderados, 5 altos). En producción: `multer` (denegación de servicio, alto; el arreglo de `npm audit fix` no rompe nada; se aplica con la spec `book-image-upload` o antes de la entrega), `deepmerge-ts` (alto) y `js-yaml` (moderado), cuyos arreglos exigen `--force` y no se evaluaron. Frontend: 0.
+- **`npm audit` del backend: 15 hallazgos** (8 bajos, 2 moderados, 5 altos). En producción: ~~`multer` (denegación de servicio, alto)~~ **resuelto en la spec `book-image-upload` (U-01): `npm audit fix` no podía, porque Nest 11.2.8 fija la 2.4.0; se fijó la 2.5.0 con `overrides`**, `deepmerge-ts` (alto) y `js-yaml` (moderado), cuyos arreglos exigen `--force` y no se evaluaron. Frontend: 0.
 - **Herramientas con soporte limitado:** ESLint 9 (npm avisa de que ya no tiene soporte) y Prisma 6.19.3 (`package.json#prisma` quedará obsoleto en Prisma 7). Ambos se actualizan como mejora futura.
 - ~~**Autenticación en el frontend:**~~ **Resuelto en la spec `auth` (A-09 a A-12).** Antes: `ProtectedRoute` lee el token directamente; la spec `auth` lo sustituirá por un `AuthProvider` reactivo, y `LoginPage` y `BooksPage` son marcadores de posición.
 - **Mensajes de validación por campo del servidor:** siguen en inglés; los formularios validarán antes en español con Zod.

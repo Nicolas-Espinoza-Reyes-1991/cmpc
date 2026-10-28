@@ -47,7 +47,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: cada escenario queda anotado.
   - Commit: `docs(book-image-upload): record the end-to-end verification`
 
-- [ ] **U-09 Verificación de la spec**
+- [x] **U-09 Verificación de la spec**
   - Recorrer U1 a U6 con evidencia nueva (lint, tipos, build, cobertura ≥ 80 % y fallando por debajo en ambas apps; `npm audit`) y registrar el resultado. Marcar el pendiente de `multer` en `platform/tasks.md` como resuelto.
   - Commit: `docs(book-image-upload): record the spec verification`
 
@@ -97,3 +97,23 @@ Entorno: `docker compose up --build` (db, backend y frontend sanos), navegador i
 | Reiniciar el backend (`docker compose restart backend`) | La imagen sigue sirviéndose (200, `image/webp`, caché de un año); el volumen contiene solo el archivo referenciado por la base: sin huérfanos |
 
 Hallazgo de la verificación real: con el archivo falso, el aviso decía «Los datos enviados no son válidos», que no habla de la portada. Se cambió por «El archivo no es una imagen válida: usa un JPG, PNG o WebP.» (un 400 al subir solo puede significar que el contenido no es una imagen), con pruebas en los tres caminos (alta, edición solo con portada y edición con datos y portada); 617 pruebas del frontend con 100 % de cobertura.
+
+### U-09: verificación de la spec (2026-10-29)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**40 suites, 663 pruebas, 100 %**) y e2e (**9**); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**39 archivos, 617 pruebas, 100 %** en sentencias, ramas, funciones y líneas); más los registros U-05 y U-08.
+
+| Criterio | Evidencia |
+|---|---|
+| U1.1–U1.7 | 31 pruebas HTTP con `multipart` real y archivos reales en un directorio temporal (200 con PNG, JPEG y WebP; contenido falso → 400; 2 MB exactos pasan y 2 MB + 1 da 413; sin archivo, otro campo, dos archivos, campo extra y JSON → 400; 404 sin dejar archivos; reemplazo borra el anterior; fallo de la base limpia el archivo nuevo); pruebas del servicio con el orden escribir → base → borrar; U-05 contra el servidor, PostgreSQL y el disco reales y U-08 en el navegador |
+| U2.1–U2.3 | Pruebas de `removeImage` (idempotente, 404, el archivo se conserva si falla la base) y de `ImageStorage.remove` (nunca lanza, avisa en el log); U-05 y U-08: el archivo se borra y la base queda en `null` |
+| U3.1–U3.5 | 21 pruebas de `uploads.http.spec` con el guard real presente (público, `Cache-Control: public, max-age=31536000, immutable`, `nosniff`, tipo por extensión, HEAD, 404, sin listado ni redirecciones, ocultos ignorados, sin `..` ni rutas absolutas ni byte nulo); U-05 con 7 intentos de salir del directorio; U-08: volumen persistente tras reiniciar el backend; el detalle ya mostraba `imageUrl` |
+| U4.1–U4.5 | El e2e recorre el OpenAPI y exige 401 en `POST` y `DELETE /books/:id/image` y comprueba que `/api/uploads` no está en Swagger; `sniffImageType` por contenido (SVG, HTML y GIF rechazados); el tope de 2 MB lo aplica multer al leer; `UPLOAD_DIR` se crea al arrancar y el usuario `node` puede escribir (U-08); `npm audit --omit=dev` ya no lista `multer` (7 → 5 hallazgos) |
+| U5.1–U5.6 | `ImageField` (22 pruebas), `BookForm` y `BookFormPage` (alta con subida posterior, fallo de subida con aviso en la edición y sin duplicar el libro, solo imagen sin `PATCH`, datos e imagen en orden, quitar, fallo parcial con reintento solo de la portada); U-08 en el navegador real con imágenes reales |
+| U6.1–U6.4 | Suites citadas; cobertura 100 % en ambas apps; el umbral forzado a 101 % falla en las dos ("does not meet global threshold"); U-05 y U-08 contra PostgreSQL, disco, Docker y navegador reales, incluido el reinicio del backend |
+
+Resultado: sin criterios pendientes.
+
+Defectos y hallazgos de la verificación (corregidos y con prueba): `npm audit fix` no podía actualizar `multer` (Nest 11.2.8 fija la 2.4.0), se resolvió con `overrides`; las suites que levantan `BooksModule` creaban `backend/uploads` en el repositorio (ahora usan un directorio temporal); el aviso de una portada rechazada decía solo «datos no válidos» y ahora dice que el archivo no es una imagen válida; una regla de React (`set-state-in-effect`) llevó a crear la URL de vista previa en el manejador del evento y a dejar en el efecto solo su liberación. Una comprobación de caché dio 200 para una imagen ya borrada: era la caché `immutable` del navegador (con `cache: 'reload'` el servidor responde 404).
+
+Pendiente resuelto en otra spec: el hallazgo de `multer` que `platform` dejó anotado queda cerrado (ver `.ai/specs/platform/tasks.md`).
+
+Pendientes (no son de esta spec): quedan 5 hallazgos de `npm audit` en producción (3 altos y 2 moderados: `deepmerge-ts` y `js-yaml`, cuyas correcciones exigen `--force`; se evalúan en `docs-delivery`); el paquete del frontend pesa ya 570 kB (aviso de Vite); y las mejoras de `design.md` §6 (nube, miniaturas, metadatos, limpieza de archivos y de libros eliminados).
