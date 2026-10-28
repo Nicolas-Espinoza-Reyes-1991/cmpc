@@ -114,7 +114,16 @@ describe('routes', () => {
       expect(await screen.findByLabelText('Título')).toHaveValue('Dune');
     });
 
-    it.each(['/books/new', '/books/42/edit'])(
+    it('opens /books/:id as the book detail inside the layout', async () => {
+      session.setToken('jwt-token');
+
+      renderAt('/books/42');
+
+      expect(await heading('Dune')).toBeInTheDocument();
+      expect(screen.getByRole('banner')).toHaveTextContent(ADMIN.email);
+    });
+
+    it.each(['/books/new', '/books/42/edit', '/books/42'])(
       'sends a visitor without session from %s to the login',
       async (path) => {
         const router = renderAt(path);

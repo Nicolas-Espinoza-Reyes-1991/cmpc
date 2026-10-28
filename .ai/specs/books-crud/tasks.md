@@ -57,7 +57,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: validación en español por campo; envío correcto; 400 por campo; 409; red; botón "Guardando…" sin doble envío; foco en el primer error; sugerencias del catálogo con debounce y fallo silencioso; edición carga los datos y 404 muestra "Libro no encontrado"; éxito navega al detalle e invalida la caché.
   - Commit: `feat(frontend): add book create and edit form`
 
-- [ ] **C-10 Detalle y eliminación** (C8.9, C9.1 a C9.5)
+- [x] **C-10 Detalle y eliminación** (C8.9, C9.1 a C9.5)
   - `BookDetailPage`, `ConfirmDialog`, ruta `/books/:id` y el enlace "Nuevo libro" en `BooksPage`.
   - Pruebas: muestra todos los campos con formato; sin imagen muestra el marcador; 404; "Editar" y "Volver"; el diálogo pide confirmación, `Escape` cancela sin enviar nada, confirmar elimina, quita la caché y navega a `/books`; el error de borrado se muestra sin salir.
   - Commit: `feat(frontend): add book detail page with delete confirmation`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-09, C-11 y C-12.)
+(Se completa en C-01 a C-10, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -240,3 +240,15 @@ Pruebas automáticas nuevas: `BookForm` (27: campos, foco, validación por campo
 Hallazgos de método: `prettier --write` y `git checkout` entre ramas dejaron `eslint.config.js` y `vite.config.ts` con fin de línea CRLF en el árbol de trabajo (Git con `autocrlf=true` en Windows); es inocuo, el índice sigue en LF, y se normalizaron. El primer borrador de la prueba de invalidación fabricaba un objeto `Query` con una conversión de tipo; se reescribió para comprobar el estado real de la caché.
 
 `lint` (0 avisos), `tsc`, build y `test:cov`: 362 pruebas con 100% de sentencias, ramas, funciones y líneas (tres ejecuciones seguidas estables).
+
+### C-10: detalle y eliminación (2026-10-29)
+Verificación automática aquí; la comprobación en el navegador real (diálogo nativo, Escape, foco, eliminación contra la API) se registra en C-11 junto con el resto del recorrido.
+
+- **`BookDetailPage`**: todos los campos con formato (`$12.990`, `28-10-2026, 10:30 a. m.`), disponibilidad como "Disponible"/"No disponible", portada o el marcador "Sin portada", enlaces "Editar" y "Volver a los libros", carga, "Libro no encontrado" (404 y 400 de id mal formado, con el helper común `isMissingBook`), error con "Reintentar" y ruta sin `:id`.
+- **`ConfirmDialog`** sobre el `<dialog>` nativo: el navegador atrapa el foco y cierra con Escape; el diálogo solo informa lo que el usuario eligió y lo cierra el padre. Escape se ignora mientras la acción corre, "Cancelar" tiene el foco al abrir (la opción segura) y el error se muestra dentro.
+- **Eliminar**: pide confirmación nombrando el libro; cancelar (botón o Escape) no envía nada; confirmar borra, quita el libro de la caché, invalida las listas y vuelve a `/books`; un fallo se muestra en el diálogo sin salir de la pantalla y permite reintentar; "Eliminando…" con un solo envío aunque se haga clic dos veces; el error antiguo no reaparece al reabrir.
+- **`BooksPage`**: enlace "Nuevo libro" (C8.9) mientras `books-listing` no lo reemplaza.
+- **jsdom no implementa `<dialog>`**: `test/setup.ts` modela lo mínimo (`showModal` abre, `close` cierra y dispara `close`) y está documentado allí.
+- **Mutación comprobada**: con "Eliminar" borrando sin pedir confirmación fallan 7 pruebas.
+- **Diseño**: el primer `ConfirmDialog` usaba `useRef` y tenía una guarda `if (!element)` inalcanzable (93 % de ramas); se rediseñó con un *callback ref* guardado en estado, de modo que el efecto se ejecuta otra vez cuando el elemento existe y la rama es real y está cubierta, sin comentarios de exclusión.
+- **Calidad**: `lint` (0 avisos), `tsc`, build y `test:cov`: **393 pruebas con 100 %** de sentencias, ramas, funciones y líneas (tres ejecuciones seguidas).

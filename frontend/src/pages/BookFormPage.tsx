@@ -3,14 +3,11 @@ import { useNavigate, useParams } from 'react-router';
 import { BookForm } from '../components/BookForm';
 import { BookNotFound } from '../components/BookNotFound';
 import { bookKey, useBook } from '../hooks/useBook';
-import { ApiError } from '../lib/api-error';
 import type { BookFormValues } from '../lib/book-schema';
 import { changedFields } from '../lib/book-changes';
+import { isMissingBook } from '../lib/book-errors';
 import { createBook, updateBook } from '../services/books.service';
 import type { Book } from '../types/book';
-
-/** Statuses that mean "there is no such book": missing (404) or a malformed id (400). */
-const NOT_FOUND_STATUSES = [400, 404];
 
 /** What a saved book changes in the app: its cache, the lists and the catalogs. */
 function useAfterSave() {
@@ -85,13 +82,7 @@ function EditBook({ id }: { id: string }) {
   }
 
   if (error) {
-    // A 400 on a read means the id is not a UUID: no such book can exist.
-    if (
-      error instanceof ApiError &&
-      NOT_FOUND_STATUSES.includes(error.status)
-    ) {
-      return <BookNotFound />;
-    }
+    if (isMissingBook(error)) return <BookNotFound />;
     return (
       <Page title="Editar libro">
         <div

@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { setUnauthorizedHandler } from './lib/api-client';
+import { BookDetailPage } from './pages/BookDetailPage';
 import { BookFormPage } from './pages/BookFormPage';
 import { BooksPage } from './pages/BooksPage';
 import { LoginPage } from './pages/LoginPage';
@@ -18,6 +19,7 @@ export const routes: RouteObject[] = [
           { path: '/books', element: <BooksPage /> },
           // `new` is declared before `:id` so it is never read as a book id.
           { path: '/books/new', element: <BookFormPage /> },
+          { path: '/books/:id', element: <BookDetailPage /> },
           { path: '/books/:id/edit', element: <BookFormPage /> },
         ],
       },
