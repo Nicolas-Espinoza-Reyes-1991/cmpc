@@ -25,7 +25,7 @@ export interface CatalogDelegate {
   }): Promise<{ id: string } | null>;
   upsert(args: {
     where: { name: string };
-    update: Record<string, never>;
+    update: { name: string };
     create: { name: string };
     select: { id: true };
   }): Promise<{ id: string }>;

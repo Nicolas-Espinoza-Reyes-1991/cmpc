@@ -41,7 +41,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: el controlador delega en el servicio y no usa Prisma; HTTP con Passport real: 401 sin token en todas las rutas nuevas, `POST` válido 201, inválido 400, `:id` no UUID 400, `DELETE` 204 sin cuerpo; el recorrido del OpenAPI de `auth` sigue pasando.
   - Commit: `feat(books): add books REST endpoints`
 
-- [ ] **C-07 Verificación contra PostgreSQL real** (C1.2 a C1.5, C2.5, C2.6, C5.1 a C5.4, C10.4)
+- [x] **C-07 Verificación contra PostgreSQL real** (C1.2 a C1.5, C2.5, C2.6, C5.1 a C5.4, C10.4)
   - Backend compilado contra la base de desarrollo: migración desde cero; índices presentes y `prisma migrate diff` sin intentar borrar los manuales; alta, detalle, edición, baja lógica y 404 posterior; duplicado real → 409; reversión: un fallo tras crear un autor no lo deja guardado; dos altas simultáneas con la misma editorial nueva dejan una fila; volver a registrar un libro eliminado; `EXPLAIN` del índice `pg_trgm`; el hash y las filas eliminadas no salen en ninguna respuesta.
   - Hecho cuando: cada comprobación queda en el registro de verificación.
   - Commit: `docs(books-crud): record the backend verification`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-06, C-07, C-11 y C-12.)
+(Se completa en C-01 a C-07, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -183,3 +183,26 @@ Servidor real (`node dist/main`) contra la base de desarrollo, con login del adm
 | `lint`, tipos, build, `test:cov` y e2e | Pasan: 404 pruebas (30 nuevas) con 100% de cobertura, y 8 e2e |
 
 El e2e de `auth` recorre ahora también las cuatro operaciones nuevas del OpenAPI y exige 401 sin token.
+
+### C-07: verificación del backend contra PostgreSQL real (2026-10-28)
+Entorno: PostgreSQL 16 del contenedor de desarrollo; base **nueva y vacía** (`c07_check`, eliminada al terminar) migrada con `prisma migrate deploy`; `BooksService` y `CatalogService` reales, compilados.
+
+| Comprobación | Resultado |
+|---|---|
+| `migrate deploy` desde cero | Aplica las tres migraciones |
+| `prisma migrate diff` base ↔ esquema | Vacío |
+| Índices de `books` | Pkey, único parcial, los cinco B-tree y `books_title_trgm_idx` |
+| 6 altas simultáneas de libros distintos con la misma editorial y género nuevos | Las 6 terminan bien; 1 fila de editorial y 1 de género |
+| 2 altas simultáneas del mismo libro | Una se crea y la otra recibe `ConflictException`; 1 fila |
+| Duplicado con otra capitalización (`P2002` real del índice único) | `ConflictException` con el mensaje de la spec. Cierra la salvedad 2 de `platform` |
+| Reversión: catálogos nuevos y el insert del libro falla | No queda ningún autor, editorial, género ni libro |
+| Reversión en la edición: catálogo nuevo y libro inexistente | 404 y ningún catálogo nuevo |
+| Baja lógica | La fila se conserva; detalle, nueva baja y edición dan 404; se puede volver a registrar (2 filas, 1 activa) |
+| Respuesta del servicio | Solo `id`, `title`, `author`, `publisher`, `genre`, `price`, `availability`, `imageUrl`, `createdAt`, `updatedAt` |
+| `pg_trgm` con 300.009 libros, `ILIKE '%a1b2c3d4e5%'` | Plan natural: `Bitmap Index Scan on books_title_trgm_idx`, 4,1 ms. Con índices desactivados: `Parallel Seq Scan`, 319,8 ms |
+
+**Defecto encontrado y corregido.** Con 6 (luego 16) transacciones simultáneas que crean el mismo catálogo nuevo, una fallaba con `P2002` sobre `publishers.name`, y `BooksService` lo presentaba como "libro duplicado". La causa: `upsert` con `update: {}` no usa `INSERT … ON CONFLICT`. Correcciones: `update: { name }` en `CatalogService.resolve`, y `translate` solo convierte el `P2002` del modelo `Book`. Tras el cambio: 20 rondas de 16 transacciones simultáneas (publisher, publisher+género, con el cliente `live` y con autores distintos) sin ningún error. La afirmación de C-03 ("8 de 8 correctas") era suerte de tiempos, no una garantía.
+
+**Observación sobre las pruebas.** Una ejecución completa de `test:cov` tuvo 27 fallos (las pruebas HTTP de libros y dos de `argon2`) que no se reprodujeron: las mismas pruebas pasan solas y en tres ejecuciones completas seguidas (405 pruebas, 100% de cobertura). Se atribuye a carga de la máquina (tiempos de espera con `argon2` y Passport en paralelo); queda anotado por si reaparece.
+
+`lint`, tipos, build, `test:cov` y e2e pasan: 405 pruebas con 100% de cobertura (tres ejecuciones seguidas) y 8 pruebas e2e.

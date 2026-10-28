@@ -119,7 +119,7 @@ backend/src/
 
 **`CatalogService`**
 - `list(kind, query)`: lo de arriba, con el delegado correcto según `kind`.
-- `resolve(tx, kind, name)`: devuelve el id del catálogo. 1) `findFirst({ where: { name: { equals: name, mode: 'insensitive' } } })`; si existe, devuelve su id. 2) Si no, `upsert({ where: { name }, update: {}, create: { name } })`. Dos peticiones que crean a la vez el mismo nombre nuevo terminan en una sola fila y ninguna falla, porque Prisma traduce el `upsert` por clave única a `INSERT … ON CONFLICT DO UPDATE`. Dos nombres que solo difieren en mayúsculas y llegan a la vez podrían crear dos filas; es un caso extremo que se documenta (§10). `tx` se tipa con la interfaz mínima que el servicio necesita, para poder simularla en las pruebas sin importar el cliente completo.
+- `resolve(tx, kind, name)`: devuelve el id del catálogo. 1) `findFirst({ where: { name: { equals: name, mode: 'insensitive' } } })`; si existe, devuelve su id. 2) Si no, `upsert({ where: { name }, update: {}, create: { name } })`. Dos peticiones que crean a la vez el mismo nombre nuevo terminan en una sola fila y ninguna falla, porque Prisma traduce el `upsert` por clave única a `INSERT … ON CONFLICT DO UPDATE`. **El `update` no puede estar vacío**: con `update: {}` Prisma no usa la sentencia nativa sino una búsqueda seguida de un insert, y en C-07 una de cada seis transacciones simultáneas fallaba con `P2002` (C-03 había dado por bueno el `upsert` con 8 de 8 correctas, que fue suerte de tiempos). Por eso se usa `update: { name }`, que no cambia nada; con él, 20 rondas de 16 transacciones simultáneas no dieron ningún error. Dos nombres que solo difieren en mayúsculas y llegan a la vez podrían crear dos filas; es un caso extremo que se documenta (§10). `tx` se tipa con la interfaz mínima que el servicio necesita, para poder simularla en las pruebas sin importar el cliente completo.
 
 **`BooksService`** (recibe `PrismaService` y `CatalogService` por inyección; no conoce `AuditService` todavía)
 
@@ -142,7 +142,7 @@ return this.prisma.live.$transaction(async (tx) => {
 
 `remove(id)`: en la transacción, `tx.book.update({ where: { id }, data: { deletedAt: new Date() } })`; un segundo `DELETE` del mismo libro da `P2025` → 404 (C5.3).
 
-**Traducción de `P2002`.** Un helper `rethrowDuplicate(error)` en `books.service.ts` captura `Prisma.PrismaClientKnownRequestError` con código `P2002` y lanza `ConflictException` con el mensaje de C2.6. El nombre del catálogo (`name` único) nunca provoca este error gracias al `upsert`; solo puede venir del índice único de libros.
+**Traducción de `P2002`.** `translate` en `books.service.ts` convierte en `ConflictException` (mensaje de C2.6) solo el `P2002` cuyo `meta.modelName` es `Book`, es decir, el índice único de libros. Una violación de unicidad de un catálogo no se presenta como "libro duplicado": se deja pasar al filtro global (409 genérico). Esto se endureció en C-07, cuando la carrera del `upsert` mostró que cualquier `P2002` se traducía con el mensaje equivocado. `P2025` se traduce a 404 `Book not found`.
 
 **Fechas.** `deletedAt` y `updatedAt` salen de la hora del proceso (`new Date()` y `@updatedAt`); con una sola instancia no hay desfase relevante.
 

@@ -96,13 +96,13 @@ describe('CatalogService', () => {
       expect(prisma.publisher.upsert).not.toHaveBeenCalled();
     });
 
-    it('creates the entry with an upsert on the exact name when none matches', async () => {
+    it('creates the entry with an upsert on the exact name when none matches (a non-empty update makes Prisma use ON CONFLICT)', async () => {
       const id = await service.resolve(tx(), 'author', 'Isabel Allende');
 
       expect(id).toBe('new-id');
       expect(prisma.author.upsert).toHaveBeenCalledWith({
         where: { name: 'Isabel Allende' },
-        update: {},
+        update: { name: 'Isabel Allende' },
         create: { name: 'Isabel Allende' },
         select: { id: true },
       });

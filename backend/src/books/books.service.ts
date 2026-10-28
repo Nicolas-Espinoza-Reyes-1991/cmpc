@@ -31,6 +31,14 @@ function isKnownError(
 }
 
 /**
+ * Only the unique index of books means "same title, author and publisher". A
+ * unique violation raised by a catalog (same name created at once by another
+ * request) must not be reported as a duplicate book.
+ */
+const isBookDuplicate = (error: unknown): boolean =>
+  isKnownError(error, UNIQUE_VIOLATION) && error.meta?.modelName === 'Book';
+
+/**
  * Every write runs in one transaction on `prisma.live` (which hides deleted
  * books): the catalog entries it creates and the book itself are saved together
  * or not at all (C2.5). `audit-log` will add its entry to the same transaction.
@@ -141,7 +149,7 @@ export class BooksService {
 
   /** The answers this service owns; anything else goes on to the global filter. */
   private translate(error: unknown): unknown {
-    if (isKnownError(error, UNIQUE_VIOLATION)) {
+    if (isBookDuplicate(error)) {
       return new ConflictException(DUPLICATE_MESSAGE);
     }
     if (isKnownError(error, RECORD_NOT_FOUND)) {

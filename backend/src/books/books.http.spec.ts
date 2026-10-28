@@ -207,6 +207,7 @@ describe('books over HTTP (real Passport)', () => {
         new Prisma.PrismaClientKnownRequestError('dup', {
           code: 'P2002',
           clientVersion: 'test',
+          meta: { modelName: 'Book' },
         }),
       );
 

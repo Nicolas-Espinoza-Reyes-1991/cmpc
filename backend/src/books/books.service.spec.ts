@@ -39,10 +39,11 @@ const input: CreateBookDto = {
   availability: true,
 };
 
-const prismaError = (code: string) =>
+const prismaError = (code: string, modelName = 'Book') =>
   new Prisma.PrismaClientKnownRequestError('boom', {
     code,
     clientVersion: 'test',
+    meta: { modelName },
   });
 
 describe('BooksService', () => {
@@ -145,6 +146,16 @@ describe('BooksService', () => {
         'A book with the same title, author and publisher already exists',
       );
     });
+  });
+
+  it('does not report a unique violation of a catalog as a duplicate book', async () => {
+    const catalogRace = prismaError('P2002', 'Publisher');
+    resolve.mockRejectedValue(catalogRace);
+
+    await expect(service.create(input)).rejects.toBe(catalogRace);
+    await expect(service.update('b1', { publisher: 'x' })).rejects.toBe(
+      catalogRace,
+    );
   });
 
   describe('findOne', () => {
