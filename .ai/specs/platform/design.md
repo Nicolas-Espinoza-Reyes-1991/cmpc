@@ -142,12 +142,21 @@ Detalles de implementación (`backend/Dockerfile`):
 3. `exec node dist/main.js`, para que SIGTERM llegue a la aplicación (R6.4).
 
 ### Dockerfile del frontend (multi-etapa)
-`node` compila con Vite; la etapa final es `nginx:stable` sin privilegios que sirve el SPA con *fallback* a `index.html` y hace *proxy* de `/api/` al servicio `backend:3000`. Con esto el navegador solo habla con un origen y no hace falta CORS en el despliegue. En desarrollo con `npm run dev`, el servidor de Vite hace el mismo proxy.
+`node` compila con Vite; la etapa final es `nginxinc/nginx-unprivileged:1.30-alpine` (uid 101, puerto 8080; la etiqueta fija la serie 1.30 en vez de `stable`) que sirve el SPA con *fallback* a `index.html` y hace *proxy* de `/api/` al backend.
+
+Detalles de implementación (`frontend/Dockerfile` y `frontend/nginx/`):
+- La configuración es una plantilla (`default.conf.template`) que el *entrypoint* oficial de la imagen renderiza al arrancar con `envsubst`: `BACKEND_UPSTREAM` (por defecto `backend:3000`) y `DNS_RESOLVER` (por defecto `127.0.0.11`, el DNS de Docker). Las `$variables` propias de nginx no se tocan.
+- El *upstream* se guarda en una variable (`set $backend ...; proxy_pass http://$backend;`) con `resolver ... valid=10s`, de modo que nginx resuelve el nombre en cada petición. Con un nombre fijo, nginx no arranca si el backend no existe todavía y conserva una IP obsoleta cuando el backend se recrea. Comprobado: el frontend arranca sin backend (502 en `/api`, la app sí se sirve), encuentra al backend cuando aparece y sigue a un backend recreado con otra IP, sin reiniciar nginx.
+- `/healthz` responde 200 sin depender del backend (lo usa el `HEALTHCHECK` de la imagen y de Compose).
+- `/assets/` (nombres con hash de Vite) lleva `Cache-Control: public, max-age=31536000, immutable`; cualquier otra ruta cae en `index.html` con `no-cache`, para que un despliegue nuevo se vea de inmediato. Un asset inexistente responde 404, no la página.
+- Cabeceras de seguridad en páginas y assets (`nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy` y una CSP `default-src 'self'`; `style-src` admite `'unsafe-inline'` por los estilos en línea de React). `/api/` no las repite: el backend ya envía las suyas con `helmet`. Verificado en un navegador real: sin violaciones de CSP. Si una spec futura carga recursos de otro origen (fuentes, imágenes externas), habrá que ampliar la CSP en `security-headers.conf`.
+- `/api/` admite cuerpos de hasta 5 MB (`client_max_body_size`), margen para la imagen de 2 MB de un libro; los JSON de más de 100 KB los rechaza el backend con su 413.
+- Pendiente para las specs `auth` y `audit-log`: detrás de nginx, el backend ve la IP del contenedor de nginx, no la del cliente. Hay que activar `trust proxy` en Express (`app.set('trust proxy', 1)`) para que el límite de intentos del login y el campo `ip` de `AuditLog` usen la IP real; sin eso, todos los usuarios compartirían el mismo contador de intentos. Con esto el navegador solo habla con un origen y no hace falta CORS en el despliegue. En desarrollo con `npm run dev`, el servidor de Vite hace el mismo proxy.
 
 ### `docker-compose.yml`
 - `db`: `postgres:16`, volumen `pgdata`, `healthcheck` con `pg_isready` (R7.4, R7.6).
 - `backend`: build de `backend/`, `depends_on: db (service_healthy)`, volumen `uploads` montado en `UPLOAD_DIR`, `healthcheck` contra `/api/health` (R7.2, R7.4, R7.6).
-- `frontend`: build de `frontend/`, `depends_on: backend (service_healthy)`, `healthcheck` contra `/`.
+- `frontend`: build de `frontend/`, `depends_on: backend (service_healthy)`, `healthcheck` contra `/healthz` (puerto interno 8080; Compose publica `FRONTEND_PORT:8080`).
 - `pgadmin` con `profiles: ["tools"]` (R7.7).
 - Credenciales y puertos solo desde variables de entorno (R7.8).
 

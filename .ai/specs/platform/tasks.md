@@ -78,7 +78,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: una ruta protegida redirige a `/login` sin sesión; el aviso muestra el mensaje del `ApiError`.
   - Commit: `feat(frontend): add routing, query client and error notice`
 
-- [ ] **P-15 Docker del frontend** (R7.5, R7.6)
+- [x] **P-15 Docker del frontend** (R7.5, R7.6)
   - `Dockerfile` multi-etapa y `nginx.conf` con *fallback* SPA y proxy de `/api/`.
   - Hecho cuando: la imagen construye y sirve el SPA sin privilegios de root.
   - Commit: `build(frontend): add multi-stage Dockerfile and nginx config`

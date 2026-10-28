@@ -1,0 +1,58 @@
+# Rendered at container start by the image entrypoint: it replaces only the
+# ${VARIABLES} defined in the environment, so nginx's own $variables are safe.
+#   BACKEND_UPSTREAM  host:port of the API       (default backend:3000)
+#   DNS_RESOLVER      DNS server used for it     (default 127.0.0.11, Docker's)
+
+server {
+  listen 8080;
+  server_name _;
+  server_tokens off;
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  gzip on;
+  gzip_min_length 1024;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
+  # Liveness probe for Docker; it does not depend on the backend.
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  # The API lives behind the same origin as the app, so the browser needs no CORS.
+  location /api/ {
+    # The upstream is a variable on purpose: nginx then resolves the name at
+    # request time. With a fixed name it would resolve once at start, fail to
+    # boot while the backend is down, and keep a stale IP after the backend is
+    # recreated. Without a URI part, the original request URI is passed as is.
+    resolver ${DNS_RESOLVER} valid=10s ipv6=off;
+    set $backend "${BACKEND_UPSTREAM}";
+    proxy_pass http://$backend;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 30s;
+    # Room for a book image (the API limits it to 2 MB) plus multipart overhead.
+    client_max_body_size 5m;
+  }
+
+  # Vite hashes these file names, so they can be cached "forever".
+  location /assets/ {
+    include /etc/nginx/snippets/security-headers.conf;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    try_files $uri =404;
+  }
+
+  # Single-page app: any other path is a client-side route. index.html itself
+  # must never be cached, or users would keep an old build after a deploy.
+  location / {
+    include /etc/nginx/snippets/security-headers.conf;
+    add_header Cache-Control "no-cache" always;
+    try_files $uri /index.html;
+  }
+}
