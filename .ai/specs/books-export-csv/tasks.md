@@ -5,7 +5,7 @@ Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de deci
 Marcar con `[x]` al terminar.
 
 ## Backend
-- [ ] **X-01 Dependencia y codificación del CSV** (X2.1 a X2.6, X5.1)
+- [x] **X-01 Dependencia y codificación del CSV** (X2.1 a X2.6, X5.1)
   - Instalar `fast-csv` (ya previsto en `tech-stack.md`; línea CommonJS 5.x) y escribir `book-csv.ts`: columnas, `toCsvRow`, `escapeCsvCell`, `csvFileName` y `CSV_BOM`.
   - Pruebas: cada columna y su formato; `Sí`/`No`; precio con y sin decimales; fechas ISO; cada carácter peligroso de la inyección de fórmulas, en medio del texto (no se toca) y texto vacío; el nombre del archivo.
   - Hecho cuando: `lint`, `tsc`, build, `test:cov` y `npm audit --omit=dev` (sin hallazgos nuevos de `fast-csv`) pasan.
