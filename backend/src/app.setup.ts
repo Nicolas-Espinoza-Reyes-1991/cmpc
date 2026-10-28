@@ -3,12 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import type { RequestHandler } from 'express';
+import type { RequestHandler, Response } from 'express';
 import helmet from 'helmet';
 import { EnvironmentVariables } from './config/env.validation';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { createHttpLogger } from './common/middleware/http-logger.middleware';
+import { UPLOADS_ROUTE, uploadDirectory } from './books/images/image-storage';
 import { validationExceptionFactory } from './common/validation/validation-exception.factory';
 
 export const API_PREFIX = 'api';
@@ -76,6 +77,22 @@ export function configureApp(app: NestExpressApplication): void {
     exposedHeaders: ['Content-Disposition'],
   });
   app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
+  // Cover images. Plain Express middleware, so it sits outside the JWT guard on
+  // purpose: an <img> tag cannot send an Authorization header, the names are
+  // UUIDs nobody can guess, and a cover is not sensitive. Each upload creates a
+  // new name, so a file never changes and can be cached for a year.
+  app.useStaticAssets(uploadDirectory(config), {
+    prefix: UPLOADS_ROUTE,
+    index: false,
+    dotfiles: 'ignore',
+    redirect: false,
+    maxAge: '1y',
+    immutable: true,
+    // The library types `res` as `any`; it is the Express response.
+    setHeaders: (res: Response) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

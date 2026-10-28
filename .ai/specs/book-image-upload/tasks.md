@@ -20,7 +20,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: éxito, reemplazo (borra el anterior), libro inexistente sin escribir, contenido falso, fallo de la base con limpieza, fallo al borrar el anterior, idempotencia de quitar; controlador; HTTP con Passport y `multipart` real (401, 200, 400, 413, 404 sin archivos).
   - Commit: `feat(books): add book image upload and removal endpoints`
 
-- [ ] **U-04 Servir las imágenes** (U3.1 a U3.3)
+- [x] **U-04 Servir las imágenes** (U3.1 a U3.3)
   - `useStaticAssets` en `configureApp` con caché larga y `nosniff`; el e2e comprueba que `/api/uploads` es público y no entra en Swagger.
   - Pruebas HTTP: se sirve el archivo subido con sus cabeceras; 404 si no existe; `..` y archivos ocultos no salen del directorio; no lista el directorio.
   - Commit: `feat(app): serve uploaded images with long cache headers`
