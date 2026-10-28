@@ -82,4 +82,5 @@ frontend/src/
 - Redimensionado y miniaturas para el listado; conversión a WebP.
 - Eliminación de metadatos (EXIF) y análisis antivirus del contenido.
 - Tarea de limpieza que borre archivos sin referencia en la base.
+- Borrar también el archivo cuando se elimina un libro (hoy el borrado lógico lo conserva, y sigue sirviéndose por su URL), junto con una papelera que permita restaurarlo.
 - URLs firmadas si algún día las imágenes dejaran de ser públicas.

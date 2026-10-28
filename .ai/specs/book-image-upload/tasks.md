@@ -25,7 +25,7 @@ Marcar con `[x]` al terminar.
   - Pruebas HTTP: se sirve el archivo subido con sus cabeceras; 404 si no existe; `..` y archivos ocultos no salen del directorio; no lista el directorio.
   - Commit: `feat(app): serve uploaded images with long cache headers`
 
-- [ ] **U-05 Verificación contra PostgreSQL y disco reales** (U6.4)
+- [x] **U-05 Verificación contra PostgreSQL y disco reales** (U6.4)
   - Backend compilado: subir PNG, JPEG y WebP reales; texto renombrado, GIF, SVG, vacío y 2 MB + 1 rechazados sin dejar archivos; reemplazo y borrado sin huérfanos; libro eliminado → 404 sin archivo; cabeceras; sin token; intentos de salir del directorio.
   - Hecho cuando: cada comprobación queda en el registro de verificación.
   - Commit: `docs(book-image-upload): record the backend verification`
@@ -53,3 +53,26 @@ Marcar con `[x]` al terminar.
 
 ## Registro de verificación
 (Se completa en U-05, U-08 y U-09.)
+
+### U-05: subida de imágenes contra el servidor, PostgreSQL y el disco reales (2026-10-29)
+Entorno: backend compilado (`node dist/main`) contra la base de desarrollo, con `UPLOAD_DIR` en un directorio temporal vacío (borrado al terminar) y peticiones `multipart` reales de Node (`FormData`); PNG, JPEG y WebP reales de 1×1 píxel. Los datos de prueba se borraron de la base.
+
+| Comprobación | Resultado |
+|---|---|
+| Subir un PNG | 200; `imageUrl` = `/api/uploads/<uuid>.png`; 1 archivo en disco; la base coincide |
+| Ver el PNG **sin token** | 200, `Content-Type: image/png`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`, bytes idénticos a los subidos |
+| Reemplazar por JPEG y luego por WebP | 200 en ambos, extensión `.jpg` y `.webp` según el contenido; el archivo anterior desaparece del disco cada vez (siempre 1 archivo) y la base apunta al nuevo |
+| Texto renombrado `.png`, HTML con tipo `image/png`, SVG con script, GIF, archivo vacío y un `.exe` | 400 los seis; el disco y la base no cambian |
+| 2 MB exactos / 2 MB + 1 byte | 200 / **413** (cuerpo `statusCode: 413`); el archivo rechazado no deja nada en disco |
+| Sin archivo, otro nombre de campo (`photo`), dos archivos, un campo de texto extra y un cuerpo JSON | 400 las cinco |
+| `POST` y `DELETE` sin token | 401 las dos |
+| Libro inexistente / `:id` que no es UUID | 404 / 400, sin dejar archivos |
+| Salir del directorio: `/api/uploads/../package.json`, `..%2f..%2f.env`, `%2e%2e/%2e%2e/.env`, `..%5c..%5c.env`, el directorio con y sin barra y `.hidden` | 404 los siete; ningún contenido secreto en las respuestas |
+| `DELETE` de la imagen | 200 con `imageUrl: null`; el archivo se borra; la base queda en `null`; la segunda llamada también da 200 (idempotente) |
+| Libro eliminado (borrado lógico) | Subir y quitar imagen dan 404 y no tocan el disco |
+| Archivos en disco frente a los que referencia la base | Idénticos: sin archivos huérfanos |
+| Log del servidor | Solo líneas `[HTTP]` con método, ruta, estado, duración y usuario (los 4xx como `WARN`); ningún contenido de archivos |
+
+Observaciones:
+- **Libro eliminado con imagen**: el borrado lógico conserva la fila y, por tanto, su archivo, que sigue sirviéndose en `/api/uploads/<nombre>` (200). Es coherente con el borrado lógico (el libro podría restaurarse) y con que las portadas no son datos sensibles, pero conviene saberlo; la limpieza de archivos de libros eliminados queda como mejora futura en `design.md` §6.
+- Una comprobación de mi script ("ver la imagen sin token" al final del recorrido) dio 404 porque usé la URL de un archivo que el paso anterior (los 2 MB exactos) ya había reemplazado; el 404 es el comportamiento correcto y el acceso público sin token ya quedó probado en el primer paso.
