@@ -51,7 +51,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: `setToken` y `clear` avisan a los oyentes; darse de baja funciona; un evento `storage` con la clave del token avisa; con otra clave no; se quita el oyente de `storage` al no quedar suscriptores.
   - Commit: `feat(frontend): make the session observable across tabs`
 
-- [ ] **A-10 `AuthProvider`, `useAuth` y `ProtectedRoute`** (A5.1 a A5.5, A5.7)
+- [x] **A-10 `AuthProvider`, `useAuth` y `ProtectedRoute`** (A5.1 a A5.5, A5.7)
   - `AuthProvider` con `status`, `user`, `login`, `logout` y `retry`; `ProtectedRoute` con las pantallas de carga y de error (`AuthStatusScreen`).
   - Pruebas: los cinco estados (`anonymous`, `loading`, `authenticated`, 401, error de red); `login` guarda el token y siembra la caché; `logout` limpia token y caché; `retry` reintenta; `ProtectedRoute` en cada estado; `useAuth` fuera del proveedor falla con un mensaje claro.
   - Commit: `feat(frontend): add auth provider and session-aware protected route`

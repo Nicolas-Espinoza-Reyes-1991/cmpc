@@ -1,77 +1,94 @@
-import { act, render, screen } from '@testing-library/react';
-import { AxiosError, type AxiosAdapter } from 'axios';
+import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { AppProviders } from './components/AppProviders';
 import { apiClient, setUnauthorizedHandler } from './lib/api-client';
 import { session } from './lib/session';
+import { mockApi, type MockApi } from './test/mock-api';
 import {
   createAppRouter,
   registerUnauthorizedNavigation,
   routes,
 } from './router';
 
+const ADMIN = { id: 'id-admin', email: 'admin@cmpc.local' };
+
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(
+    <AppProviders>
+      <RouterProvider router={router} />
+    </AppProviders>,
+  );
   return router;
 }
 
-const heading = (name: string) => screen.getByRole('heading', { name });
+const heading = (name: string) => screen.findByRole('heading', { name });
 
 describe('routes', () => {
+  let api: MockApi;
+
   beforeEach(() => {
     localStorage.clear();
+    // A saved token is valid for every test that sets one.
+    api = mockApi({ 'GET /auth/me': { data: { data: ADMIN } } });
+  });
+
+  afterEach(() => {
+    api.restore();
   });
 
   describe('protected /books', () => {
-    it('sends a visitor without session to the login', () => {
+    it('sends a visitor without session to the login', async () => {
       const router = renderAt('/books');
 
-      expect(heading('Iniciar sesión')).toBeInTheDocument();
+      expect(await heading('Iniciar sesión')).toBeInTheDocument();
       expect(router.state.location.pathname).toBe('/login');
     });
 
-    it('remembers where the visitor was going', () => {
+    it('remembers where the visitor was going', async () => {
       const router = renderAt('/books');
+      await heading('Iniciar sesión');
 
       expect(router.state.location.state).toEqual({ from: '/books' });
     });
 
-    it('does not keep the blocked page in the history', () => {
+    it('does not keep the blocked page in the history', async () => {
       const router = renderAt('/books');
+      await heading('Iniciar sesión');
 
       // `replace` means "back" cannot return to the page that just redirected.
       expect(router.state.historyAction).toBe('REPLACE');
     });
 
-    it('shows the page to a visitor with a session', () => {
+    it('shows the page to a visitor whose session the server confirms', async () => {
       session.setToken('jwt-token');
 
       const router = renderAt('/books');
 
-      expect(heading('Libros')).toBeInTheDocument();
+      expect(await heading('Libros')).toBeInTheDocument();
       expect(router.state.location.pathname).toBe('/books');
     });
   });
 
-  it('serves the login without a session', () => {
+  it('serves the login without a session', async () => {
     renderAt('/login');
 
-    expect(heading('Iniciar sesión')).toBeInTheDocument();
+    expect(await heading('Iniciar sesión')).toBeInTheDocument();
   });
 
-  it('redirects the root to the books', () => {
+  it('redirects the root to the books', async () => {
     session.setToken('jwt-token');
 
     const router = renderAt('/');
 
+    expect(await heading('Libros')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/books');
-    expect(heading('Libros')).toBeInTheDocument();
   });
 
-  it('shows a not found page with a way back', () => {
+  it('shows a not found page with a way back', async () => {
     renderAt('/nowhere');
 
-    expect(heading('Página no encontrada')).toBeInTheDocument();
+    expect(await heading('Página no encontrada')).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Volver a los libros' }),
     ).toHaveAttribute('href', '/books');
@@ -88,46 +105,31 @@ describe('createAppRouter', () => {
 });
 
 describe('registerUnauthorizedNavigation', () => {
-  const originalAdapter = apiClient.defaults.adapter;
+  let api: MockApi;
 
   beforeEach(() => {
     localStorage.clear();
+    api = mockApi({
+      'GET /auth/me': { data: { data: ADMIN } },
+      'GET /books': { status: 401, data: {} },
+    });
   });
 
   afterEach(() => {
     setUnauthorizedHandler();
-    apiClient.defaults.adapter = originalAdapter;
+    api.restore();
   });
 
   it('moves to the login without a page reload when the session expires', async () => {
     session.setToken('expired-token');
     const router = renderAt('/books');
     registerUnauthorizedNavigation(router);
-    const adapter: AxiosAdapter = (config) =>
-      Promise.reject(
-        new AxiosError(
-          'Unauthorized',
-          AxiosError.ERR_BAD_REQUEST,
-          config,
-          null,
-          {
-            data: {},
-            status: 401,
-            statusText: 'Unauthorized',
-            headers: {},
-            config,
-          },
-        ),
-      );
-    apiClient.defaults.adapter = adapter;
-    expect(heading('Libros')).toBeInTheDocument();
+    expect(await heading('Libros')).toBeInTheDocument();
 
-    await act(async () => {
-      await apiClient.get('/books').catch(() => undefined);
-    });
+    await apiClient.get('/books').catch(() => undefined);
 
     expect(session.getToken()).toBeNull();
+    expect(await heading('Iniciar sesión')).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
-    expect(heading('Iniciar sesión')).toBeInTheDocument();
   });
 });

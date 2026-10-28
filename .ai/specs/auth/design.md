@@ -131,6 +131,16 @@ Detalles de implementación (A-09):
 
 **`ProtectedRoute`**: `loading` muestra `AuthStatusScreen` ("Verificando sesión…"); `error` muestra el error con "Reintentar"; `anonymous` redirige a `/login` con `state.from`; `authenticated` muestra el `<Outlet />`.
 
+Detalles de implementación (A-10):
+- **La consulta de `me` lleva el token en su clave** (`['auth', 'me', token]`, no `['auth', 'me']` como decía el primer diseño). Con una clave fija, si otra pestaña inicia sesión como otro usuario, esta pestaña seguiría mostrando al anterior hasta recargar, porque la consulta nunca caduca (`staleTime: Infinity`). Con el token en la clave, un token nuevo es otra consulta. Se comprobó con una prueba.
+- La consulta no reintenta (`retry: false`): la pantalla de error ofrece su propio "Reintentar" y el usuario no espera un reintento automático escondido.
+- **Estados:** sin token es `anonymous`; con token y la consulta exitosa, `authenticated`; con error y sin petición en curso, `error`; en cualquier otro caso, `loading`. Tras "Reintentar" la consulta conserva su error hasta que llega la respuesta nueva, así que el estado se calcula con `isFetching` y la pantalla dice "Verificando sesión…" en vez de repetir el error.
+- **`login`** siembra la caché con el usuario de la respuesta **antes** de guardar el token: no hay destello de "cargando" ni una petición extra a `/auth/me`.
+- **`logout`** limpia el token y toda la caché de consultas. La propia consulta de `me` se vuelve a crear vacía y deshabilitada (sin token): no conserva ningún dato, que es lo que exige A5.5. Las pruebas comprueban que no queda ni un dato.
+- `AuthProvider` va dentro de `AppProviders`, que sigue montando el aviso global; el error de `me` no se repite allí (`meta.silent`).
+- `ProtectedRoute` ya no lee el token directamente; usa `useAuth()`. Las pruebas de rutas protegidas necesitan el proveedor y una respuesta simulada de `/auth/me`: `src/test/mock-api.ts` (`mockApi`) sustituye la capa HTTP del cliente real, que conserva sus interceptores, y una ruta sin respuesta simulada se comporta como fallo de red para que un mock olvidado falle en vez de colgarse.
+- Comprobado en un **navegador real con el backend real**: con un token válido la secuencia de pantallas es "Verificando sesión…" y luego "Libros", sin pasar por el login; con un token inválido se llega a `/login` con `from: "/books"` y el token se borra; con el backend caído y un token válido aparece la pantalla de error con "Reintentar" y **la sesión se conserva**, y al volver el backend "Reintentar" lleva a "Libros"; y al quitar el token en una pestaña, la otra pasa de `/books` a `/login` sola, sin recargar.
+
 **`LoginPage`**:
 - React Hook Form con `zodResolver` y `mode: 'onTouched'` (valida al salir de cada campo y luego en cada cambio). Esquema en `lib/login-schema.ts`: correo con `trim` y formato; contraseña obligatoria; mensajes en español.
 - Al enviar, llama a `login` del `AuthProvider` dentro de un `useMutation` con `meta: { silent: true }`.
