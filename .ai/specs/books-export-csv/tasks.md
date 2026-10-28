@@ -33,7 +33,7 @@ Marcar con `[x]` al terminar.
   - Commit: `feat(frontend): add the CSV export button to the books page`
 
 ## Integración y cierre
-- [ ] **X-06 Verificación de punta a punta** (X5.4)
+- [x] **X-06 Verificación de punta a punta** (X5.4)
   - Docker y navegador real: descargar con y sin filtros y con otro orden, capturar el archivo y compararlo con la tabla; título con fórmula; error de sesión; botón con resultado vacío.
   - Hecho cuando: cada escenario queda anotado.
   - Commit: `docs(books-export-csv): record the end-to-end verification`
@@ -79,3 +79,26 @@ Observaciones:
 - **Exportaciones enormes.** Una exportación de cientos de miles de libros tarda de uno a cinco minutos (según el filtro); la memoria no es un problema pero el tiempo sí lo es para una petición HTTP: el cliente HTTP del frontend tiene un tiempo máximo de 15 s y lo cortaría (se corrige en X-05 con un tiempo máximo propio para la exportación). Para millones de libros haría falta una exportación en segundo plano (mejora futura en `design.md` §6). Para el tamaño real de una tienda (miles de libros) la descarga es inmediata.
 - **Defecto de método.** El primer intento usó la base de desarrollo por error: `. ./.env` volvió a poner `DATABASE_URL` después de mi `export`. Se detectó porque el CSV salió vacío y se repitió contra la base nueva.
 - Dos defectos del propio código ya se habían hallado y corregido al escribir las pruebas (X-03): el generador quedaba abierto con `.pipe` y el CSV vacío salía sin BOM.
+
+### X-06: recorrido de punta a punta con Docker y navegador real (2026-10-28)
+Entorno: `docker compose up --build` (db, backend y frontend sanos), navegador integrado, administrador sembrado y 23 libros cargados por la API (entre ellos `=HYPERLINK("http://malo.example","Clic")` con autor `+Anónimo`, `Uno, dos "tres"` y acentos). Para leer el archivo sin guardarlo en disco se envolvieron `URL.createObjectURL` y el `click` del enlace en la página (solo registran el `Blob` que la aplicación entrega al navegador). El token se puso en `localStorage` en lugar de escribir la contraseña en el formulario.
+
+| Escenario | Resultado |
+|---|---|
+| Botón «Exportar CSV» en `/books` | Presente junto a «Nuevo libro» |
+| Exportar sin filtros (8 libros) | Archivo `libros-2026-10-28.csv`, `text/csv`, **BOM** `ef bb bf`, encabezado de 9 columnas, 8 filas en el **mismo orden** que la tabla; el enlace temporal estaba en el documento al hacer clic y no queda ninguno después; el botón vuelve a «Exportar CSV» y no hay avisos |
+| Fórmula | El título sale como `"'=HYPERLINK(""http://malo.example"",""Clic"")"` y el autor como `'+Anónimo` (la tabla sigue mostrando los datos originales) |
+| Comas, comillas y acentos | `"Uno, dos ""tres"""`, `Autor Ñandú`, `Sudamericana` y `Plaza & Janés` bien entrecomillados y codificados |
+| Filtros y orden de la vista (`género=Novela`, disponibles, precio descendente) | La petición lleva `?genre=Novela&availability=true&sort=price:desc`, **sin `page` ni `limit`**; el archivo trae las mismas 4 filas en el mismo orden que la tabla |
+| Más de una página (23 libros, la tabla muestra 10) | El archivo trae **23** filas, no las 10 visibles |
+| Búsqueda escrita en el cuadro (`Relleno 1`, con la pausa) | La petición lleva `?search=Relleno+1`; el archivo y la tabla coinciden (7 filas, mismo orden) |
+| Sin resultados | La tabla dice «Ningún libro coincide…»; el archivo pesa 80 bytes: BOM más el encabezado, sin filas |
+| Cabeceras a través de nginx | `200`, `text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="libros-2026-10-28.csv"`, `Access-Control-Expose-Headers: Content-Disposition`, `Cache-Control: no-store`, `nosniff` |
+| Backend detenido | Tras unos segundos el aviso «No se pudo exportar el CSV. Ocurrió un error en el servidor. Inténtalo más tarde.» con «Reintentar exportación»; el botón vuelve a estar activo, la tabla sigue en pantalla y no hay descarga ni segundo aviso global |
+| Reintentar con el backend de nuevo sano | Se descarga el archivo y el aviso desaparece |
+| Sesión caducada (token inválido en `localStorage`) | La exportación recibe 401, la sesión se borra y se navega a `/login`; no hay descarga; el backend registra el 401 |
+
+Observaciones:
+- **Mi instrumentación y la CSP.** El primer intento leyó el `Blob` con `fetch(blob:...)` y la política de seguridad de la aplicación (`default-src 'self'`) lo bloqueó. Era un defecto de mi forma de medir y no de la aplicación (la descarga con enlace no usa `connect-src`); se cambió por registrar el `Blob` en `createObjectURL`.
+- **No se probó** el cuadro de guardado del sistema ni el nombre final que decide el navegador: el panel integrado no los expone. Lo que se verificó es lo que la aplicación entrega al navegador (nombre, tipo y contenido).
+- Al terminar se eliminó el stack con sus volúmenes (`docker compose down -v`).
