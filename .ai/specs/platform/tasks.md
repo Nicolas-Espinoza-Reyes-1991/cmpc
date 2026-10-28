@@ -63,7 +63,7 @@ Marcar con `[x]` al terminar.
   - Commit: `build(backend): add multi-stage Dockerfile and entrypoint`
 
 ## Frontend
-- [ ] **P-12 Scaffold del frontend** (R1.1, R8.2, R9)
+- [x] **P-12 Scaffold del frontend** (R1.1, R8.2, R9)
   - Proyecto Vite + React + TypeScript en `frontend/`, Tailwind, ESLint (`no-explicit-any`), Prettier, Vitest + React Testing Library, proxy de `/api` en Vite, scripts `test`, `test:cov`, `lint` y umbrales de 80.
   - Hecho cuando: `npm run lint` y `npm run test:cov` terminan sin errores.
   - Commit: `chore(frontend): scaffold Vite React project`
