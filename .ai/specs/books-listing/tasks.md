@@ -31,7 +31,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: servicio; lectura con valores inválidos descartados; escritura mínima; `cycleSort`; cambios que vuelven a la página 1; el hook con la API simulada.
   - Commit: `feat(frontend): add list parameters in the URL and the books query`
 
-- [ ] **L-06 Tabla, filtros, paginación y página** (L4.1 a L4.6, L4.8, L4.10)
+- [x] **L-06 Tabla, filtros, paginación y página** (L4.1 a L4.6, L4.8, L4.10)
   - `BookTable`, `BookFilters`, `Pagination` y `BooksPage` con los estados de carga, error y vacío.
   - Pruebas: encabezados ordenables con prioridades y `aria-sort`; búsqueda con espera; filtros combinados; paginación y tamaño de página; estados; accesibilidad básica.
   - Commit: `feat(frontend): add the books table with filters, sorting and pagination`

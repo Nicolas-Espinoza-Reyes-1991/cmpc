@@ -1,12 +1,39 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router';
+import { BookFilters } from '../components/BookFilters';
+import { BookTable } from '../components/BookTable';
+import { Pagination } from '../components/Pagination';
+import { useBookListParams } from '../hooks/useBookListParams';
+import { useBooks } from '../hooks/useBooks';
+import { hasActiveFilters } from '../lib/book-list-params';
 
-// Placeholder: the listing arrives with the `books-listing` spec. Until then
-// this page is the way into the "new book" form.
+/**
+ * The books of the store: search by title, filters, order by several columns
+ * and pagination, all resolved by the server. The view lives in the URL, so
+ * reloading, going back and sharing the link keep it.
+ */
 export function BooksPage() {
+  const { params, change, goToPage, toggleSort, clearSort, clearFilters } =
+    useBookListParams();
+  const { data, error, isPending, isPlaceholderData, refetch } =
+    useBooks(params);
+  const filtersActive = hasActiveFilters(params);
+
+  const total = data?.meta.total ?? 0;
+  const lastPage = Math.max(1, Math.ceil(total / params.limit));
+
+  // A shared link, a deletion or a bigger page size can leave the URL on a page
+  // that does not exist anymore: show the last one instead of an empty table.
+  useEffect(() => {
+    if (data && !isPlaceholderData && params.page > lastPage) {
+      goToPage(lastPage, { replace: true });
+    }
+  }, [data, isPlaceholderData, params.page, lastPage, goToPage]);
+
   return (
-    <main className="mx-auto max-w-5xl p-8">
+    <main className="mx-auto max-w-6xl space-y-6 p-8">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Libros</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Libros</h1>
         <Link
           to="/books/new"
           className="rounded-md bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 focus:outline-2 focus:outline-offset-2 focus:outline-blue-700"
@@ -14,6 +41,90 @@ export function BooksPage() {
           Nuevo libro
         </Link>
       </div>
+
+      <BookFilters
+        params={params}
+        onChange={change}
+        onClear={clearFilters}
+        active={filtersActive}
+      />
+
+      {error && (
+        <div
+          role="alert"
+          className="rounded-md border border-red-200 bg-red-50 p-4 text-red-800"
+        >
+          <p>{error.message}</p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-3 rounded bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {isPending && !error && (
+        <p role="status" className="text-slate-600">
+          Cargando libros…
+        </p>
+      )}
+
+      {data && (
+        <>
+          <div className="flex items-center justify-between gap-4">
+            <p role="status" className="text-sm text-slate-600">
+              {total} {total === 1 ? 'resultado' : 'resultados'}
+            </p>
+            {params.sort.length > 0 && (
+              <button
+                type="button"
+                onClick={clearSort}
+                className="text-sm font-medium text-blue-700 underline"
+              >
+                Quitar orden
+              </button>
+            )}
+          </div>
+
+          {data.items.length > 0 ? (
+            <BookTable
+              books={data.items}
+              sort={params.sort}
+              onSort={toggleSort}
+              busy={isPlaceholderData}
+            />
+          ) : (
+            <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
+              {filtersActive ? (
+                <p>
+                  Ningún libro coincide con los filtros. Usa «Limpiar filtros»
+                  para ver todos.
+                </p>
+              ) : (
+                <>
+                  <p>No hay libros todavía.</p>
+                  <Link
+                    to="/books/new"
+                    className="mt-2 inline-block text-blue-700 underline"
+                  >
+                    Registrar el primer libro
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
+
+          <Pagination
+            page={params.page}
+            limit={params.limit}
+            total={total}
+            onPage={goToPage}
+            onLimit={(limit) => change({ limit })}
+          />
+        </>
+      )}
     </main>
   );
 }

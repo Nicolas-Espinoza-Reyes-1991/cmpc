@@ -47,7 +47,8 @@ export function useBookListParams() {
   );
 
   const goToPage = useCallback(
-    (page: number) => update((current) => ({ ...current, page })),
+    (page: number, options?: ChangeOptions) =>
+      update((current) => ({ ...current, page }), options),
     [update],
   );
 
