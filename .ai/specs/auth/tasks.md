@@ -56,7 +56,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: los cinco estados (`anonymous`, `loading`, `authenticated`, 401, error de red); `login` guarda el token y siembra la caché; `logout` limpia token y caché; `retry` reintenta; `ProtectedRoute` en cada estado; `useAuth` fuera del proveedor falla con un mensaje claro.
   - Commit: `feat(frontend): add auth provider and session-aware protected route`
 
-- [ ] **A-11 Pantalla de login** (A5.1, A5.7, A6.1 a A6.6)
+- [x] **A-11 Pantalla de login** (A5.1, A5.7, A6.1 a A6.6)
   - Reemplazar el marcador de `LoginPage` por el formulario.
   - Pruebas: validación en español por campo; envío correcto con navegación a `from` y a `/books`; `from` peligroso (`//evil.test`, `https://evil.test`) se ignora; 401, 429, error de red y 400 por campo; sin duplicar el aviso global; botón deshabilitado con "Ingresando…" y sin doble envío; mostrar y ocultar contraseña con `aria-pressed`; foco en el primer campo con error; la contraseña no se guarda en `localStorage`; un usuario autenticado es redirigido a `/books`.
   - Commit: `feat(frontend): add login form`
