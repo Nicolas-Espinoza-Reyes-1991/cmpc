@@ -126,6 +126,16 @@ Detalles de implementación:
 
 Se usa una imagen basada en Debian (no Alpine) para evitar problemas de compilación nativa con `argon2` y de motor de Prisma en musl.
 
+Detalles de implementación (`backend/Dockerfile`):
+- Cuatro etapas: `deps` (todas las dependencias y cliente Prisma), `build` (compila), `prod-deps` (solo producción, con el cliente Prisma generado) y `runtime`. Se instala `openssl`, que Prisma necesita y la imagen slim no trae.
+- La CLI de `prisma` está en `dependencies` (no en `devDependencies`): el contenedor la necesita en ejecución para `migrate deploy`. Es la única herramienta de "desarrollo" que viaja en la imagen. Además `typescript` llega como dependencia par de Prisma (23 MB, no se usa en ejecución); excluirla obligaría a omitir todas las dependencias par, lo que es más arriesgado.
+- El proceso corre como el usuario `node` (uid 1000). `/app/uploads` pertenece a ese usuario y es el punto de montaje del volumen de imágenes.
+- `PRISMA_HIDE_UPDATE_MESSAGE` y `CHECKPOINT_DISABLE` evitan consultas de red de Prisma al arrancar.
+- La imagen define su propio `HEALTHCHECK` (consulta `/api/health` con `fetch` de Node, sin instalar `curl`); Compose puede reutilizarlo.
+- `.dockerignore` deja fuera `node_modules`, `dist`, `.env`, `test` y `uploads`; el `Dockerfile` elimina los `\r` del script de entrada por si se descargó con finales de línea de Windows, y `.gitattributes` fuerza LF en `*.sh` y `Dockerfile*`.
+- Medidas: `node_modules` de producción 339 MB y código compilado 1 MB; `docker image inspect` indica 271 MB de contenido.
+- Aviso conocido: Prisma 6 muestra que `package.json#prisma` (usado para `prisma.seed`) quedará obsoleto en Prisma 7; migrar a `prisma.config.ts` forma parte de la actualización de Prisma, que queda como mejora futura.
+
 ### `docker-entrypoint.sh`
 1. `npx prisma migrate deploy` (R7.2).
 2. Si `SEED_ON_START=true`, ejecuta el seed compilado (R7.3).

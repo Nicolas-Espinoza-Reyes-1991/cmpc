@@ -57,7 +57,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `npm run start` con una base local responde en `/api/health` y muestra Swagger en `/api/docs`.
   - Commit: `feat(app): bootstrap application with global pipes, security and Swagger`
 
-- [ ] **P-11 Docker del backend** (R7.2, R7.3, R7.5)
+- [x] **P-11 Docker del backend** (R7.2, R7.3, R7.5)
   - `Dockerfile` multi-etapa y `docker-entrypoint.sh` (migrar, seed opcional, `exec node`).
   - Hecho cuando: la imagen construye, corre como usuario no root y no contiene dependencias de desarrollo.
   - Commit: `build(backend): add multi-stage Dockerfile and entrypoint`
