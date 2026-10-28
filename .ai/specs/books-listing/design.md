@@ -68,4 +68,5 @@ frontend/src/
 ## 5. Mejoras futuras
 - *Combobox* con búsqueda para autor, editorial y género.
 - Índices compuestos según los patrones de orden más usados, o paginación por cursor si el catálogo crece mucho.
+- Conteo estimado o paginación por cursor si el catálogo llega a millones de libros: con 300.000 el listado tarda de 10 ms (título raro) a ~540 ms (el texto más común), casi todo en el conteo (L-04).
 - Filtros por rango de precio y de fechas; selección de filas y acciones en lote; columnas configurables.
