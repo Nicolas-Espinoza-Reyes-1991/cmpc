@@ -16,7 +16,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `prisma migrate deploy` sobre una base vacía aplica todo; `\d books` en PostgreSQL real muestra los índices; `prisma generate` y `npm run build` pasan.
   - Commit: `feat(db): add catalog and book models with indexes`
 
-- [ ] **C-02 Borrado lógico en Prisma** (C5.2, C5.3, C10.1)
+- [x] **C-02 Borrado lógico en Prisma** (C5.2, C5.3, C10.1)
   - `soft-delete.extension.ts`, `PrismaService.live` y la prueba de arquitectura sobre el uso de `prisma.book`.
   - Pruebas: cada operación fusiona `deletedAt: null`; respeta un `deletedAt` explícito; no toca otros modelos; la prueba de arquitectura falla si un servicio usa `prisma.book` fuera de `live`.
   - Commit: `feat(prisma): add soft delete extension`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01, C-07, C-11 y C-12.)
+(Se completa en C-01, C-02, C-07, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -91,3 +91,18 @@ Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_
 | `prisma generate`, `build`, `lint`, `test:cov` (213 pruebas, 100%) y e2e (8) | Pasan |
 
 Hallazgos: el índice GIN debía declararse en el esquema para que el próximo `migrate dev` no intente borrarlo (corregido y anotado en `design.md` §2). `prisma migrate dev` se queda esperando entrada en este entorno no interactivo, aunque aplica las migraciones; la creación de la migración manual se hizo a mano y se aplicó con `migrate dev`/`deploy`; el flujo del stack usa `migrate deploy`.
+
+### C-02: borrado lógico contra PostgreSQL real (2026-10-28)
+Backend compilado contra la base de desarrollo, con libros creados y eliminados a mano (todo se borró al terminar; `books` quedó en 0 filas).
+
+| Comprobación | Resultado |
+|---|---|
+| Cliente normal (`prisma.book`) con un libro eliminado | Ve los 2 libros (la extensión no lo afecta) |
+| `live.book.findMany` con y sin argumentos, y `count` | Solo el libro activo |
+| `live.book.findUnique` del eliminado / del activo | `null` / el activo |
+| `live.book.update` sobre el eliminado (editar y volver a eliminar) | `P2025` en ambos casos: no revive ni se elimina dos veces |
+| `update` y `findFirst` dentro de `live.$transaction` | La transacción también filtra (actualiza el activo; no ve el eliminado) |
+| `where` con `deletedAt: { not: null }` explícito | Respetado: devuelve el eliminado |
+| Catálogos (`live.author`) | Sin filtro |
+| Prueba de arquitectura con un archivo que usa `this.prisma.book` | Falla nombrando el archivo; sin él, pasa |
+| `lint`, tipos, build, `test:cov` y e2e | Pasan: 239 pruebas (26 nuevas) con 100% de cobertura, y 8 pruebas e2e |
