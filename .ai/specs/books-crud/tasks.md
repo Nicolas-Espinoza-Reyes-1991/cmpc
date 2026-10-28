@@ -11,7 +11,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): align the architecture notes with the spec`
 
 ## Base de datos y backend
-- [ ] **C-01 Modelos y migraciones** (C1.1 a C1.5)
+- [x] **C-01 Modelos y migraciones** (C1.1 a C1.5)
   - `Author`, `Publisher`, `Genre` y `Book` en `schema.prisma`; migración generada y migración manual con `pg_trgm`, el índice GIN y el índice único parcial (§2).
   - Hecho cuando: `prisma migrate deploy` sobre una base vacía aplica todo; `\d books` en PostgreSQL real muestra los índices; `prisma generate` y `npm run build` pasan.
   - Commit: `feat(db): add catalog and book models with indexes`
@@ -74,4 +74,20 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-07, C-11 y C-12.)
+(Se completa en C-01, C-07, C-11 y C-12.)
+
+### C-01: migraciones contra PostgreSQL real (2026-10-28)
+Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
+
+| Comprobación | Resultado |
+|---|---|
+| `prisma migrate deploy` sobre una base vacía | Aplica las tres migraciones (`init`, `add_catalog_and_books`, `add_title_search_and_uniqueness`) sin error |
+| Base de desarrollo | `migrate status`: al día; `\d books` muestra las claves foráneas `ON DELETE RESTRICT`, los cinco índices B-tree, el GIN `gin_trgm_ops` y el único parcial; `pg_trgm` instalada |
+| `prisma migrate diff` (base ↔ `schema.prisma`) | Primero propuso `DROP INDEX "books_title_trgm_idx"`; tras declarar el índice en el esquema, queda vacío en la base nueva y en la de desarrollo |
+| Duplicado "Dune" / "DUNE" con el mismo autor y editorial | Rechazado por `books_active_title_author_publisher_key` |
+| Borrar un autor con libros | Rechazado por la clave foránea (`RESTRICT`) |
+| Volver a registrar "dune" tras marcar `deleted_at` en el anterior | Permitido |
+| Precio de 100.000.000 | `numeric field overflow` (el máximo de `Decimal(10,2)` es 99.999.999,99, igual que la validación del DTO) |
+| `prisma generate`, `build`, `lint`, `test:cov` (213 pruebas, 100%) y e2e (8) | Pasan |
+
+Hallazgos: el índice GIN debía declararse en el esquema para que el próximo `migrate dev` no intente borrarlo (corregido y anotado en `design.md` §2). `prisma migrate dev` se queda esperando entrada en este entorno no interactivo, aunque aplica las migraciones; la creación de la migración manual se hizo a mano y se aplicó con `migrate dev`/`deploy`; el flujo del stack usa `migrate deploy`.

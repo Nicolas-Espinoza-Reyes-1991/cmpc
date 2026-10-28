@@ -18,3 +18,62 @@ model User {
 
   @@map("users")
 }
+
+// Catalogs are created when a book is registered (see books-crud design). `name` is
+// unique as typed; the services look it up case-insensitively before creating.
+model Author {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  books     Book[]
+
+  @@map("authors")
+}
+
+model Publisher {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  books     Book[]
+
+  @@map("publishers")
+}
+
+model Genre {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  books     Book[]
+
+  @@map("genres")
+}
+
+// The GIN pg_trgm index on title is declared below so `migrate dev` does not try to drop it;
+// its SQL (and the CREATE EXTENSION) lives in the manual migration. The partial unique index on
+// (lower(title), author_id, publisher_id) WHERE deleted_at IS NULL (no active duplicates) exists
+// only in that migration: Prisma ignores expression indexes, so it never shows up in a diff.
+model Book {
+  id           String    @id @default(uuid()) @db.Uuid
+  title        String
+  price        Decimal   @db.Decimal(10, 2)
+  availability Boolean
+  imageUrl     String?   @map("image_url")
+  authorId     String    @map("author_id") @db.Uuid
+  publisherId  String    @map("publisher_id") @db.Uuid
+  genreId      String    @map("genre_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  author    Author    @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  publisher Publisher @relation(fields: [publisherId], references: [id], onDelete: Restrict)
+  genre     Genre     @relation(fields: [genreId], references: [id], onDelete: Restrict)
+
+  @@index([authorId])
+  @@index([publisherId])
+  @@index([genreId])
+  @@index([availability])
+  @@index([deletedAt, createdAt])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "books_title_trgm_idx")
+  @@map("books")
+}

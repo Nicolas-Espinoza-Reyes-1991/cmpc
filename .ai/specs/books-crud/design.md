@@ -63,7 +63,7 @@ CREATE INDEX books_title_trgm_idx ON books USING GIN (title gin_trgm_ops);
 CREATE UNIQUE INDEX books_active_title_author_publisher_key
   ON books (lower(title), author_id, publisher_id) WHERE deleted_at IS NULL;
 ```
-`pg_trgm` es una extensión de confianza en PostgreSQL 13 o superior: el dueño de la base puede crearla sin ser superusuario, de modo que `migrate deploy` funciona con el usuario normal del stack. Los índices de la migración manual no aparecen en `schema.prisma`; se comprueba en C-07 que `prisma migrate diff` no intente borrarlos y se anota en el esquema con un comentario.
+`pg_trgm` es una extensión de confianza en PostgreSQL 13 o superior: el dueño de la base puede crearla sin ser superusuario, de modo que `migrate deploy` funciona con el usuario normal del stack. El índice GIN **sí se declara** en `schema.prisma` (`@@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "books_title_trgm_idx")`): sin esa línea, `prisma migrate diff` (y el próximo `migrate dev`) lo ve como sobrante y genera un `DROP INDEX`; se comprobó en C-01. La extensión y el SQL del índice siguen en la migración manual. El índice único parcial usa una expresión (`lower(title)`) y Prisma no lo incluye en sus diferencias, por lo que solo vive en la migración manual, con un comentario en el esquema.
 
 ## 3. Backend: estructura
 ```
