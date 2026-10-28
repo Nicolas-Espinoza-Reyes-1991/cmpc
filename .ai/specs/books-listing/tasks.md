@@ -26,7 +26,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-listing): record the backend verification`
 
 ## Frontend
-- [ ] **L-05 Contrato, parámetros en la URL y consulta** (L4.7, L4.9, L4.11, L6.2)
+- [x] **L-05 Contrato, parámetros en la URL y consulta** (L4.7, L4.9, L4.11, L6.2)
   - Tipos, `listBooks`, `book-list-params.ts`, `useBookListParams`, `useBooks`.
   - Pruebas: servicio; lectura con valores inválidos descartados; escritura mínima; `cycleSort`; cambios que vuelven a la página 1; el hook con la API simulada.
   - Commit: `feat(frontend): add list parameters in the URL and the books query`

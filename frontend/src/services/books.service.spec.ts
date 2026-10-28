@@ -1,7 +1,14 @@
 import { ApiError } from '../lib/api-error';
+import { DEFAULT_PARAMS } from '../lib/book-list-params';
 import { mockApi, type MockApi } from '../test/mock-api';
 import type { Book, BookInput } from '../types/book';
-import { createBook, deleteBook, getBook, updateBook } from './books.service';
+import {
+  createBook,
+  deleteBook,
+  getBook,
+  listBooks,
+  updateBook,
+} from './books.service';
 
 const ID = '3f6c2a52-7f0e-4c3e-9d57-1d8f0f6a9b11';
 const book: Book = {
@@ -74,6 +81,75 @@ describe('books service', () => {
     expect(updated.price).toBe(11000);
     expect(sent()?.method).toBe('patch');
     expect(body()).toEqual({ price: 11000 });
+  });
+
+  describe('listBooks', () => {
+    it('reads one page and its totals from the API', async () => {
+      api = mockApi({
+        'GET /books': {
+          data: { data: [book], meta: { page: 2, limit: 10, total: 11 } },
+        },
+      });
+
+      await expect(listBooks({ ...DEFAULT_PARAMS, page: 2 })).resolves.toEqual({
+        items: [book],
+        meta: { page: 2, limit: 10, total: 11 },
+      });
+    });
+
+    it('sends the view as query parameters and leaves out what is empty', async () => {
+      api = mockApi({
+        'GET /books': {
+          data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+        },
+      });
+
+      await listBooks({
+        ...DEFAULT_PARAMS,
+        search: 'dune',
+        availability: false,
+        sort: [{ field: 'price', direction: 'desc' }],
+      });
+
+      expect(sent()?.params).toMatchObject({
+        page: 1,
+        limit: 10,
+        search: 'dune',
+        availability: false,
+        sort: 'price:desc',
+        author: undefined,
+      });
+    });
+
+    it('passes the cancellation signal to the request', async () => {
+      api = mockApi({
+        'GET /books': {
+          data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+        },
+      });
+      const controller = new AbortController();
+
+      await listBooks(DEFAULT_PARAMS, controller.signal);
+
+      expect(sent()?.signal).toBe(controller.signal);
+    });
+
+    it('builds the totals itself if the answer has none', async () => {
+      api = mockApi({ 'GET /books': { data: { data: [book, book] } } });
+
+      await expect(listBooks({ ...DEFAULT_PARAMS, page: 3 })).resolves.toEqual({
+        items: [book, book],
+        meta: { page: 3, limit: 10, total: 2 },
+      });
+    });
+
+    it('rejects with an ApiError when the request fails', async () => {
+      api = mockApi({ 'GET /books': { status: 500, data: {} } });
+
+      await expect(listBooks(DEFAULT_PARAMS)).rejects.toMatchObject({
+        status: 500,
+      });
+    });
   });
 
   it('deleteBook sends a DELETE and resolves with nothing', async () => {

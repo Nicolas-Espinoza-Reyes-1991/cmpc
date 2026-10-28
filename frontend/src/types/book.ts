@@ -1,3 +1,5 @@
+import type { PaginationMeta } from './api';
+
 // Contract of the books and catalog endpoints (backend `BookDto`, `CreateBookDto`,
 // `UpdateBookDto` and `CatalogItemDto`). Keep them aligned with Swagger.
 
@@ -36,4 +38,42 @@ export type CatalogKind = 'authors' | 'publishers' | 'genres';
 export interface CatalogItem {
   id: string;
   name: string;
+}
+
+/** The columns the listing can be ordered by (the API accepts the same ones). */
+export type SortField =
+  | 'title'
+  | 'author'
+  | 'publisher'
+  | 'genre'
+  | 'price'
+  | 'availability'
+  | 'createdAt';
+
+export type SortDirection = 'asc' | 'desc';
+
+export interface SortCriterion {
+  field: SortField;
+  direction: SortDirection;
+}
+
+/** Everything that defines one view of the listing. It lives in the URL. */
+export interface BookListParams {
+  page: number;
+  limit: number;
+  /** Text contained in the title. Empty means no search. */
+  search: string;
+  author: string;
+  publisher: string;
+  genre: string;
+  /** `undefined` means "all". */
+  availability: boolean | undefined;
+  /** In priority order. Empty means the API default: newest first. */
+  sort: SortCriterion[];
+}
+
+/** One page of a listing with the totals that come with it. */
+export interface Page<T> {
+  items: T[];
+  meta: PaginationMeta;
 }
