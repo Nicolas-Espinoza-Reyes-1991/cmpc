@@ -8,7 +8,7 @@
 - Archivos backend: `kebab-case` con sufijo de rol (`books.service.ts`, `create-book.dto.ts`).
 - Archivos frontend: componentes en `PascalCase.tsx`, hooks y utilidades en `camelCase.ts`.
 - Clases e interfaces: `PascalCase`. Variables y funciones: `camelCase`. Constantes globales: `UPPER_SNAKE_CASE`.
-- Modelos Prisma en `PascalCase` singular (`Book`), campos en `camelCase`; tablas físicas en `snake_case` plural mediante `@@map` (`books`).
+- Modelos Prisma en `PascalCase` singular (`Book`), campos en `camelCase`; tablas físicas en `snake_case` plural mediante `@@map` (`books`) y columnas en `snake_case` mediante `@map` (`created_at`).
 
 ## TypeScript
 - `strict: true` en todos los `tsconfig`.

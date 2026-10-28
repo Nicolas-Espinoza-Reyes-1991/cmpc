@@ -1,0 +1,13 @@
+# Keep the build context small and never copy secrets into an image layer.
+node_modules
+dist
+coverage
+uploads
+test
+.env
+.env.*
+!.env.example
+*.log
+Dockerfile
+.dockerignore
+README.md

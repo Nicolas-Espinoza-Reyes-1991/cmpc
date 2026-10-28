@@ -1,0 +1,7 @@
+# Shell scripts and Dockerfiles must keep LF line endings: a CRLF shebang
+# ("/bin/sh\r") makes the container fail to start when checked out on Windows.
+*.sh text eol=lf
+Dockerfile* text eol=lf
+.dockerignore text eol=lf
+*.conf text eol=lf
+*.template text eol=lf
