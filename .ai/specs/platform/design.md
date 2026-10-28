@@ -53,6 +53,8 @@ Validadas con `joi` al arrancar el backend (R2.1). Las de `POSTGRES_*` las usa t
 
 Los valores del ejemplo son marcadores; en producción se sustituyen y nunca se versiona `.env` (R2.2).
 
+Aviso para quien pruebe la validación en local: el cliente de Prisma carga por su cuenta `backend/.env` al importarse (con independencia del directorio de trabajo) y rellena `process.env` antes de que `ConfigModule` valide. Con ese archivo presente, arrancar con "ninguna variable" no falla. La validación se comprueba en un entorno limpio, que es el del contenedor: la imagen no contiene ningún `.env` y falla nombrando las variables que faltan.
+
 ## 3. Arranque del backend (`main.ts`)
 Orden de configuración:
 1. `NestFactory.create` con `ConfigService`.
@@ -189,7 +191,7 @@ Detalles de implementación (`docker-compose.yml` en la raíz):
 
 ## 10. Pruebas y cobertura (R8)
 - **Backend:** Jest con `coverageThreshold.global` de 80 en `statements`, `branches`, `functions` y `lines`. Exclusiones (`collectCoverageFrom`): `main.ts`, `seed/run-seed.ts`, `*.module.ts`, `*.dto.ts`, `*.d.ts` y código generado (R8.4). `PrismaService` y `seed-admin.ts` sí se miden.
-- **Frontend:** Vitest con proveedor `v8` y los mismos umbrales. Exclusiones: `main.tsx`, `src/types/`, archivos de configuración y `*.d.ts`.
+- **Frontend:** Vitest con proveedor `v8` y los mismos umbrales. Exclusiones (`coverage.exclude` en `vite.config.ts`): `src/main.tsx`, `src/types/**`, `src/test/**` (la preparación de las pruebas), `*.d.ts` y los `*.spec.{ts,tsx}`. Solo cuenta el código bajo `src/`; los archivos de configuración de la raíz quedan fuera de `include`.
 - Scripts: `test`, `test:cov` y `lint` en ambas aplicaciones.
 - Las pruebas usan dobles de `PrismaService` y de Axios; ninguna toca base de datos ni red (R8.3).
 
