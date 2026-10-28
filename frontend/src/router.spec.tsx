@@ -3,6 +3,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { AppProviders } from './components/AppProviders';
 import { apiClient, setUnauthorizedHandler } from './lib/api-client';
 import { session } from './lib/session';
+import { emptyCatalogs } from './test/catalog-routes';
 import { mockApi, type MockApi } from './test/mock-api';
 import {
   createAppRouter,
@@ -68,6 +69,60 @@ describe('routes', () => {
       expect(await heading('Libros')).toBeInTheDocument();
       expect(router.state.location.pathname).toBe('/books');
     });
+  });
+
+  describe('book form routes', () => {
+    beforeEach(() => {
+      api.restore();
+      api = mockApi({
+        ...emptyCatalogs,
+        'GET /auth/me': { data: { data: ADMIN } },
+        'GET /books/42': {
+          data: {
+            data: {
+              id: '42',
+              title: 'Dune',
+              author: 'Frank Herbert',
+              publisher: 'Ace',
+              genre: 'Novela',
+              price: 100,
+              availability: true,
+              imageUrl: null,
+              createdAt: '2026-10-28T10:00:00.000Z',
+              updatedAt: '2026-10-28T10:00:00.000Z',
+            },
+          },
+        },
+      });
+    });
+
+    it('opens /books/new inside the layout for a signed-in user', async () => {
+      session.setToken('jwt-token');
+
+      renderAt('/books/new');
+
+      expect(await heading('Nuevo libro')).toBeInTheDocument();
+      expect(screen.getByRole('banner')).toHaveTextContent(ADMIN.email);
+    });
+
+    it('opens /books/:id/edit inside the layout for a signed-in user', async () => {
+      session.setToken('jwt-token');
+
+      renderAt('/books/42/edit');
+
+      expect(await heading('Editar libro')).toBeInTheDocument();
+      expect(await screen.findByLabelText('Título')).toHaveValue('Dune');
+    });
+
+    it.each(['/books/new', '/books/42/edit'])(
+      'sends a visitor without session from %s to the login',
+      async (path) => {
+        const router = renderAt(path);
+
+        expect(await heading('Iniciar sesión')).toBeInTheDocument();
+        expect(router.state.location.state).toEqual({ from: path });
+      },
+    );
   });
 
   it('serves the login without a session', async () => {
