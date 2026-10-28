@@ -10,7 +10,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `lint`, `tsc`, build, `test:cov` y e2e siguen pasando.
   - Commit: `build(backend): update multer to fix the denial of service advisory`
 
-- [ ] **U-02 Validación por contenido y almacenamiento** (U1.3, U1.5, U3.4, U4.2, U4.4, U6.1)
+- [x] **U-02 Validación por contenido y almacenamiento** (U1.3, U1.5, U3.4, U4.2, U4.4, U6.1)
   - `image-type.ts` (`sniffImageType`) e `image-storage.ts` (`ImageStorage`: `save`, `remove`, `urlFor`, `nameFromUrl`).
   - Pruebas: firmas reales de JPEG, PNG y WebP; buffers cortos, vacíos y firmas falsas; el almacenamiento con un directorio temporal real (crea el directorio, nombres únicos, escribe, borra, rechaza nombres inválidos y `..`, tolera un archivo inexistente).
   - Commit: `feat(books): add image type detection and file storage`
