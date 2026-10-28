@@ -10,7 +10,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: cada filtro y sus combinaciones; texto vacío; comodines escapados; orden por defecto; `id` al final; campos relacionados; cada error de `parseSort`.
   - Commit: `feat(books): add pure functions to build the list filters and order`
 
-- [ ] **L-02 DTO de consulta** (L1.2, L2.3, L2.5, L3.2)
+- [x] **L-02 DTO de consulta** (L1.2, L2.3, L2.5, L3.2)
   - `ListBooksQueryDto` con sus valores por defecto y validación de `sort`.
   - Pruebas con el `ValidationPipe` de la aplicación: cada parámetro válido e inválido, normalización y límites.
   - Commit: `feat(books): add the list query DTO`
