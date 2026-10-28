@@ -24,7 +24,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: éxito, contraseña incorrecta, correo desconocido (misma escritura, sin `userId`), sin correo ni contraseña en lo escrito, el fallo de la auditoría no cambia la respuesta.
   - Commit: `feat(auth): record successful and failed logins in the audit log`
 
-- [ ] **G-05 Pruebas HTTP** (G4.2)
+- [x] **G-05 Pruebas HTTP** (G4.2)
   - `audit.http.spec`: Passport real y un PrismaService simulado que captura lo escrito; cada operación y cada login; IP por `X-Forwarded-For`; las rutas rechazadas (400, 401, 404, 409) no escriben.
   - Commit: `test(audit): cover the audit trail over HTTP`
 
