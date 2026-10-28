@@ -84,7 +84,7 @@ Marcar con `[x]` al terminar.
   - Commit: `build(frontend): add multi-stage Dockerfile and nginx config`
 
 ## Integración y cierre
-- [ ] **P-16 Docker Compose** (R7.1 a R7.8, OPS-1)
+- [x] **P-16 Docker Compose** (R7.1 a R7.8, OPS-1)
   - `docker-compose.yml` según `design.md` §8.
   - Hecho cuando, desde un clon limpio con `.env` copiado de `.env.example`: `docker compose up --build` levanta `db`, `backend` y `frontend`; `http://localhost:8080` carga el SPA; `/api/health` responde 200 a través de nginx; reiniciar conserva los datos; `pgadmin` solo aparece con `--profile tools`.
   - Commit: `build: add docker-compose for the full stack`

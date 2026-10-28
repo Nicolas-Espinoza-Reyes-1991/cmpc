@@ -160,6 +160,16 @@ Detalles de implementación (`frontend/Dockerfile` y `frontend/nginx/`):
 - `pgadmin` con `profiles: ["tools"]` (R7.7).
 - Credenciales y puertos solo desde variables de entorno (R7.8).
 
+Detalles de implementación (`docker-compose.yml` en la raíz):
+- Nombre de proyecto `cmpc-libros`. Un `.env` copiado de `.env.example` basta para levantar todo con `docker compose up --build`; sin él, Compose falla con "Copy .env.example to .env" nombrando la variable. Las variables obligatorias (`POSTGRES_*`, `JWT_SECRET`, `PGADMIN_PASSWORD`) usan `${VAR:?...}`; el resto tiene valor por defecto.
+- `DATABASE_URL` del backend se arma en Compose a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` y `POSTGRES_DB`, de modo que haya una sola fuente de verdad (una contraseña con caracteres especiales debe ir codificada como URL). La `DATABASE_URL` de `.env.example` apunta a `localhost:5442` y solo sirve para ejecutar el backend fuera de Docker contra el `db` publicado.
+- El backend corre siempre con `NODE_ENV=production` en Compose (activa la exigencia de 32 caracteres para `JWT_SECRET`) y con su `PORT` interno 3000; el `NODE_ENV` y el `PORT` del `.env` son solo para desarrollo local. `UPLOAD_DIR` viene de la imagen (`/app/uploads`).
+- Solo el frontend se publica en todas las interfaces (`FRONTEND_PORT`, por defecto 8080). `db` y `backend` se publican únicamente en `127.0.0.1`, porque llegar directo al backend se saltaría nginx. `DB_PORT` vale 5442 por defecto, no 5432, para no chocar con un PostgreSQL local; el contenedor siempre usa 5432.
+- `backend` y `frontend` llevan `cap_drop: [ALL]` y `no-new-privileges`. Todos los servicios tienen `restart: unless-stopped` y rotación de logs (10 MB, 3 archivos).
+- Volúmenes con nombre: `pgdata`, `uploads` (la primera vez copia la carpeta de la imagen, que pertenece al usuario `node`) y `pgadmin_data`.
+- `pgadmin` (`dpage/pgadmin4:9.9`) solo arranca con `--profile tools`, usa el modo por defecto con inicio de sesión (`PGADMIN_EMAIL` y `PGADMIN_PASSWORD`; rechaza dominios reservados como `.local`) y se publica en `127.0.0.1:${PGADMIN_PORT}`.
+- Verificado (stack completo desde cero): los tres servicios quedan `healthy` en 23 s; migración y seed aplicados; la app, la API y Swagger responden por el único puerto público; los datos de la base y los archivos de `uploads` sobreviven a `down`/`up`; con `SEED_ON_START=false` no se ejecuta el seed; `docker compose stop` termina en 2,7 s con código 0 en los tres servicios. No se arrancó el servicio `pgadmin` (la imagen pesa cerca de 500 MB); solo se validó que la configuración sea correcta y que aparezca únicamente con el perfil `tools`.
+
 ## 9. Frontend: base técnica
 - **Cliente HTTP (`lib/api-client.ts`):** instancia de Axios con `baseURL: '/api'`; un interceptor de petición añade `Authorization: Bearer <token>`.
 - **Errores (R4.6, R4.7):** un interceptor de respuesta convierte cualquier fallo en `ApiError { status, message, fieldErrors? }`. Si `status === 401` limpia la sesión y navega a `/login`. Sin respuesta del servidor genera un `ApiError` con el mensaje de conexión.
