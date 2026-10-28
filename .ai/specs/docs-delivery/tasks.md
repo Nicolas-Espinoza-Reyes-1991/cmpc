@@ -14,7 +14,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: la prueba pasa y falla si se quita un resumen (mutación), y Swagger UI muestra todo en el navegador con *Authorize*.
   - Commit: `docs(api): complete the OpenAPI document and guard it with a test`
 
-- [ ] **D-03 Diagramas de arquitectura** (D3.1, D3.2)
+- [x] **D-03 Diagramas de arquitectura** (D3.1, D3.2)
   - `docs/architecture.md` con los cuatro diagramas Mermaid, contrastados con los módulos y rutas reales.
   - Hecho cuando: cada nodo y flecha existe en el código y los diagramas se renderizan.
   - Commit: `docs: add the architecture diagrams`
