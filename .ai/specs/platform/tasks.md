@@ -46,7 +46,7 @@ Marcar con `[x]` al terminar.
   - Pruebas (HTTP reales): registra método, ruta, estado y duración; usa `anonymous` sin usuario; registra el id del usuario autenticado; registra 404, 403 y 500 con su nivel; nunca incluye query string, cuerpo ni cabeceras.
   - Commit: `feat(common): add HTTP access logger middleware`
 
-- [ ] **P-09 Health** (R6.3)
+- [x] **P-09 Health** (R6.3)
   - `HealthModule` con `GET /api/health`, público.
   - Pruebas: 200 con la base disponible; 503 cuando `$queryRaw` falla.
   - Commit: `feat(health): add health endpoint`

@@ -106,7 +106,7 @@ Detalles de implementación:
 - La migración manual de `pg_trgm` (`CREATE EXTENSION IF NOT EXISTS pg_trgm` y el índice GIN) pertenece a `books-crud`.
 
 ## 7. Health
-`GET /api/health` ejecuta `SELECT 1` con `$queryRaw` y devuelve `{ status: "ok" }` o lanza `ServiceUnavailableException` (503) (R6.3). Es público y excluido del guard JWT y del límite de intentos. La consulta `SELECT 1` es la única excepción a la regla de no usar SQL en crudo (R3.2).
+`GET /api/health` ejecuta `SELECT 1` con `$queryRaw` y devuelve `{ status: "ok" }` o lanza `ServiceUnavailableException` (503) (R6.3). Es público: lleva `@Public()` (`common/decorators/public.decorator.ts`), la marca que el guard JWT global de la spec `auth` leerá para dejar pasar la petición. No necesita excluirse del límite de intentos porque `@nestjs/throttler` se aplica solo al login. Lleva también `@RawResponse()`: devuelve `{ status: "ok" }` sin el envoltorio `{ data }`, porque Docker y los balanceadores solo miran el código HTTP. La lógica vive en `HealthService` y la consulta tiene un tiempo máximo de 3 s (`Promise.race`), de modo que una base colgada responde 503 en vez de dejar la sonda esperando. La consulta `SELECT 1` es la única excepción a la regla de no usar SQL en crudo (R3.2).
 
 ## 8. Docker
 ### Dockerfile del backend (multi-etapa, R7.5)
