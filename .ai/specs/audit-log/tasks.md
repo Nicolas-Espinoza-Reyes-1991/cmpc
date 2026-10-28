@@ -9,7 +9,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `prisma migrate deploy` sobre una base con datos funciona, `prisma validate` y `tsc` pasan, y las claves foráneas e índices son los del diseño (comprobado en la base).
   - Commit: `feat(audit): add the audit log model and migration`
 
-- [ ] **G-02 Servicio de auditoría** (G1.4, G3.5, G4.1)
+- [x] **G-02 Servicio de auditoría** (G1.4, G3.5, G4.1)
   - `AuditModule`, `AuditService` (`log`, `logBestEffort`), tipos, decorador `@Actor()` y la prueba de arquitectura.
   - Pruebas: escribe con el cliente dado, propaga el error, el mejor esfuerzo captura y registra sin contenido, `@Actor()` con y sin usuario, solo `audit.service.ts` escribe en `auditLog`.
   - Commit: `feat(audit): add the audit service and the actor decorator`
