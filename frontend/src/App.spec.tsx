@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import App from './App';
 import { session } from './lib/session';
+import { mockApi, type MockApi } from './test/mock-api';
 import { routes } from './router';
 
 function renderAt(path: string) {
@@ -11,23 +12,47 @@ function renderAt(path: string) {
 }
 
 describe('App', () => {
+  let api: MockApi;
+
   beforeEach(() => {
     localStorage.clear();
+    api = mockApi({
+      'GET /auth/me': {
+        data: { data: { id: 'id-admin', email: 'admin@cmpc.local' } },
+      },
+    });
   });
 
-  it('renders the current route inside the providers', () => {
+  afterEach(() => {
+    api.restore();
+  });
+
+  it('renders the current route inside the providers', async () => {
     renderAt('/login');
 
     expect(
-      screen.getByRole('heading', { name: 'Iniciar sesión' }),
+      await screen.findByRole('heading', { name: 'Iniciar sesión' }),
     ).toBeInTheDocument();
   });
 
-  it('keeps the protected routes behind the session', () => {
+  it('keeps the protected routes behind a session the server confirms', async () => {
     session.setToken('jwt-token');
 
     renderAt('/books');
 
-    expect(screen.getByRole('heading', { name: 'Libros' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Libros' }),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show the protected routes to a visitor without a session', async () => {
+    renderAt('/books');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Iniciar sesión' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Libros' }),
+    ).not.toBeInTheDocument();
   });
 });

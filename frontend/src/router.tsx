@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { AppLayout } from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { setUnauthorizedHandler } from './lib/api-client';
 import { BooksPage } from './pages/BooksPage';
@@ -9,7 +10,12 @@ export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   {
     element: <ProtectedRoute />,
-    children: [{ path: '/books', element: <BooksPage /> }],
+    children: [
+      {
+        element: <AppLayout />,
+        children: [{ path: '/books', element: <BooksPage /> }],
+      },
+    ],
   },
   { path: '/', element: <Navigate to="/books" replace /> },
   { path: '*', element: <NotFoundPage /> },

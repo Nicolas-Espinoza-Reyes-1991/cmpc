@@ -65,6 +65,10 @@ export function configureApp(app: NestExpressApplication): void {
   // First, so it also sees requests rejected later on (401, 404...).
   app.use(createHttpLogger());
   app.setGlobalPrefix(API_PREFIX);
+  // nginx is the single proxy in front of the API: trusting exactly that hop
+  // makes `request.ip` the real client and not the nginx container, which the
+  // login rate limit and the audit log rely on (A4.3).
+  app.set('trust proxy', 1);
   app.use(securityHeaders());
   app.enableCors({
     origin: parseCorsOrigins(config.get('CORS_ORIGIN', { infer: true })),
