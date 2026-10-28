@@ -34,7 +34,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs: record the README verification and confirm the commands`
 
 ## Integración y cierre
-- [ ] **D-07 Verificación de la spec**
+- [x] **D-07 Verificación de la spec**
   - Recorrer D1 a D5 con evidencia nueva y registrar el resultado.
   - Commit: `docs(docs-delivery): record the spec verification`
 
@@ -62,3 +62,28 @@ Observaciones:
 - El `npm ci` del backend tardó ~3 min y el del frontend ~1 min en esta máquina; el README no promete tiempos.
 - Al pegar el `curl` con acentos desde Git Bash en Windows, el género quedó como «ficci�n» (la consola envía otra codificación; la API guardó lo recibido). Se añadió una nota a la guía de uso.
 - El proyecto de Compose se llama `cmpc-libros` (campo `name:`), igual que el del repositorio de trabajo: antes de la prueba se había eliminado el stack anterior con `docker compose down -v` para que no hubiera datos ni puertos en uso.
+
+### D-07: verificación de la spec (2026-10-28)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**49 suites, 825 pruebas, 100 %**; con el umbral forzado a 101 % falla: "does not meet global threshold") y e2e (**15**); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**42 archivos, 646 pruebas, 100 %**; el umbral forzado a 101 % también falla); `npm audit --omit=dev`: **0 hallazgos en ambas apps**; más los registros D-06 y las comprobaciones de D-02 y D-04.
+
+| Criterio | Evidencia |
+|---|---|
+| D1.1, D1.4–D1.7 | `README.md`: tabla de estado de cada requisito, arquitectura, decisiones con su motivo, pruebas y cobertura con las cifras reales (coinciden con las del clon limpio), seguridad y puesta en producción |
+| D1.2, D1.3 | D-06: la instalación con Docker y la de desarrollo local se siguieron desde un clon vacío; los `curl` de la guía de uso se ejecutaron tal cual |
+| D1.8 | D-06: comandos ejecutados, 56 enlaces y anclas resueltos y los 6 diagramas Mermaid dibujados |
+| D2.1 | `openapi.e2e-spec` lista las 14 operaciones y exige que la documentación coincida; Swagger UI en el navegador muestra las 14 |
+| D2.2 | Swagger UI: *Authorize* con el token y `GET /api/auth/me` devuelve `{ data: { id, email } }` |
+| D2.3 | `openapi.e2e-spec` falla sin resumen, etiqueta, respuesta de éxito descrita, seguridad o 401 (comprobado vaciando un resumen) |
+| D3.1, D3.2 | `docs/architecture.md`: 5 diagramas que se dibujan; cada módulo, ruta, servicio de Compose y cabecera se contrastó con `app.module.ts`, los controladores, `docker-compose.yml` y `nginx` |
+| D4.1, D4.2 | `docs/erd.dbml` (con los índices GIN y único parcial) y `docs/erd.svg` generado por `docs/tools/dbml-to-svg.py` y revisado en el navegador |
+| D4.3 | 6 tablas, 33 columnas, 20 índices, 4 claves foráneas y el enum comparados con la base migrada: 0 diferencias; la comparación falla al alterar el DBML |
+| D5.1, D5.2 | README §9 (11 supuestos con su fundamento) y §10 (15 pendientes con enfoque y esfuerzo) |
+| D5.3 | D-06 |
+| D5.4 | `npm audit --omit=dev` en 0 en ambas apps con dos `overrides` evaluados y verificados (`design.md` §3) |
+| D5.5 | `CLAUDE.md` con los comandos confirmados |
+
+Resultado: sin criterios pendientes.
+
+Hallazgos de la verificación (corregidos): la documentación de la API mostraba las respuestas sin el envoltorio `{ data }` y casi ninguna tenía descripción (D-02); la ruta de desarrollo local del README fallaba porque la CLI de Prisma no leía el `.env` de la raíz (D-06).
+
+Pendientes (no son de esta spec): los de la sección 10 del README, por decisión de alcance.
