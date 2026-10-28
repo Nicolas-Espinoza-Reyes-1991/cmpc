@@ -61,7 +61,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: validación en español por campo; envío correcto con navegación a `from` y a `/books`; `from` peligroso (`//evil.test`, `https://evil.test`) se ignora; 401, 429, error de red y 400 por campo; sin duplicar el aviso global; botón deshabilitado con "Ingresando…" y sin doble envío; mostrar y ocultar contraseña con `aria-pressed`; foco en el primer campo con error; la contraseña no se guarda en `localStorage`; un usuario autenticado es redirigido a `/books`.
   - Commit: `feat(frontend): add login form`
 
-- [ ] **A-12 Diseño de las pantallas protegidas** (A5.5, A6.7)
+- [x] **A-12 Diseño de las pantallas protegidas** (A5.5, A6.7)
   - `AppLayout` con el correo y "Cerrar sesión"; rutas protegidas dentro de `ProtectedRoute` y `AppLayout`; mantener `registerUnauthorizedNavigation`.
   - Pruebas: muestra el correo; el botón cierra la sesión, vacía la caché y lleva a `/login`; las rutas protegidas se muestran dentro del diseño.
   - Hecho cuando: lint, tipos, build y `test:cov` (con el umbral de 80%, A8.3) pasan en el frontend.
