@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { BookForm } from '../components/BookForm';
 import { BookNotFound } from '../components/BookNotFound';
 import { bookKey, useBook } from '../hooks/useBook';
-import { getErrorMessage } from '../lib/api-error';
+import { ApiError, getErrorMessage } from '../lib/api-error';
 import type { BookFormValues } from '../lib/book-schema';
 import { changedFields } from '../lib/book-changes';
 import { isMissingBook } from '../lib/book-errors';
@@ -80,13 +80,25 @@ function CreateBook() {
             // Go to its edit screen, where the cover can be tried again.
             afterSave(created, {
               to: `/books/${created.id}/edit`,
-              state: { imageError: getErrorMessage(error) },
+              state: { imageError: coverErrorMessage(error) },
             });
           }
         }}
       />
     </Page>
   );
+}
+
+/**
+ * Why a cover could not be saved, in words about the cover. A 400 here can only
+ * mean the content is not a JPEG, PNG or WebP (the browser went by the file
+ * name; the server looks inside), and the generic "invalid data" says nothing.
+ */
+function coverErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 400) {
+    return 'El archivo no es una imagen válida: usa un JPG, PNG o WebP.';
+  }
+  return getErrorMessage(error);
 }
 
 /**
@@ -164,12 +176,12 @@ function EditBook({ id }: { id: string }) {
           ? await uploadBookImage(id, image)
           : await deleteBookImage(id);
       } catch (error) {
-        if (!dataChanged) throw error;
+        if (!dataChanged) throw new FormMessageError(coverErrorMessage(error));
         // The data went through. Keep it in the cache, so a retry has nothing
         // left to send but the cover, and say clearly what happened.
         queryClient.setQueryData(bookKey(id), saved);
         throw new FormMessageError(
-          `Los datos se guardaron, pero la portada no se pudo actualizar: ${getErrorMessage(error)}`,
+          `Los datos se guardaron, pero la portada no se pudo actualizar: ${coverErrorMessage(error)}`,
         );
       }
     }

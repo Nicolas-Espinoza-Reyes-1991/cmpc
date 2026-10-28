@@ -265,6 +265,70 @@ describe('BookFormPage', () => {
       });
     });
 
+    describe('when the server says the file is not an image', () => {
+      it('explains it in words about the cover after creating the book', async () => {
+        start({
+          'POST /books': { status: 201, data: { data: book } },
+          [`POST /books/${ID}/image`]: { status: 400, data: {} },
+          [`GET /books/${ID}`]: { data: { data: book } },
+        });
+        renderAt('/books/new');
+        await userEvent.type(field('Título'), 'Dune');
+        await userEvent.type(field('Autor'), 'Frank Herbert');
+        await userEvent.type(field('Editorial'), 'Ace');
+        await userEvent.type(field('Género'), 'Novela');
+        await userEvent.type(field('Precio'), '100');
+        await choose(png());
+
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Registrar libro' }),
+        );
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'El libro se guardó, pero la portada no se pudo subir: El archivo no es una imagen válida: usa un JPG, PNG o WebP.',
+        );
+      });
+
+      it('says it when only the cover was sent while editing', async () => {
+        start({
+          [`GET /books/${ID}`]: { data: { data: book } },
+          [`POST /books/${ID}/image`]: { status: 400, data: {} },
+        });
+        renderAt(`/books/${ID}/edit`);
+        await screen.findByLabelText('Título');
+        await choose(png());
+
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'El archivo no es una imagen válida: usa un JPG, PNG o WebP.',
+        );
+      });
+
+      it('says it after the data was saved while editing', async () => {
+        start({
+          [`GET /books/${ID}`]: { data: { data: book } },
+          [`PATCH /books/${ID}`]: { data: { data: { ...book, price: 1 } } },
+          [`POST /books/${ID}/image`]: { status: 400, data: {} },
+        });
+        renderAt(`/books/${ID}/edit`);
+        await screen.findByLabelText('Título');
+        await userEvent.clear(field('Precio'));
+        await userEvent.type(field('Precio'), '1');
+        await choose(png());
+
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Guardar cambios' }),
+        );
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'Los datos se guardaron, pero la portada no se pudo actualizar: El archivo no es una imagen válida: usa un JPG, PNG o WebP.',
+        );
+      });
+    });
+
     describe('editing a book', () => {
       const open = (extra: Record<string, MockRoute> = {}) => {
         start({ [`GET /books/${ID}`]: { data: { data: book } }, ...extra });
