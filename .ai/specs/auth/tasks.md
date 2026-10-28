@@ -41,7 +41,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: los resultados quedan anotados en el registro de verificación de este archivo.
 
 ## Frontend
-- [ ] **A-08 Dependencias, tipos y servicio** (§5, §8, A6.1, A8.2)
+- [x] **A-08 Dependencias, tipos y servicio** (§5, §8, A6.1, A8.2)
   - Instalar `react-hook-form`, `zod` y `@hookform/resolvers`; `types/auth.ts`, `services/auth.service.ts` (`login`, `getMe`) y `lib/login-schema.ts`.
   - Pruebas: el servicio llama a las rutas correctas y devuelve `data`; el esquema valida correo y contraseña con sus mensajes en español (vacío, formato inválido, espacios, contraseña vacía).
   - Commit: `feat(frontend): add auth service and login schema`

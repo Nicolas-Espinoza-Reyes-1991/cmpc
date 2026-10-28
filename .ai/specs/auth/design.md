@@ -111,6 +111,8 @@ frontend/src/
 ```
 Las rutas pasan a ser: `/login` (pública) y, dentro de `ProtectedRoute` y `AppLayout`, `/books` y las futuras.
 
+**Esquema del formulario (`lib/login-schema.ts`, A-08).** Zod 4 con los mismos límites que `LoginDto`: correo de hasta 254 caracteres y contraseña de hasta 128. El correo se recorta (la contraseña nunca, porque los espacios en los extremos pueden formar parte de ella) y todos los mensajes salen en español, incluso con un valor que no sea texto (por defecto Zod respondería en inglés). La regla es que **el formulario puede ser más estricto que la API, pero nunca más permisivo**: Zod no aplica tres límites de la RFC 5321 que sí aplica el validador del backend (parte local de hasta 64 caracteres, etiquetas de dominio de hasta 63 y sin guion al principio ni al final), así que se añaden con una comprobación propia, anidada en un segundo `pipe` para que solo se ejecute sobre un correo bien formado (sin eso, Zod repetía el mismo mensaje dos veces). Se comparó con `class-validator` sobre 48 direcciones límite: ninguna pasa el formulario y el API la rechaza. Quedan 8 en que el formulario es más estricto (comillas en la parte local, caracteres no ASCII, `%` y símbolos como `!#$&'*`), que bloquean direcciones que la API aceptaría pero que no son realistas en este sistema.
+
 **`session`** se vuelve observable: `subscribe(listener)` devuelve la función para darse de baja; `setToken` y `clear` avisan a los oyentes, y el evento `storage` de otras pestañas también (A5.6). `useSyncExternalStore(session.subscribe, session.getToken)` da un valor reactivo del token, de modo que un 401 que limpia la sesión actualiza la interfaz sin recargar (A5.4).
 
 **`AuthProvider`** (dentro de `AppProviders`, porque usa el `QueryClient`):
