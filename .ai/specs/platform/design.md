@@ -154,6 +154,14 @@ Detalles de implementación (`backend/Dockerfile`):
 ## 9. Frontend: base técnica
 - **Cliente HTTP (`lib/api-client.ts`):** instancia de Axios con `baseURL: '/api'`; un interceptor de petición añade `Authorization: Bearer <token>`.
 - **Errores (R4.6, R4.7):** un interceptor de respuesta convierte cualquier fallo en `ApiError { status, message, fieldErrors? }`. Si `status === 401` limpia la sesión y navega a `/login`. Sin respuesta del servidor genera un `ApiError` con el mensaje de conexión.
+  - `ApiError` (`lib/api-error.ts`) lleva `status`, `message` (siempre en español, según el estado HTTP), `fieldErrors` y `serverMessage` (el mensaje original en inglés, solo para registros). `status === 0` significa "no hubo respuesta HTTP" (`isNetworkError`). Con `erasableSyntaxOnly` los campos se declaran explícitamente, sin propiedades de parámetro.
+  - Del cuerpo de error solo se lee lo que cumple el contrato (`message` de tipo texto y `errors` bien formado); cualquier otra cosa, como HTML de un proxy, se ignora.
+  - Las cancelaciones (por ejemplo, TanStack Query abortando una petición) pasan sin convertirse en `ApiError` y no cierran la sesión.
+  - Un 401 cierra la sesión y navega a `/login` solo si había un token: un 401 sin token es un inicio de sesión fallido y el formulario debe mostrarlo, no redirigir.
+  - El router registra la navegación con `setUnauthorizedHandler(...)` (P-14); si nadie la registra, el respaldo es una redirección completa con `window.location.assign('/login')`.
+  - `lib/session.ts` guarda el token en `localStorage` (clave `cmpc.token`) y es lo único que lee el cliente.
+  - Los tipos del contrato (`FieldError`, `ErrorResponseBody`, `PaginationMeta`, `ApiResponse`) viven en `src/types/api.ts`.
+  - Los mensajes de validación por campo que envía el backend siguen en inglés; los formularios validan antes en español con Zod, y esos mensajes del servidor son solo el último recurso.
 - **TanStack Query:** `QueryClient` global con `retry: 1` y `refetchOnWindowFocus: false`.
 - **Routing:** React Router con rutas `/login` y `/books` (protegida); las páginas reales llegan en las demás specs.
 - **Almacenamiento del token:** `localStorage`, con el compromiso documentado en `auth/design.md`.

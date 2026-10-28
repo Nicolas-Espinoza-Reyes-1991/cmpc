@@ -68,7 +68,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `npm run lint` y `npm run test:cov` terminan sin errores.
   - Commit: `chore(frontend): scaffold Vite React project`
 
-- [ ] **P-13 Cliente HTTP y errores** (R4.6, R4.7)
+- [x] **P-13 Cliente HTTP y errores** (R4.6, R4.7)
   - `lib/api-client.ts` con token en cabecera, `ApiError` y normalización; en 401 limpia sesión y redirige a `/login`.
   - Pruebas: normaliza un error con `errors`; error de red genera el mensaje de conexión; 401 cierra sesión y redirige; la petición lleva el token.
   - Commit: `feat(frontend): add API client with error normalization`
