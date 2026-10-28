@@ -88,6 +88,10 @@ Detalles de implementación:
 
 ## 5. Interceptores
 - **`TransformInterceptor`:** transforma `{ items, meta }` en `{ data: items, meta }` y cualquier otro valor en `{ data: valor }` (R5.1). Si el handler lleva el decorador `@RawResponse()` (leído con `Reflector`), la respuesta pasa sin envolver (R5.3); lo usan CSV e imágenes.
+  - Un resultado se considera paginado solo si trae `items` (arreglo) y `meta` (objeto); un objeto con una propiedad `items` pero sin `meta` se envuelve como cualquier otro valor.
+  - Si el handler no devuelve nada, la respuesta es `{ data: null }` para que el cliente siempre encuentre la clave `data`.
+  - Un `StreamableFile` nunca se envuelve, aunque falte `@RawResponse()`.
+  - Los tipos `ApiResponse`, `PaginatedResult` y `PaginationMeta` viven en `common/types/api-response.types.ts`.
 - **`LoggingInterceptor`:** mide la duración con `Date.now()` y escribe una línea con `Logger`: `GET /api/books 200 12ms user=<id|anonymous>`. No registra cuerpos ni cabeceras (R5.2).
 
 ## 6. Prisma

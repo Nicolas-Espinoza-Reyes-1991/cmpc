@@ -36,7 +36,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: una por fila de la tabla, más comprobar que el 500 no filtra el mensaje interno ni el stack.
   - Commit: `feat(common): add global exception filter`
 
-- [ ] **P-07 Interceptor de transformación** (R5.1, R5.3)
+- [x] **P-07 Interceptor de transformación** (R5.1, R5.3)
   - `TransformInterceptor` y decorador `@RawResponse()`.
   - Pruebas: envuelve un valor simple; transforma `{ items, meta }`; no envuelve con `@RawResponse()`.
   - Commit: `feat(common): add response transform interceptor`
