@@ -5,7 +5,7 @@ Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de deci
 Marcar con `[x]` al terminar.
 
 ## Backend
-- [ ] **A-01 Dependencias del backend** (§8)
+- [x] **A-01 Dependencias del backend** (§8)
   - Instalar `@nestjs/jwt@^11.0.2`, `@nestjs/passport@^11.0.5`, `passport@^0.7.0`, `passport-jwt@^4.0.1`, `@nestjs/throttler@^6.7.1` y, en desarrollo, `@types/passport-jwt@^4.0.1`.
   - Añadir a `tech-stack.md` la advertencia de que `@nestjs/jwt` y `@nestjs/passport` 12.x son ESM y se usan las 11.x.
   - Hecho cuando: `npm run build`, `npm run lint` y `npm run test:cov` siguen pasando y `npm audit` no suma hallazgos nuevos de estas librerías.
