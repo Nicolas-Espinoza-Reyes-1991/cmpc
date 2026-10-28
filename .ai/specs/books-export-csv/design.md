@@ -76,3 +76,4 @@ frontend/src/
 - Columnas configurables y otros formatos (XLSX).
 - Exportaciones muy grandes en segundo plano con una cola y descarga posterior.
 - Registro de las exportaciones en `AuditLog`.
+- Exportación en segundo plano para catálogos de millones de libros: hoy una exportación de 305.000 libros tarda de 1 a 5 minutos según el filtro (medido en X-04) y depende de que el cliente espere.
