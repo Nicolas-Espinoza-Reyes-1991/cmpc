@@ -175,7 +175,7 @@ Detalles de implementación de `LoginPage` (A-11):
 | Cuerpos enormes para agotar CPU con `argon2` | Contraseña de máximo 128 caracteres y JSON de máximo 100 KB (`platform`) |
 | Falsificación del token (`alg: none`, cambio de algoritmo) | Solo HS256, `ignoreExpiration: false` y pruebas con tokens alterados (A2.2, A8.1) |
 | Usuario eliminado con token vigente | La estrategia consulta al usuario en cada petición |
-| Robo del token por XSS | El token está en `localStorage`, legible por cualquier script de la página. Se reduce el riesgo con la CSP de nginx (`script-src 'self'`, sin scripts de terceros), con React escapando el contenido y con la expiración de 1 h. La alternativa más robusta (cookie `httpOnly` + CSRF) queda como mejora futura |
+| Robo del token por XSS | El token está en `localStorage`, legible por cualquier script de la página. Se reduce el riesgo con la CSP de nginx (`default-src 'self'`, que al no haber `script-src` propio también limita los scripts a este origen), con React escapando el contenido y con la expiración de 1 h. La alternativa más robusta (cookie `httpOnly` + CSRF) queda como mejora futura |
 | CSRF | No aplica: la API usa la cabecera `Authorization`, que el navegador no envía solo |
 | Falsear la IP con `X-Forwarded-For` | Un solo salto de confianza y backend publicado solo en `127.0.0.1` (§4) |
 | Secreto débil | Producción exige 32 caracteres o más (`platform` R2.3) |

@@ -73,7 +73,7 @@ Marcar con `[x]` al terminar.
   - Comprobar también (A7.1) que la cabecera `Content-Security-Policy` de nginx sigue presente en las páginas y que la aplicación no carga scripts de otros orígenes.
   - Hecho cuando: cada escenario queda anotado en el registro de verificación.
 
-- [ ] **A-14 Verificación de la spec**
+- [x] **A-14 Verificación de la spec**
   - Recorrer A1 a A8, comprobar cada criterio con evidencia nueva (prueba automática, comando o revisión) y registrar el resultado al final de este archivo. En particular: A7.1 (`design.md` §7 documenta el compromiso del token en `localStorage` y la CSP de nginx sigue activa) y A8.3 (`npm run test:cov` con 80% o más, y fallando por debajo, en backend y frontend).
   - Marcar como resuelto el pendiente `trust proxy` en `.ai/specs/platform/tasks.md`.
   - Hecho cuando: ningún criterio queda sin comprobación o sin una nota que explique por qué.
@@ -126,3 +126,23 @@ Entorno: `docker compose up --build` (db, backend y frontend `healthy`), navegad
 | A7.1: CSP de nginx | `Content-Security-Policy: default-src 'self'; ...; frame-ancestors 'none'; ...` presente; la página carga un único script del mismo origen y ningún recurso externo |
 
 Hallazgos: ningún defecto. El límite de intentos también rechaza un login correcto durante la ventana de 60 s (es por IP, no por resultado); es el comportamiento diseñado, y queda en la documentación como detalle de uso. El stack se detuvo con `docker compose down` al terminar.
+
+### A-14: verificación de la spec (2026-10-28)
+Evidencia nueva de esta sesión: backend `lint` limpio, `test:cov` (213 pruebas, 100%) y `test:e2e` (8 pruebas); frontend `lint`, `tsc`, `build` y `test:cov` (214 pruebas, 100%); más lo observado en A-07 y A-13.
+
+| Criterio | Evidencia |
+|---|---|
+| A1.1–A1.6 | Pruebas de `AuthService`, `AuthController`, DTO y e2e; A-07 (respuesta real, mismo 401 para correo inexistente o contraseña errónea, tiempos 2 ms sin la verificación frente a 82–86 ms con ella) |
+| A2.1–A2.3 | Pruebas de `JwtStrategy` y e2e (expirado, alterado, `none`, usuario inexistente); A-07 con `JWT_EXPIRES_IN=6s` |
+| A3.1–A3.5 | e2e recorre las rutas del OpenAPI y exige 401 salvo las públicas; prueba de mutación del guard global |
+| A4.1–A4.2 | Prueba e2e del 429 con `Retry-After`; A-07 y A-13 (sexto intento) |
+| A4.3 | `app.set('trust proxy', 1)` en `app.setup.ts:71`; A-07 por nginx con el límite aplicado por IP real |
+| A5.1–A5.7 | Pruebas de `AuthProvider`, `ProtectedRoute`, `LoginPage`, `redirect` y `session`; A-13 (reintento tras 5xx por pruebas; recarga, token alterado, expirado y cierre en dos pestañas en el navegador). El parpadeo de A5.2 solo está cubierto por pruebas unitarias |
+| A6.1–A6.7 | `LoginPage.spec.tsx` (37 pruebas) y `AppLayout.spec.tsx`; A-11 y A-13 en navegador real |
+| A7.1 | `design.md` §7 documenta el compromiso del token en `localStorage`; la CSP de nginx está presente (A-13). Corrección: la CSP usa `default-src 'self'` y no un `script-src` propio; funciona igual, y los textos de la spec se ajustaron |
+| A7.2 | `AuthController` declara 200, 400, 401 y 429 en el login, `ApiBearerAuth` en `me` y ejemplos en el DTO; la comprobación de la UI de Swagger se hará con la spec `docs-delivery` |
+| A8.1–A8.2 | 21 suites de backend y 17 de frontend, incluidas todas las citadas |
+| A8.3 | Umbral de 80% en `package.json` (backend) y `vite.config.ts` (frontend); forzado a 101% falla en ambos ("does not meet global threshold") |
+| A8.4 | A-07 y A-13 |
+
+Resultado: sin criterios pendientes. Notas: el aviso de chunk de más de 500 kB del build y los 15 hallazgos de `npm audit` del backend siguen abiertos (ver `platform`); en `platform/tasks.md` se marcaron como resueltos `trust proxy` y la autenticación del frontend.

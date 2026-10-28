@@ -54,7 +54,7 @@ Formato: CUANDO <evento>, EL SISTEMA DEBERÁ <respuesta>. Cada criterio es verif
 - A6.7 EL SISTEMA DEBERÁ ofrecer en la parte superior de las pantallas protegidas el correo del usuario y un botón "Cerrar sesión".
 
 ## A7. Seguridad transversal (GEN-2)
-- A7.1 EL SISTEMA DEBERÁ guardar el token en `localStorage` con el compromiso documentado en `design.md` §7 (legible por scripts de la página), mitigado por la CSP de nginx (`script-src 'self'`) y por la expiración corta del token.
+- A7.1 EL SISTEMA DEBERÁ guardar el token en `localStorage` con el compromiso documentado en `design.md` §7 (legible por scripts de la página), mitigado por la CSP de nginx (`default-src 'self'`, que limita los scripts al mismo origen) y por la expiración corta del token.
 - A7.2 La documentación Swagger DEBERÁ describir el login (con ejemplo de cuerpo y respuestas 200, 400, 401 y 429) y marcar como protegidas las rutas que exigen token.
 
 ## A8. Pruebas (T-1, T-2, T-3)
