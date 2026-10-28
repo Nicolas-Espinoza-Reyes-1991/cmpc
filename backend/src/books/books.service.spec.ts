@@ -11,6 +11,7 @@ import type { BookWithCatalogs } from './book.mapper';
 import { BooksService } from './books.service';
 import type { CreateBookDto } from './dto/create-book.dto';
 import { ListBooksQueryDto } from './dto/list-books-query.dto';
+import { ImageStorage } from './images/image-storage';
 
 const createdAt = new Date('2026-10-28T10:00:00.000Z');
 
@@ -40,6 +41,13 @@ const input: CreateBookDto = {
   availability: true,
 };
 
+const NEW_NAME = '3f6c2a52-7f0e-4c3e-9d57-1d8f0f6a9b11.png';
+const OLD_NAME = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d.jpg';
+const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.alloc(32),
+]);
+
 const prismaError = (code: string, modelName = 'Book') =>
   new Prisma.PrismaClientKnownRequestError('boom', {
     code,
@@ -55,12 +63,28 @@ describe('BooksService', () => {
   const findMany = jest.fn();
   const $transaction = jest.fn();
   const resolve = jest.fn();
+  const storage = {
+    save: jest.fn(),
+    remove: jest.fn(),
+    urlFor: jest.fn(),
+    nameFromUrl: jest.fn(),
+  };
   let service: BooksService;
 
   beforeEach(async () => {
     tx.book.create.mockReset().mockResolvedValue(row);
     tx.book.update.mockReset().mockResolvedValue(row);
     findUnique.mockReset().mockResolvedValue(row);
+    storage.save.mockReset().mockResolvedValue(NEW_NAME);
+    storage.remove.mockReset().mockResolvedValue(undefined);
+    storage.urlFor
+      .mockReset()
+      .mockImplementation((name: string) => `/api/uploads/${name}`);
+    storage.nameFromUrl
+      .mockReset()
+      .mockImplementation((url: string | null) =>
+        url ? url.replace('/api/uploads/', '') : null,
+      );
     count.mockReset().mockResolvedValue(1);
     findMany.mockReset().mockResolvedValue([row]);
     // A callback receives the transaction client; a list of queries is run together.
@@ -87,6 +111,7 @@ describe('BooksService', () => {
           },
         },
         { provide: CatalogService, useValue: { resolve } },
+        { provide: ImageStorage, useValue: storage },
       ],
     }).compile();
     service = moduleRef.get(BooksService);
@@ -166,6 +191,200 @@ describe('BooksService', () => {
     await expect(service.update('b1', { publisher: 'x' })).rejects.toBe(
       catalogRace,
     );
+  });
+
+  describe('setImage', () => {
+    const withImage = (imageUrl: string | null) => ({ ...row, imageUrl });
+    beforeEach(() => {
+      findUnique.mockResolvedValue({ imageUrl: null });
+      tx.book.update.mockResolvedValue(withImage(`/api/uploads/${NEW_NAME}`));
+    });
+
+    it('stores the file, points the book at it and returns the book', async () => {
+      const book = await service.setImage('b1', { buffer: PNG });
+
+      expect(storage.save).toHaveBeenCalledWith(PNG, 'png');
+      expect(tx.book.update).toHaveBeenCalledWith({
+        where: { id: 'b1' },
+        data: { imageUrl: `/api/uploads/${NEW_NAME}` },
+        include: { author: true, publisher: true, genre: true },
+      });
+      expect(book.imageUrl).toBe(`/api/uploads/${NEW_NAME}`);
+    });
+
+    it.each([
+      ['jpg', Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0])],
+      [
+        'webp',
+        Buffer.concat([
+          Buffer.from('RIFF'),
+          Buffer.alloc(4),
+          Buffer.from('WEBP'),
+          Buffer.alloc(8),
+        ]),
+      ],
+    ])('stores a %s with its own extension', async (extension, buffer) => {
+      await service.setImage('b1', { buffer });
+
+      expect(storage.save).toHaveBeenCalledWith(buffer, extension);
+    });
+
+    it('deletes the previous file after the book points at the new one', async () => {
+      findUnique.mockResolvedValue({ imageUrl: `/api/uploads/${OLD_NAME}` });
+
+      await service.setImage('b1', { buffer: PNG });
+
+      expect(storage.remove).toHaveBeenCalledTimes(1);
+      expect(storage.remove).toHaveBeenCalledWith(OLD_NAME);
+      const updated = tx.book.update.mock.invocationCallOrder[0] as number;
+      const removed = storage.remove.mock.invocationCallOrder[0] as number;
+      expect(removed).toBeGreaterThan(updated);
+    });
+
+    it('deletes nothing when the book had no image', async () => {
+      await service.setImage('b1', { buffer: PNG });
+
+      expect(storage.remove).not.toHaveBeenCalled();
+    });
+
+    it('does not delete a previous URL that is not one of ours', async () => {
+      findUnique.mockResolvedValue({
+        imageUrl: 'https://elsewhere.test/x.png',
+      });
+      storage.nameFromUrl.mockReturnValue(null);
+
+      await service.setImage('b1', { buffer: PNG });
+
+      expect(storage.remove).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['text', Buffer.from('just text, not an image')],
+      ['HTML', Buffer.from('<html><script>alert(1)</script></html>')],
+      ['an empty file', Buffer.alloc(0)],
+    ])(
+      'rejects %s with 400 before looking for the book or writing anything',
+      async (_label, buffer) => {
+        const attempt = service.setImage('b1', { buffer });
+
+        await expect(attempt).rejects.toBeInstanceOf(BadRequestException);
+        await expect(attempt).rejects.toThrow('not a valid image');
+        expect(findUnique).not.toHaveBeenCalled();
+        expect(storage.save).not.toHaveBeenCalled();
+      },
+    );
+
+    it('answers 404 without writing a file when the book does not exist', async () => {
+      findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.setImage('missing', { buffer: PNG }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(storage.save).not.toHaveBeenCalled();
+    });
+
+    it('removes the new file when updating the book fails, so nothing is left behind', async () => {
+      tx.book.update.mockRejectedValue(new Error('db down'));
+
+      await expect(service.setImage('b1', { buffer: PNG })).rejects.toThrow(
+        'db down',
+      );
+
+      expect(storage.remove).toHaveBeenCalledWith(NEW_NAME);
+    });
+
+    it('keeps the previous file when updating the book fails', async () => {
+      findUnique.mockResolvedValue({ imageUrl: `/api/uploads/${OLD_NAME}` });
+      tx.book.update.mockRejectedValue(new Error('db down'));
+
+      await expect(service.setImage('b1', { buffer: PNG })).rejects.toThrow();
+
+      expect(storage.remove).toHaveBeenCalledTimes(1);
+      expect(storage.remove).not.toHaveBeenCalledWith(OLD_NAME);
+    });
+
+    it('answers 404 and cleans up when the book was deleted while the file was written', async () => {
+      tx.book.update.mockRejectedValue(prismaError('P2025'));
+
+      await expect(
+        service.setImage('b1', { buffer: PNG }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(storage.remove).toHaveBeenCalledWith(NEW_NAME);
+    });
+
+    it('does not remove the new file when the old one is cleaned up', async () => {
+      findUnique.mockResolvedValue({ imageUrl: `/api/uploads/${OLD_NAME}` });
+
+      const book = await service.setImage('b1', { buffer: PNG });
+
+      expect(book.imageUrl).toBe(`/api/uploads/${NEW_NAME}`);
+      expect(storage.remove).not.toHaveBeenCalledWith(NEW_NAME);
+    });
+
+    it('lets a failure to write the file propagate without touching the book', async () => {
+      storage.save.mockRejectedValue(new Error('disk full'));
+
+      await expect(service.setImage('b1', { buffer: PNG })).rejects.toThrow(
+        'disk full',
+      );
+
+      expect(tx.book.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeImage', () => {
+    const withImage = { ...row, imageUrl: `/api/uploads/${OLD_NAME}` };
+
+    it('clears the image of the book and deletes the file', async () => {
+      findUnique.mockResolvedValue(withImage);
+      tx.book.update.mockResolvedValue({ ...row, imageUrl: null });
+
+      const book = await service.removeImage('b1');
+
+      expect(tx.book.update).toHaveBeenCalledWith({
+        where: { id: 'b1' },
+        data: { imageUrl: null },
+        include: { author: true, publisher: true, genre: true },
+      });
+      expect(storage.remove).toHaveBeenCalledWith(OLD_NAME);
+      expect(book.imageUrl).toBeNull();
+    });
+
+    it('returns a book without an image as it is, touching nothing (idempotent)', async () => {
+      findUnique.mockResolvedValue({ ...row, imageUrl: null });
+
+      const book = await service.removeImage('b1');
+
+      expect(book.id).toBe('b1');
+      expect($transaction).not.toHaveBeenCalled();
+      expect(storage.remove).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 when the book does not exist', async () => {
+      findUnique.mockResolvedValue(null);
+
+      await expect(service.removeImage('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('keeps the file when updating the book fails', async () => {
+      findUnique.mockResolvedValue(withImage);
+      tx.book.update.mockRejectedValue(new Error('db down'));
+
+      await expect(service.removeImage('b1')).rejects.toThrow('db down');
+
+      expect(storage.remove).not.toHaveBeenCalled();
+    });
+
+    it('answers 404 when the book was deleted in between', async () => {
+      findUnique.mockResolvedValue(withImage);
+      tx.book.update.mockRejectedValue(prismaError('P2025'));
+
+      await expect(service.removeImage('b1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
   });
 
   describe('findAll', () => {

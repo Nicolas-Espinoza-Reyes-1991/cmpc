@@ -15,7 +15,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: firmas reales de JPEG, PNG y WebP; buffers cortos, vacíos y firmas falsas; el almacenamiento con un directorio temporal real (crea el directorio, nombres únicos, escribe, borra, rechaza nombres inválidos y `..`, tolera un archivo inexistente).
   - Commit: `feat(books): add image type detection and file storage`
 
-- [ ] **U-03 Servicio y controlador de la imagen** (U1.1, U1.2, U1.4, U1.6, U1.7, U2.1 a U2.3, U4.1, U4.3)
+- [x] **U-03 Servicio y controlador de la imagen** (U1.1, U1.2, U1.4, U1.6, U1.7, U2.1 a U2.3, U4.1, U4.3)
   - `BooksService.setImage` y `removeImage`, `POST` y `DELETE /api/books/:id/image` con `FileInterceptor` y Swagger multipart.
   - Pruebas: éxito, reemplazo (borra el anterior), libro inexistente sin escribir, contenido falso, fallo de la base con limpieza, fallo al borrar el anterior, idempotencia de quitar; controlador; HTTP con Passport y `multipart` real (401, 200, 400, 413, 404 sin archivos).
   - Commit: `feat(books): add book image upload and removal endpoints`
