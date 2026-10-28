@@ -1,5 +1,10 @@
 import { Prisma } from '@prisma/client';
-import { BOOK_INCLUDE, toBookDto, type BookWithCatalogs } from './book.mapper';
+import {
+  BOOK_INCLUDE,
+  toAuditSnapshot,
+  toBookDto,
+  type BookWithCatalogs,
+} from './book.mapper';
 
 const createdAt = new Date('2026-10-28T10:00:00.000Z');
 const updatedAt = new Date('2026-10-28T11:00:00.000Z');
@@ -54,6 +59,28 @@ describe('toBookDto', () => {
     const dto = toBookDto({ ...row, price: new Prisma.Decimal('99999999.99') });
 
     expect(dto.price).toBe(99_999_999.99);
+  });
+});
+
+describe('toAuditSnapshot', () => {
+  it('keeps the business data of the book and nothing else (G2.7)', () => {
+    expect(toAuditSnapshot(toBookDto(row))).toEqual({
+      id: 'b1',
+      title: 'Cien años de soledad',
+      author: 'Gabriel García Márquez',
+      publisher: 'Editorial Sudamericana',
+      genre: 'Novela',
+      price: 12990.5,
+      availability: true,
+      imageUrl: null,
+    });
+  });
+
+  it('does not carry the timestamps, which the audit entry has of its own', () => {
+    const snapshot = toAuditSnapshot(toBookDto(row));
+
+    expect(snapshot).not.toHaveProperty('createdAt');
+    expect(snapshot).not.toHaveProperty('updatedAt');
   });
 });
 

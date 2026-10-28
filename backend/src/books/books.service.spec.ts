@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 import { CatalogService } from '../catalog/catalog.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { BookWithCatalogs } from './book.mapper';
@@ -13,6 +14,8 @@ import type { CreateBookDto } from './dto/create-book.dto';
 import { ExportBooksQueryDto } from './dto/export-books-query.dto';
 import { ListBooksQueryDto } from './dto/list-books-query.dto';
 import { ImageStorage } from './images/image-storage';
+
+const ACTOR = { userId: 'user-1', ip: '203.0.113.7' };
 
 const createdAt = new Date('2026-10-28T10:00:00.000Z');
 
@@ -58,7 +61,10 @@ const prismaError = (code: string, modelName = 'Book') =>
 
 describe('BooksService', () => {
   // The transaction client handed to the callbacks; `live.book` is the plain read client.
-  const tx = { book: { create: jest.fn(), update: jest.fn() } };
+  const tx = {
+    book: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
+  };
+  const audit = { log: jest.fn() };
   const findUnique = jest.fn();
   const count = jest.fn();
   // Typed by its argument so the tests can read what each call asked the database for.
@@ -76,6 +82,8 @@ describe('BooksService', () => {
   beforeEach(async () => {
     tx.book.create.mockReset().mockResolvedValue(row);
     tx.book.update.mockReset().mockResolvedValue(row);
+    tx.book.findUnique.mockReset().mockResolvedValue(row);
+    audit.log.mockReset().mockResolvedValue(undefined);
     findUnique.mockReset().mockResolvedValue(row);
     storage.save.mockReset().mockResolvedValue(NEW_NAME);
     storage.remove.mockReset().mockResolvedValue(undefined);
@@ -114,6 +122,7 @@ describe('BooksService', () => {
         },
         { provide: CatalogService, useValue: { resolve } },
         { provide: ImageStorage, useValue: storage },
+        { provide: AuditService, useValue: audit },
       ],
     }).compile();
     service = moduleRef.get(BooksService);
@@ -121,7 +130,7 @@ describe('BooksService', () => {
 
   describe('create', () => {
     it('resolves the three catalogs and creates the book in one transaction', async () => {
-      const book = await service.create(input);
+      const book = await service.create(input, ACTOR);
 
       expect($transaction).toHaveBeenCalledTimes(1);
       expect(resolve).toHaveBeenNthCalledWith(
@@ -162,7 +171,7 @@ describe('BooksService', () => {
           : Promise.resolve(`${kind[0]}-id`),
       );
 
-      await expect(service.create(input)).rejects.toThrow('db down');
+      await expect(service.create(input, ACTOR)).rejects.toThrow('db down');
 
       expect(tx.book.create).not.toHaveBeenCalled();
     });
@@ -170,13 +179,15 @@ describe('BooksService', () => {
     it('lets the failure of the book insert reach the transaction, which rolls back the catalogs', async () => {
       tx.book.create.mockRejectedValue(new Error('insert failed'));
 
-      await expect(service.create(input)).rejects.toThrow('insert failed');
+      await expect(service.create(input, ACTOR)).rejects.toThrow(
+        'insert failed',
+      );
     });
 
     it('answers 409 when an active book with the same title, author and publisher exists', async () => {
       tx.book.create.mockRejectedValue(prismaError('P2002'));
 
-      const attempt = service.create(input);
+      const attempt = service.create(input, ACTOR);
 
       await expect(attempt).rejects.toBeInstanceOf(ConflictException);
       await expect(attempt).rejects.toThrow(
@@ -189,8 +200,8 @@ describe('BooksService', () => {
     const catalogRace = prismaError('P2002', 'Publisher');
     resolve.mockRejectedValue(catalogRace);
 
-    await expect(service.create(input)).rejects.toBe(catalogRace);
-    await expect(service.update('b1', { publisher: 'x' })).rejects.toBe(
+    await expect(service.create(input, ACTOR)).rejects.toBe(catalogRace);
+    await expect(service.update('b1', { publisher: 'x' }, ACTOR)).rejects.toBe(
       catalogRace,
     );
   });
@@ -203,7 +214,7 @@ describe('BooksService', () => {
     });
 
     it('stores the file, points the book at it and returns the book', async () => {
-      const book = await service.setImage('b1', { buffer: PNG });
+      const book = await service.setImage('b1', { buffer: PNG }, ACTOR);
 
       expect(storage.save).toHaveBeenCalledWith(PNG, 'png');
       expect(tx.book.update).toHaveBeenCalledWith({
@@ -226,7 +237,7 @@ describe('BooksService', () => {
         ]),
       ],
     ])('stores a %s with its own extension', async (extension, buffer) => {
-      await service.setImage('b1', { buffer });
+      await service.setImage('b1', { buffer }, ACTOR);
 
       expect(storage.save).toHaveBeenCalledWith(buffer, extension);
     });
@@ -234,7 +245,7 @@ describe('BooksService', () => {
     it('deletes the previous file after the book points at the new one', async () => {
       findUnique.mockResolvedValue({ imageUrl: `/api/uploads/${OLD_NAME}` });
 
-      await service.setImage('b1', { buffer: PNG });
+      await service.setImage('b1', { buffer: PNG }, ACTOR);
 
       expect(storage.remove).toHaveBeenCalledTimes(1);
       expect(storage.remove).toHaveBeenCalledWith(OLD_NAME);
@@ -244,7 +255,7 @@ describe('BooksService', () => {
     });
 
     it('deletes nothing when the book had no image', async () => {
-      await service.setImage('b1', { buffer: PNG });
+      await service.setImage('b1', { buffer: PNG }, ACTOR);
 
       expect(storage.remove).not.toHaveBeenCalled();
     });
@@ -255,7 +266,7 @@ describe('BooksService', () => {
       });
       storage.nameFromUrl.mockReturnValue(null);
 
-      await service.setImage('b1', { buffer: PNG });
+      await service.setImage('b1', { buffer: PNG }, ACTOR);
 
       expect(storage.remove).not.toHaveBeenCalled();
     });
@@ -267,7 +278,7 @@ describe('BooksService', () => {
     ])(
       'rejects %s with 400 before looking for the book or writing anything',
       async (_label, buffer) => {
-        const attempt = service.setImage('b1', { buffer });
+        const attempt = service.setImage('b1', { buffer }, ACTOR);
 
         await expect(attempt).rejects.toBeInstanceOf(BadRequestException);
         await expect(attempt).rejects.toThrow('not a valid image');
@@ -280,7 +291,7 @@ describe('BooksService', () => {
       findUnique.mockResolvedValue(null);
 
       await expect(
-        service.setImage('missing', { buffer: PNG }),
+        service.setImage('missing', { buffer: PNG }, ACTOR),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(storage.save).not.toHaveBeenCalled();
     });
@@ -288,9 +299,9 @@ describe('BooksService', () => {
     it('removes the new file when updating the book fails, so nothing is left behind', async () => {
       tx.book.update.mockRejectedValue(new Error('db down'));
 
-      await expect(service.setImage('b1', { buffer: PNG })).rejects.toThrow(
-        'db down',
-      );
+      await expect(
+        service.setImage('b1', { buffer: PNG }, ACTOR),
+      ).rejects.toThrow('db down');
 
       expect(storage.remove).toHaveBeenCalledWith(NEW_NAME);
     });
@@ -299,7 +310,9 @@ describe('BooksService', () => {
       findUnique.mockResolvedValue({ imageUrl: `/api/uploads/${OLD_NAME}` });
       tx.book.update.mockRejectedValue(new Error('db down'));
 
-      await expect(service.setImage('b1', { buffer: PNG })).rejects.toThrow();
+      await expect(
+        service.setImage('b1', { buffer: PNG }, ACTOR),
+      ).rejects.toThrow();
 
       expect(storage.remove).toHaveBeenCalledTimes(1);
       expect(storage.remove).not.toHaveBeenCalledWith(OLD_NAME);
@@ -309,7 +322,7 @@ describe('BooksService', () => {
       tx.book.update.mockRejectedValue(prismaError('P2025'));
 
       await expect(
-        service.setImage('b1', { buffer: PNG }),
+        service.setImage('b1', { buffer: PNG }, ACTOR),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(storage.remove).toHaveBeenCalledWith(NEW_NAME);
     });
@@ -317,7 +330,7 @@ describe('BooksService', () => {
     it('does not remove the new file when the old one is cleaned up', async () => {
       findUnique.mockResolvedValue({ imageUrl: `/api/uploads/${OLD_NAME}` });
 
-      const book = await service.setImage('b1', { buffer: PNG });
+      const book = await service.setImage('b1', { buffer: PNG }, ACTOR);
 
       expect(book.imageUrl).toBe(`/api/uploads/${NEW_NAME}`);
       expect(storage.remove).not.toHaveBeenCalledWith(NEW_NAME);
@@ -326,9 +339,9 @@ describe('BooksService', () => {
     it('lets a failure to write the file propagate without touching the book', async () => {
       storage.save.mockRejectedValue(new Error('disk full'));
 
-      await expect(service.setImage('b1', { buffer: PNG })).rejects.toThrow(
-        'disk full',
-      );
+      await expect(
+        service.setImage('b1', { buffer: PNG }, ACTOR),
+      ).rejects.toThrow('disk full');
 
       expect(tx.book.update).not.toHaveBeenCalled();
     });
@@ -341,7 +354,7 @@ describe('BooksService', () => {
       findUnique.mockResolvedValue(withImage);
       tx.book.update.mockResolvedValue({ ...row, imageUrl: null });
 
-      const book = await service.removeImage('b1');
+      const book = await service.removeImage('b1', ACTOR);
 
       expect(tx.book.update).toHaveBeenCalledWith({
         where: { id: 'b1' },
@@ -355,7 +368,7 @@ describe('BooksService', () => {
     it('returns a book without an image as it is, touching nothing (idempotent)', async () => {
       findUnique.mockResolvedValue({ ...row, imageUrl: null });
 
-      const book = await service.removeImage('b1');
+      const book = await service.removeImage('b1', ACTOR);
 
       expect(book.id).toBe('b1');
       expect($transaction).not.toHaveBeenCalled();
@@ -365,16 +378,16 @@ describe('BooksService', () => {
     it('answers 404 when the book does not exist', async () => {
       findUnique.mockResolvedValue(null);
 
-      await expect(service.removeImage('missing')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.removeImage('missing', ACTOR),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('keeps the file when updating the book fails', async () => {
       findUnique.mockResolvedValue(withImage);
       tx.book.update.mockRejectedValue(new Error('db down'));
 
-      await expect(service.removeImage('b1')).rejects.toThrow('db down');
+      await expect(service.removeImage('b1', ACTOR)).rejects.toThrow('db down');
 
       expect(storage.remove).not.toHaveBeenCalled();
     });
@@ -383,7 +396,7 @@ describe('BooksService', () => {
       findUnique.mockResolvedValue(withImage);
       tx.book.update.mockRejectedValue(prismaError('P2025'));
 
-      await expect(service.removeImage('b1')).rejects.toBeInstanceOf(
+      await expect(service.removeImage('b1', ACTOR)).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -713,7 +726,11 @@ describe('BooksService', () => {
 
   describe('update', () => {
     it('changes only the fields received and resolves only the catalogs received', async () => {
-      await service.update('b1', { price: 15000, genre: 'Realismo mágico' });
+      await service.update(
+        'b1',
+        { price: 15000, genre: 'Realismo mágico' },
+        ACTOR,
+      );
 
       expect(resolve).toHaveBeenCalledTimes(1);
       expect(resolve).toHaveBeenCalledWith(tx, 'genre', 'Realismo mágico');
@@ -732,10 +749,14 @@ describe('BooksService', () => {
     });
 
     it('resolves author and publisher too when they change', async () => {
-      await service.update('b1', {
-        author: 'Isabel Allende',
-        publisher: 'Plaza',
-      });
+      await service.update(
+        'b1',
+        {
+          author: 'Isabel Allende',
+          publisher: 'Plaza',
+        },
+        ACTOR,
+      );
 
       expect(resolve).toHaveBeenCalledWith(tx, 'author', 'Isabel Allende');
       expect(resolve).toHaveBeenCalledWith(tx, 'publisher', 'Plaza');
@@ -751,7 +772,7 @@ describe('BooksService', () => {
     });
 
     it('can set availability to false (a falsy value is still a change)', async () => {
-      await service.update('b1', { availability: false });
+      await service.update('b1', { availability: false }, ACTOR);
 
       expect(tx.book.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -762,7 +783,7 @@ describe('BooksService', () => {
     });
 
     it('returns the updated book', async () => {
-      const book = await service.update('b1', { title: 'Otro' });
+      const book = await service.update('b1', { title: 'Otro' }, ACTOR);
 
       expect(book.id).toBe('b1');
     });
@@ -770,10 +791,10 @@ describe('BooksService', () => {
     it.each([[{}], [{ title: undefined }]])(
       'rejects an empty change %j with 400 without opening a transaction',
       async (dto) => {
-        await expect(service.update('b1', dto)).rejects.toBeInstanceOf(
+        await expect(service.update('b1', dto, ACTOR)).rejects.toBeInstanceOf(
           BadRequestException,
         );
-        await expect(service.update('b1', dto)).rejects.toThrow(
+        await expect(service.update('b1', dto, ACTOR)).rejects.toThrow(
           'At least one field is required',
         );
         expect($transaction).not.toHaveBeenCalled();
@@ -783,7 +804,7 @@ describe('BooksService', () => {
     it('answers 404 when the book does not exist or is deleted', async () => {
       tx.book.update.mockRejectedValue(prismaError('P2025'));
 
-      const attempt = service.update('missing', { title: 'x' });
+      const attempt = service.update('missing', { title: 'x' }, ACTOR);
 
       await expect(attempt).rejects.toBeInstanceOf(NotFoundException);
       await expect(attempt).rejects.toThrow('Book not found');
@@ -792,17 +813,17 @@ describe('BooksService', () => {
     it('answers 409 when the change would duplicate another active book', async () => {
       tx.book.update.mockRejectedValue(prismaError('P2002'));
 
-      await expect(service.update('b1', { title: 'x' })).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(
+        service.update('b1', { title: 'x' }, ACTOR),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
 
     it('lets a catalog failure propagate without touching the book', async () => {
       resolve.mockRejectedValue(new Error('db down'));
 
-      await expect(service.update('b1', { author: 'x' })).rejects.toThrow(
-        'db down',
-      );
+      await expect(
+        service.update('b1', { author: 'x' }, ACTOR),
+      ).rejects.toThrow('db down');
       expect(tx.book.update).not.toHaveBeenCalled();
     });
   });
@@ -811,7 +832,7 @@ describe('BooksService', () => {
     it('marks the book as deleted with the current date and does not delete the row', async () => {
       const before = Date.now();
 
-      await expect(service.remove('b1')).resolves.toBeUndefined();
+      await expect(service.remove('b1', ACTOR)).resolves.toBeUndefined();
 
       expect(tx.book.update).toHaveBeenCalledTimes(1);
       const [args] = tx.book.update.mock.calls[0] as [
@@ -823,7 +844,7 @@ describe('BooksService', () => {
     });
 
     it('never touches the catalogs (C5.4)', async () => {
-      await service.remove('b1');
+      await service.remove('b1', ACTOR);
 
       expect(resolve).not.toHaveBeenCalled();
     });
@@ -831,7 +852,7 @@ describe('BooksService', () => {
     it('answers 404 when the book does not exist or was already deleted', async () => {
       tx.book.update.mockRejectedValue(prismaError('P2025'));
 
-      await expect(service.remove('b1')).rejects.toBeInstanceOf(
+      await expect(service.remove('b1', ACTOR)).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
@@ -840,7 +861,263 @@ describe('BooksService', () => {
       const failure = new Error('db down');
       tx.book.update.mockRejectedValue(failure);
 
-      await expect(service.remove('b1')).rejects.toBe(failure);
+      await expect(service.remove('b1', ACTOR)).rejects.toBe(failure);
+    });
+  });
+
+  describe('audit trail', () => {
+    const snapshot = {
+      id: 'b1',
+      title: 'Cien años de soledad',
+      author: 'Gabriel García Márquez',
+      publisher: 'Editorial Sudamericana',
+      genre: 'Novela',
+      price: 12990,
+      availability: true,
+      imageUrl: null,
+    };
+    const changed = {
+      ...row,
+      title: 'Otro título',
+      price: new Prisma.Decimal('100'),
+    };
+    const auditCalls = () =>
+      audit.log.mock.calls as [unknown, Record<string, unknown>][];
+
+    describe('create', () => {
+      it('records CREATE inside the transaction, after the book is written', async () => {
+        await service.create(input, ACTOR);
+
+        expect(audit.log).toHaveBeenCalledTimes(1);
+        expect(auditCalls()[0]?.[0]).toBe(tx);
+        expect(auditCalls()[0]?.[1]).toEqual({
+          action: 'CREATE',
+          entity: 'Book',
+          entityId: 'b1',
+          after: snapshot,
+          actor: ACTOR,
+        });
+        expect(tx.book.create.mock.invocationCallOrder[0]).toBeLessThan(
+          audit.log.mock.invocationCallOrder[0] as number,
+        );
+      });
+
+      it('keeps only business data in the snapshot', async () => {
+        await service.create(input, ACTOR);
+
+        const after = auditCalls()[0]?.[1].after as Record<string, unknown>;
+        expect(Object.keys(after).sort()).toEqual(
+          [
+            'author',
+            'availability',
+            'genre',
+            'id',
+            'imageUrl',
+            'price',
+            'publisher',
+            'title',
+          ].sort(),
+        );
+      });
+
+      it.each([
+        [
+          'a catalog step fails',
+          () => resolve.mockRejectedValue(new Error('x')),
+        ],
+        [
+          'the insert fails',
+          () => tx.book.create.mockRejectedValue(new Error('x')),
+        ],
+        [
+          'the book is a duplicate',
+          () => tx.book.create.mockRejectedValue(prismaError('P2002')),
+        ],
+      ])('records nothing when %s', async (_name, fail) => {
+        fail();
+
+        await expect(service.create(input, ACTOR)).rejects.toBeDefined();
+
+        expect(audit.log).not.toHaveBeenCalled();
+      });
+
+      it('fails the whole operation when the entry cannot be written', async () => {
+        audit.log.mockRejectedValue(new Error('audit down'));
+
+        await expect(service.create(input, ACTOR)).rejects.toThrow(
+          'audit down',
+        );
+      });
+    });
+
+    describe('update', () => {
+      it('records UPDATE with the book as it was read inside the transaction and as it is now', async () => {
+        tx.book.update.mockResolvedValue(changed);
+
+        await service.update('b1', { title: 'Otro título', price: 100 }, ACTOR);
+
+        expect(tx.book.findUnique).toHaveBeenCalledWith({
+          where: { id: 'b1' },
+          include: { author: true, publisher: true, genre: true },
+        });
+        expect(auditCalls()[0]?.[0]).toBe(tx);
+        expect(auditCalls()[0]?.[1]).toEqual({
+          action: 'UPDATE',
+          entity: 'Book',
+          entityId: 'b1',
+          before: snapshot,
+          after: { ...snapshot, title: 'Otro título', price: 100 },
+          actor: ACTOR,
+        });
+      });
+
+      it('reads the book before resolving catalogs or writing', async () => {
+        await service.update('b1', { author: 'Nuevo' }, ACTOR);
+
+        const read = tx.book.findUnique.mock.invocationCallOrder[0] as number;
+        expect(read).toBeLessThan(
+          resolve.mock.invocationCallOrder[0] as number,
+        );
+        expect(read).toBeLessThan(
+          tx.book.update.mock.invocationCallOrder[0] as number,
+        );
+        expect(tx.book.update.mock.invocationCallOrder[0]).toBeLessThan(
+          audit.log.mock.invocationCallOrder[0] as number,
+        );
+      });
+
+      it('answers 404 and writes nothing when the book is missing or deleted', async () => {
+        tx.book.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.update('b1', { title: 'x' }, ACTOR),
+        ).rejects.toBeInstanceOf(NotFoundException);
+
+        expect(resolve).not.toHaveBeenCalled();
+        expect(tx.book.update).not.toHaveBeenCalled();
+        expect(audit.log).not.toHaveBeenCalled();
+      });
+
+      it('records nothing when the update fails', async () => {
+        tx.book.update.mockRejectedValue(prismaError('P2002'));
+
+        await expect(
+          service.update('b1', { title: 'x' }, ACTOR),
+        ).rejects.toBeInstanceOf(ConflictException);
+
+        expect(audit.log).not.toHaveBeenCalled();
+      });
+
+      it('fails the whole operation when the entry cannot be written', async () => {
+        audit.log.mockRejectedValue(new Error('audit down'));
+
+        await expect(
+          service.update('b1', { title: 'x' }, ACTOR),
+        ).rejects.toThrow('audit down');
+      });
+    });
+
+    describe('remove', () => {
+      it('records DELETE with the book as it was and no after', async () => {
+        await service.remove('b1', ACTOR);
+
+        expect(auditCalls()[0]?.[0]).toBe(tx);
+        expect(auditCalls()[0]?.[1]).toEqual({
+          action: 'DELETE',
+          entity: 'Book',
+          entityId: 'b1',
+          before: snapshot,
+          actor: ACTOR,
+        });
+        expect(tx.book.update.mock.invocationCallOrder[0]).toBeLessThan(
+          audit.log.mock.invocationCallOrder[0] as number,
+        );
+      });
+
+      it('answers 404 and records nothing when the book is missing or already deleted', async () => {
+        tx.book.findUnique.mockResolvedValue(null);
+
+        await expect(service.remove('b1', ACTOR)).rejects.toBeInstanceOf(
+          NotFoundException,
+        );
+
+        expect(tx.book.update).not.toHaveBeenCalled();
+        expect(audit.log).not.toHaveBeenCalled();
+      });
+
+      it('fails the whole operation when the entry cannot be written', async () => {
+        audit.log.mockRejectedValue(new Error('audit down'));
+
+        await expect(service.remove('b1', ACTOR)).rejects.toThrow('audit down');
+      });
+    });
+
+    describe('covers', () => {
+      const withImage = { ...row, imageUrl: `/api/uploads/${OLD_NAME}` };
+
+      it('setImage records UPDATE with the old and the new cover', async () => {
+        tx.book.findUnique.mockResolvedValue(withImage);
+        tx.book.update.mockResolvedValue({
+          ...row,
+          imageUrl: `/api/uploads/${NEW_NAME}`,
+        });
+
+        await service.setImage('b1', { buffer: PNG }, ACTOR);
+
+        expect(auditCalls()[0]?.[1]).toEqual({
+          action: 'UPDATE',
+          entity: 'Book',
+          entityId: 'b1',
+          before: { ...snapshot, imageUrl: `/api/uploads/${OLD_NAME}` },
+          after: { ...snapshot, imageUrl: `/api/uploads/${NEW_NAME}` },
+          actor: ACTOR,
+        });
+      });
+
+      it('removeImage records UPDATE with the cover going away', async () => {
+        findUnique.mockResolvedValue(withImage);
+        tx.book.findUnique.mockResolvedValue(withImage);
+        tx.book.update.mockResolvedValue({ ...row, imageUrl: null });
+
+        await service.removeImage('b1', ACTOR);
+
+        expect(auditCalls()[0]?.[1]).toMatchObject({
+          action: 'UPDATE',
+          before: { imageUrl: `/api/uploads/${OLD_NAME}` },
+          after: { imageUrl: null },
+          actor: ACTOR,
+        });
+      });
+
+      it('removeImage on a book without cover changes nothing and records nothing', async () => {
+        await service.removeImage('b1', ACTOR);
+
+        expect($transaction).not.toHaveBeenCalled();
+        expect(audit.log).not.toHaveBeenCalled();
+      });
+
+      it('setImage removes the new file and keeps the old one when the entry cannot be written', async () => {
+        findUnique.mockResolvedValue(withImage);
+        audit.log.mockRejectedValue(new Error('audit down'));
+
+        await expect(
+          service.setImage('b1', { buffer: PNG }, ACTOR),
+        ).rejects.toThrow('audit down');
+
+        expect(storage.remove).toHaveBeenCalledWith(NEW_NAME);
+        expect(storage.remove).not.toHaveBeenCalledWith(OLD_NAME);
+      });
+
+      it('records nothing when the book is gone', async () => {
+        findUnique.mockResolvedValue(row);
+        tx.book.findUnique.mockResolvedValue(null);
+
+        await expect(
+          service.setImage('b1', { buffer: PNG }, ACTOR),
+        ).rejects.toBeInstanceOf(NotFoundException);
+
+        expect(audit.log).not.toHaveBeenCalled();
+      });
     });
   });
 });

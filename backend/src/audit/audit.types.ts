@@ -20,6 +20,14 @@ export interface AuditEntry {
 
 /**
  * What `AuditService.log` writes with: the client of a transaction (so the
- * entry commits or rolls back with the operation) or the service itself.
+ * entry commits or rolls back with the operation) or the service itself. Only
+ * the one call it needs is described, which also lets the soft-delete client
+ * of the books (a different generated type) be used as is.
  */
-export type AuditClient = Pick<Prisma.TransactionClient, 'auditLog'>;
+export interface AuditClient {
+  auditLog: {
+    create(args: {
+      data: Prisma.AuditLogUncheckedCreateInput;
+    }): PromiseLike<unknown>;
+  };
+}

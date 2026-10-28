@@ -14,7 +14,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: escribe con el cliente dado, propaga el error, el mejor esfuerzo captura y registra sin contenido, `@Actor()` con y sin usuario, solo `audit.service.ts` escribe en `auditLog`.
   - Commit: `feat(audit): add the audit service and the actor decorator`
 
-- [ ] **G-03 Auditoría de libros en la transacción** (G2.1 a G2.7, G4.1)
+- [x] **G-03 Auditoría de libros en la transacción** (G2.1 a G2.7, G4.1)
   - `BooksService` recibe el actor, lee `before` dentro de la transacción y llama a `audit.log(tx, ...)` en `create`, `update`, `remove`, `setImage` y `removeImage`; el controlador pasa `@Actor()`.
   - Pruebas: acción, entidad, `before`/`after` y actor de cada operación; el registro va después de la escritura y en la misma transacción; si el registro falla la operación se deshace; sin registro si la operación falla o no cambia nada.
   - Commit: `feat(books): record create, update and delete in the audit log`
