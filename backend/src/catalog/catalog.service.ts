@@ -1,12 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { escapeLike } from '../common/utils/escape-like';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CatalogClient, CatalogItem, CatalogKind } from './catalog-kind';
-
-/**
- * Prisma passes `contains` to LIKE without escaping, so `%` and `_` would act as
- * wildcards ("a_b" would match "axb"). A backslash is LIKE's default escape.
- */
-const escapeLike = (text: string): string => text.replace(/[\\%_]/g, '\\$&');
 
 export interface CatalogListOptions {
   search?: string;

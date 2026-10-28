@@ -5,7 +5,7 @@ Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de deci
 Marcar con `[x]` al terminar.
 
 ## Backend
-- [ ] **L-01 Funciones puras del listado** (L2.1 a L2.5, L3.1 a L3.4, L6.1)
+- [x] **L-01 Funciones puras del listado** (L2.1 a L2.5, L3.1 a L3.4, L6.1)
   - `common/utils/escape-like.ts` (extraído de `catalog.service.ts`), `book-list.query.ts` con `buildBookWhere`, `parseSort` y `buildBookOrderBy`.
   - Pruebas: cada filtro y sus combinaciones; texto vacío; comodines escapados; orden por defecto; `id` al final; campos relacionados; cada error de `parseSort`.
   - Commit: `feat(books): add pure functions to build the list filters and order`
