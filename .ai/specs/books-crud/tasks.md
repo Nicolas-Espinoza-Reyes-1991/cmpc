@@ -26,7 +26,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: listado con y sin `search`, `limit` fuera de rango → 400, orden por nombre; `resolve` devuelve el existente sin distinguir mayúsculas y hace `upsert` si no existe; el controlador no usa Prisma; no hay rutas de escritura.
   - Commit: `feat(catalog): add read-only catalog endpoints and resolver`
 
-- [ ] **C-04 DTOs y mapper de libros** (C2.2, C2.3, C3.2, C4.2, C4.5)
+- [x] **C-04 DTOs y mapper de libros** (C2.2, C2.3, C3.2, C4.2, C4.5)
   - `CreateBookDto`, `UpdateBookDto`, `BookDto`, `trimText` y `toBookDto`.
   - Pruebas: cada regla de validación (vacíos, longitudes, precio 0, negativo, tres decimales, mayor al máximo, `availability` no booleano, propiedades no declaradas como `id`, `imageUrl` y `deletedAt`); normalización de espacios; el mapper convierte `price` a número y no incluye `deletedAt`.
   - Commit: `feat(books): add book DTOs and mapper`
@@ -74,7 +74,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-03, C-07, C-11 y C-12.)
+(Se completa en C-01 a C-04, C-07, C-11 y C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -124,3 +124,20 @@ Backend compilado contra la base de desarrollo; datos de prueba con prefijo `C03
 | OpenAPI | Documenta `/api/authors`, `/api/publishers` y `/api/genres`; el e2e de `auth` las recorre y exige 401 sin token |
 | Log del servidor | 0 líneas con contraseña o cabecera `Bearer` |
 | `lint`, tipos, build, `test:cov` y e2e | Pasan: 276 pruebas (37 nuevas) con 100% de cobertura, y 8 e2e |
+
+### C-04: DTOs y mapper (2026-10-28)
+Las pruebas de validación usan el `ValidationPipe` con la misma configuración que la aplicación (`whitelist`, `forbidNonWhitelisted`, `transform` y el filtro de errores único), de modo que comprueban lo que recibiría un cliente.
+
+| Comprobación | Resultado |
+|---|---|
+| Texto: vacío, solo espacios, ausente o no textual (`42`, `null`, arreglo) | 400 con el campo correspondiente, en `title`, `author`, `publisher` y `genre` |
+| Longitudes: 200 (título) y 100 (nombres) | El límite se acepta y uno más se rechaza; la longitud se mide después de colapsar espacios |
+| Normalización: `"  Gabriel   García 	 Márquez  "` | `"Gabriel García Márquez"` |
+| Precio: 0,01, 1, 12990, 1234,5, 99,99 y el máximo | Aceptados |
+| Precio: 0, negativo, tres decimales, sobre el máximo, `1e21`, texto, `null`, booleano, ausente | 400 en `price` |
+| **Defecto encontrado**: precio `1e-7` | `@IsNumber({ maxDecimalPlaces })` lanzaba `TypeError` (500). Reemplazado por `@IsMoney`; ahora responde 400 |
+| `availability`: `"true"`, `1`, `0`, `null`, ausente | 400; solo `true` y `false` pasan |
+| Propiedades `id`, `imageUrl`, `deletedAt`, `createdAt`, `authorId`, desconocida | 400 en `CreateBookDto` y (`id`, `imageUrl`, `deletedAt`) en `UpdateBookDto` |
+| `UpdateBookDto` | Acepta cada campo por separado y `{}` (el servicio rechazará el cuerpo vacío en C-05); mismas reglas y normalización |
+| Mapper | Nombres en lugar de ids, `price` numérico exacto (hasta 99.999.999,99), sin `deletedAt` ni claves foráneas |
+| `lint`, tipos, build, `test:cov` y e2e | Pasan: 355 pruebas (79 nuevas) con 100% de cobertura, y 8 e2e |
