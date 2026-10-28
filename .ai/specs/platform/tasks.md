@@ -73,7 +73,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: normaliza un error con `errors`; error de red genera el mensaje de conexión; 401 cierra sesión y redirige; la petición lleva el token.
   - Commit: `feat(frontend): add API client with error normalization`
 
-- [ ] **P-14 Base de la aplicación** (R1.1)
+- [x] **P-14 Base de la aplicación** (R1.1)
   - `QueryClient`, rutas `/login` y `/books` (protegida), componente de aviso de error global.
   - Pruebas: una ruta protegida redirige a `/login` sin sesión; el aviso muestra el mensaje del `ApiError`.
   - Commit: `feat(frontend): add routing, query client and error notice`

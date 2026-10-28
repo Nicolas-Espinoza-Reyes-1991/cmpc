@@ -68,6 +68,11 @@ export function messageForStatus(status: number): string {
   }
 }
 
+/** Message to show for anything that failed; non-API errors get the generic one. */
+export function getErrorMessage(error: unknown): string {
+  return error instanceof ApiError ? error.message : MESSAGES.unexpected;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }

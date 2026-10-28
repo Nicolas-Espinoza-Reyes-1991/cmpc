@@ -162,8 +162,10 @@ Detalles de implementación (`backend/Dockerfile`):
   - `lib/session.ts` guarda el token en `localStorage` (clave `cmpc.token`) y es lo único que lee el cliente.
   - Los tipos del contrato (`FieldError`, `ErrorResponseBody`, `PaginationMeta`, `ApiResponse`) viven en `src/types/api.ts`.
   - Los mensajes de validación por campo que envía el backend siguen en inglés; los formularios validan antes en español con Zod, y esos mensajes del servidor son solo el último recurso.
-- **TanStack Query:** `QueryClient` global con `retry: 1` y `refetchOnWindowFocus: false`.
-- **Routing:** React Router con rutas `/login` y `/books` (protegida); las páginas reales llegan en las demás specs.
+- **TanStack Query:** `createQueryClient(onError)` (`lib/query-client.ts`) con `refetchOnWindowFocus: false` y mutaciones sin reintentos (no son idempotentes). Las consultas reintentan una sola vez, pero no ante un 4xx: repetir una petición inválida no ayuda y solo retrasa el error (refina el `retry: 1` inicial). Los errores de consultas y mutaciones llegan al aviso global, salvo que lleven `meta: { silent: true }` (para formularios que muestran el error por campo).
+- **Aviso global de errores:** `AppProviders` reúne el `QueryClientProvider` y el estado del aviso. `ErrorNotice` (`role="alert"`, con botón para cerrarlo) muestra el mensaje de cualquier `ApiError`; un error que no sea `ApiError` muestra siempre el mensaje genérico, sin detalles. `useErrorNotice()` permite lanzar un aviso a mano y falla con un mensaje claro si se usa fuera del proveedor.
+- **Routing:** React Router 8 (`router.tsx`) con `/login`, `/books` dentro de `ProtectedRoute`, `/` que redirige a `/books` y `*` con una página 404. Sin token, `ProtectedRoute` redirige a `/login` con `replace` y guarda `state.from` para volver después. `registerUnauthorizedNavigation(router)` conecta el 401 del cliente con `router.navigate('/login')`, sin recargar la página. `ProtectedRoute` lee `session.getToken()`; la spec `auth` lo sustituirá por un `AuthProvider`/`useAuth` reactivo. `LoginPage` y `BooksPage` son marcadores de posición hasta las specs `auth` y `books-listing`.
+- `App` recibe el enrutador por propiedad (`<App router={...} />`): `main.tsx` crea el enrutador del navegador, registra la navegación del 401 y renderiza; las pruebas pasan un enrutador en memoria.
 - **Almacenamiento del token:** `localStorage`, con el compromiso documentado en `auth/design.md`.
 
 ## 10. Pruebas y cobertura (R8)
