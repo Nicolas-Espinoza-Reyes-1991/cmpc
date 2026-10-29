@@ -5,6 +5,53 @@ Aplicación full stack para digitalizar el inventario de la tienda **CMPC-libros
 **Stack:** NestJS 11 · Prisma 6 · PostgreSQL 16 · React 19 + TypeScript · Vite · Tailwind · Docker Compose.
 **Metodología:** desarrollo guiado por especificaciones (cada funcionalidad tiene su `requirements.md`, `design.md` y `tasks.md` en [`.ai/specs/`](.ai/specs)) y ramas + *pull requests* como en un equipo real (ver [Cómo se trabajó](#cómo-se-trabajó)).
 
+## Para el evaluador: pruébalo en 5 minutos
+
+Solo necesitas **Git** y **Docker** (no hace falta Node.js). Ejecuta estos pasos en orden; los detalles están más abajo.
+
+**1. Clonar el repositorio**
+
+```bash
+git clone https://github.com/Nicolas-Espinoza-Reyes-1991/cmpc.git
+```
+
+```bash
+cd cmpc
+```
+
+**2. Crear la configuración** (en PowerShell: `copy .env.example .env`)
+
+```bash
+cp .env.example .env
+```
+
+Abre `.env` y reemplaza cada `change-me`: `POSTGRES_PASSWORD` (cualquier valor), `JWT_SECRET` (32 caracteres o más), `ADMIN_PASSWORD` (8 o más) y `PGADMIN_PASSWORD`. Deja `SEED_ON_START=true`. (`DATABASE_URL` solo importa para el desarrollo local: Docker la arma con `POSTGRES_*`.)
+
+**3. Levantar todo** (la primera vez tarda unos minutos mientras construye las imágenes)
+
+```bash
+docker compose up --build
+```
+
+Espera a que `docker compose ps` muestre los tres servicios *healthy*.
+
+**4. Abrir la aplicación:** <http://localhost:8080> e iniciar sesión con `admin@cmpc.local` (o el `ADMIN_EMAIL` que pusiste) y tu `ADMIN_PASSWORD`.
+
+**Qué mirar**
+1. **Libros → Nuevo libro:** crea varios (con una portada JPG/PNG/WebP y con un campo vacío para ver la validación).
+2. **Listado:** busca escribiendo, filtra por autor, editorial, género y disponibilidad, ordena pulsando dos encabezados y cambia de página.
+3. **Exportar CSV:** descarga los libros filtrados; ábrelo en Excel.
+4. **Documentación de la API:** <http://localhost:8080/api/docs> (botón *Authorize* con el token del login).
+5. **Auditoría:** cada alta, edición, baja y login queda en la tabla `audit_logs`:
+   ```bash
+   docker compose exec db psql -U cmpc -d cmpc_libros -c "select action, entity, created_at from audit_logs order by created_at desc limit 10"
+   ```
+6. **Pruebas y cobertura** (opcional, con Node 22): [§7](#7-pruebas-y-cobertura).
+
+Para apagar: `docker compose down` (conserva los datos) o `docker compose down -v` (los borra).
+
+---
+
 ## Índice
 1. [Qué entrega y su estado](#1-qué-entrega-y-su-estado)
 2. [Inicio rápido con Docker](#2-inicio-rápido-con-docker)
