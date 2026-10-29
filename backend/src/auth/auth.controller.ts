@@ -10,7 +10,6 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
-  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiTooManyRequestsResponse,
@@ -19,6 +18,7 @@ import {
 import { ThrottlerGuard } from '@nestjs/throttler';
 import type { AuditActor } from '../audit/audit.types';
 import { Actor } from '../common/decorators/actor.decorator';
+import { ApiDataResponse } from '../common/swagger/api-data-response.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import type { AuthenticatedUser } from '../common/types/authenticated-request.types';
@@ -44,7 +44,9 @@ export class AuthController {
     description:
       'Returns a JWT. The response is wrapped as `{ data: ... }`; `data` has the shape below.',
   })
-  @ApiOkResponse({ type: LoginResponseDto })
+  @ApiDataResponse(LoginResponseDto, {
+    description: 'The token and the user, in `data`.',
+  })
   @ApiBadRequestResponse({
     description: 'Invalid body (errors listed per field).',
   })
@@ -64,7 +66,7 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'The user the token belongs to' })
-  @ApiOkResponse({ type: UserDto })
+  @ApiDataResponse(UserDto, { description: 'The user, in `data`.' })
   @ApiUnauthorizedResponse({
     description: 'Missing, invalid or expired token.',
   })

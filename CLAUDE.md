@@ -34,9 +34,9 @@ Stack: NestJS + Prisma + PostgreSQL (backend), React + TypeScript (frontend), Do
 - Commits en formato convencional (`feat:`, `fix:`, `test:`, `docs:`, `chore:`), uno por tarea, en inglés. La documentación va en español (ver `conventions.md`).
 
 ## Comandos
-- Backend: `npm run test`, `npm run test:cov`, `npm run lint`
-- Frontend: `npm run test`, `npm run lint`
-- Base de datos: `npx prisma migrate dev`, `npx prisma db seed`
-- Stack completo: `docker compose up --build`
-
-(Los comandos se confirman cuando exista cada `package.json`; actualizar esta sección si cambian.)
+Confirmados ejecutándolos desde un clon limpio (ver el registro de `docs-delivery`). Actualizar esta sección si cambian.
+- Backend (`backend/`): `npm run test`, `npm run test:cov`, `npm run test:e2e`, `npm run lint`, `npm run build`, `npm run start:dev`
+- Frontend (`frontend/`): `npm run test`, `npm run test:cov`, `npm run lint`, `npm run build`, `npm run dev`
+- Base de datos (`backend/`): `npm run prisma:migrate` (desarrollo), `npm run prisma:deploy` (producción), `npm run seed`. Los scripts `prisma:*` leen el `.env` de la raíz; `npx prisma ...` a secas solo lee `backend/.env`.
+- Stack completo: `docker compose up --build` (solo la base para desarrollo local: `docker compose up -d db`)
+- Diagramas: `python docs/tools/dbml-to-svg.py` regenera `docs/erd.svg` desde `docs/erd.dbml`
