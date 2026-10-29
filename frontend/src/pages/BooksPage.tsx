@@ -5,6 +5,7 @@ import { BookTable } from '../components/BookTable';
 import { Pagination } from '../components/Pagination';
 import { useBookListParams } from '../hooks/useBookListParams';
 import { useBooks } from '../hooks/useBooks';
+import { useExportBooks } from '../hooks/useExportBooks';
 import { hasActiveFilters } from '../lib/book-list-params';
 
 /**
@@ -17,6 +18,7 @@ export function BooksPage() {
     useBookListParams();
   const { data, error, isPending, isPlaceholderData, refetch } =
     useBooks(params);
+  const exporter = useExportBooks(params);
   const filtersActive = hasActiveFilters(params);
 
   const total = data?.meta.total ?? 0;
@@ -34,13 +36,39 @@ export function BooksPage() {
     <main className="mx-auto max-w-6xl space-y-6 p-8">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-slate-900">Libros</h1>
-        <Link
-          to="/books/new"
-          className="rounded-md bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 focus:outline-2 focus:outline-offset-2 focus:outline-blue-700"
-        >
-          Nuevo libro
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={exporter.exportCsv}
+            disabled={exporter.isExporting}
+            className="rounded-md border border-slate-300 bg-white px-4 py-2 font-medium text-slate-800 hover:bg-slate-50 focus:outline-2 focus:outline-offset-2 focus:outline-blue-700 disabled:cursor-wait disabled:opacity-60"
+          >
+            {exporter.isExporting ? 'Exportando…' : 'Exportar CSV'}
+          </button>
+          <Link
+            to="/books/new"
+            className="rounded-md bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 focus:outline-2 focus:outline-offset-2 focus:outline-blue-700"
+          >
+            Nuevo libro
+          </Link>
+        </div>
       </div>
+
+      {exporter.error && (
+        <div
+          role="alert"
+          className="rounded-md border border-red-200 bg-red-50 p-4 text-red-800"
+        >
+          <p>No se pudo exportar el CSV. {exporter.error.message}</p>
+          <button
+            type="button"
+            onClick={exporter.exportCsv}
+            className="mt-3 rounded bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"
+          >
+            Reintentar exportación
+          </button>
+        </div>
+      )}
 
       <BookFilters
         params={params}

@@ -7,6 +7,8 @@ import {
   deleteBook,
   getBook,
   deleteBookImage,
+  EXPORT_TIMEOUT_MS,
+  exportBooksCsv,
   listBooks,
   updateBook,
   uploadBookImage,
@@ -286,6 +288,82 @@ describe('books service', () => {
       fieldErrors: [
         { field: 'title', messages: ['title should not be empty'] },
       ],
+    });
+  });
+
+  describe('exportBooksCsv', () => {
+    const csv = new Blob(['a'], { type: 'text/csv' });
+    const ok = (headers: Record<string, string> = {}) => ({
+      data: csv,
+      headers,
+    });
+
+    it('asks for the filters and the order, without page or size, as a file', async () => {
+      api = mockApi({ 'GET /books/export': ok() });
+
+      await exportBooksCsv({
+        ...DEFAULT_PARAMS,
+        page: 4,
+        limit: 50,
+        search: 'dune',
+        sort: [{ field: 'price', direction: 'desc' }],
+      });
+
+      expect(sent()?.params).toEqual({
+        search: 'dune',
+        author: undefined,
+        publisher: undefined,
+        genre: undefined,
+        availability: undefined,
+        sort: 'price:desc',
+      });
+      expect(sent()?.params).not.toHaveProperty('page');
+      expect(sent()?.params).not.toHaveProperty('limit');
+      expect(sent()?.responseType).toBe('blob');
+    });
+
+    it('waits longer than the 15 seconds of the other requests', async () => {
+      api = mockApi({ 'GET /books/export': ok() });
+
+      await exportBooksCsv(DEFAULT_PARAMS);
+
+      expect(sent()?.timeout).toBe(EXPORT_TIMEOUT_MS);
+      expect(EXPORT_TIMEOUT_MS).toBeGreaterThan(15_000);
+    });
+
+    it('returns the file and the name the server proposes', async () => {
+      api = mockApi({
+        'GET /books/export': ok({
+          'content-disposition': 'attachment; filename="libros-2026-10-29.csv"',
+        }),
+      });
+
+      await expect(exportBooksCsv(DEFAULT_PARAMS)).resolves.toEqual({
+        blob: csv,
+        fileName: 'libros-2026-10-29.csv',
+      });
+    });
+
+    it('uses a fixed name when the server proposes none', async () => {
+      api = mockApi({ 'GET /books/export': ok() });
+
+      await expect(exportBooksCsv(DEFAULT_PARAMS)).resolves.toMatchObject({
+        fileName: 'libros.csv',
+      });
+    });
+
+    it('turns a failure into an ApiError even though the body is a Blob', async () => {
+      api = mockApi({
+        'GET /books/export': {
+          status: 400,
+          data: new Blob(['{"message":"x"}']),
+        },
+      });
+
+      await expect(exportBooksCsv(DEFAULT_PARAMS)).rejects.toMatchObject({
+        status: 400,
+        message: 'Los datos enviados no son válidos.',
+      });
     });
   });
 });

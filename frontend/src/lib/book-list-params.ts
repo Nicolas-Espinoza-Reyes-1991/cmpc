@@ -129,13 +129,15 @@ export function writeParams(params: BookListParams): URLSearchParams {
   return searchParams;
 }
 
-/** What goes to the API as the query string; empty values are left out. */
-export function toApiQuery(
+/**
+ * The filters and the order of the view as a query string, without the page:
+ * what the export sends (the file holds every match, and the API rejects
+ * `page` and `limit` there). Empty values are left out.
+ */
+export function toExportQuery(
   params: BookListParams,
-): Record<string, string | number | boolean | undefined> {
+): Record<string, string | boolean | undefined> {
   return {
-    page: params.page,
-    limit: params.limit,
     search: params.search || undefined,
     author: params.author || undefined,
     publisher: params.publisher || undefined,
@@ -143,6 +145,13 @@ export function toApiQuery(
     availability: params.availability,
     sort: params.sort.length > 0 ? formatSort(params.sort) : undefined,
   };
+}
+
+/** What goes to the API as the query string of a page of the listing. */
+export function toApiQuery(
+  params: BookListParams,
+): Record<string, string | number | boolean | undefined> {
+  return { page: params.page, limit: params.limit, ...toExportQuery(params) };
 }
 
 /** True when something narrows the listing (the order and the page do not). */

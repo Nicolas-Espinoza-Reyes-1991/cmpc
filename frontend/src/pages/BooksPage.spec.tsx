@@ -1,12 +1,19 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { MockInstance } from 'vitest';
 import {
   createMemoryRouter,
   RouterProvider,
   type RouteObject,
 } from 'react-router';
+import * as download from '../lib/download-file';
 import { emptyCatalogs } from '../test/catalog-routes';
-import { mockApi, type MockApi, type MockReply } from '../test/mock-api';
+import {
+  mockApi,
+  type MockApi,
+  type MockReply,
+  type MockRoute,
+} from '../test/mock-api';
 import { createQueryWrapper } from '../test/query-wrapper';
 import type { Book } from '../types/book';
 import { BooksPage } from './BooksPage';
@@ -557,6 +564,124 @@ describe('BooksPage', () => {
 
       expect(await screen.findByText('1 resultado')).toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('export to CSV', () => {
+    const csv = new Blob(['a'], { type: 'text/csv' });
+    const exportRequests = () =>
+      api.requests.filter((r) => r.url === '/books/export');
+    const exportButton = () =>
+      screen.getByRole('button', { name: /Exportar CSV|Exportando/ });
+    let saved: MockInstance<typeof download.saveBlob>;
+
+    beforeEach(() => {
+      saved = vi
+        .spyOn(download, 'saveBlob')
+        .mockImplementation(() => undefined);
+    });
+    afterEach(() => {
+      saved.mockRestore();
+    });
+
+    function startWithExport(exportReply: MockRoute, url = '/books') {
+      api = mockApi({
+        ...emptyCatalogs,
+        'GET /books': page([book(1)]),
+        'GET /books/export': exportReply,
+      });
+      const { wrapper } = createQueryWrapper();
+      const router = createMemoryRouter(routes, { initialEntries: [url] });
+      render(<RouterProvider router={router} />, { wrapper });
+    }
+
+    it('downloads the file the server names', async () => {
+      startWithExport({
+        data: csv,
+        headers: {
+          'content-disposition': 'attachment; filename="libros-2026-10-29.csv"',
+        },
+      });
+      await screen.findByText('1 resultado');
+
+      await userEvent.click(exportButton());
+
+      await waitFor(() =>
+        expect(saved).toHaveBeenCalledWith(csv, 'libros-2026-10-29.csv'),
+      );
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('exports the filters and the order of the view, not its page', async () => {
+      startWithExport(
+        { data: csv },
+        '/books?q=dune&availability=true&sort=price:desc&page=2&limit=20',
+      );
+      await screen.findByText(/resultado/);
+
+      await userEvent.click(exportButton());
+
+      await waitFor(() => expect(exportRequests()).toHaveLength(1));
+      const query = exportRequests()[0]?.params as Record<string, unknown>;
+      expect(query).toMatchObject({
+        search: 'dune',
+        availability: true,
+        sort: 'price:desc',
+      });
+      expect(query).not.toHaveProperty('page');
+      expect(query).not.toHaveProperty('limit');
+    });
+
+    it('says it is exporting and ignores a second click meanwhile', async () => {
+      let release: () => void = () => undefined;
+      startWithExport(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve({ data: csv });
+          }),
+      );
+      await screen.findByText('1 resultado');
+
+      await userEvent.click(exportButton());
+
+      expect(
+        await screen.findByRole('button', { name: 'Exportando…' }),
+      ).toBeDisabled();
+      await userEvent.click(exportButton());
+      release();
+
+      await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+      expect(exportRequests()).toHaveLength(1);
+      expect(
+        await screen.findByRole('button', { name: 'Exportar CSV' }),
+      ).toBeEnabled();
+    });
+
+    it('shows the error next to the button and a retry that downloads', async () => {
+      let calls = 0;
+      startWithExport(() => {
+        calls += 1;
+        return calls <= 1 ? { status: 500, data: new Blob([]) } : { data: csv };
+      });
+      await screen.findByText('1 resultado');
+
+      await userEvent.click(exportButton());
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('No se pudo exportar el CSV.');
+      expect(alert).toHaveTextContent('Ocurrió un error en el servidor');
+      expect(saved).not.toHaveBeenCalled();
+      // The list stays on screen.
+      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+
+      await userEvent.click(
+        within(alert).getByRole('button', { name: 'Reintentar exportación' }),
+      );
+
+      await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+      );
     });
   });
 });

@@ -8,6 +8,7 @@ import { apiClient } from '../lib/api-client';
 export interface MockReply {
   status?: number;
   data?: unknown;
+  headers?: Record<string, string>;
   /** Simulates a failure with no HTTP response at all (network down). */
   network?: boolean;
 }
@@ -47,7 +48,7 @@ export function mockApi(routes: Record<string, MockRoute>): MockApi {
       data: reply.data,
       status,
       statusText: '',
-      headers: {},
+      headers: reply.headers ?? {},
       config,
     };
     if (status >= 400) {
