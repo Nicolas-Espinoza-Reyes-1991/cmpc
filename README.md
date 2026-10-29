@@ -262,6 +262,7 @@ Con su fundamento; si alguno no se cumple, la sección siguiente indica el cambi
 | El volumen esperado es de miles de libros; aun así el listado y la exportación están pensados para cientos de miles | Índices, paginación en el servidor y CSV en flujo |
 | La zona horaria del servidor es UTC y las fechas se muestran en la del navegador | Determinismo entre entornos |
 | El frontend y la API se sirven desde el mismo origen (nginx) | Sin CORS y con cabeceras de seguridad estrictas |
+| El «análisis de datos» que menciona el objetivo del enunciado se cubre con la **exportación a CSV** con los filtros activos | El enunciado no detalla ninguna funcionalidad de análisis (ni tablero ni gráficos) y la única de datos que lista es la exportación; el CSV permite analizarlos en una hoja de cálculo |
 | Los textos de la interfaz están en **español** y los identificadores, mensajes de commit y respuestas de la API en **inglés** | El usuario final habla español; el código sigue la convención habitual |
 
 ---
@@ -285,6 +286,7 @@ Nada del enunciado quedó sin hacer; esto es lo que se dejó **fuera de alcance 
 | **Integración continua** | Flujo de GitHub Actions: `lint`, pruebas con cobertura, `build`, `npm audit` y construcción de imágenes en cada PR, y bloquear la fusión si falla | Bajo |
 | **Pruebas automáticas contra PostgreSQL real y de navegador** | Pruebas de integración con Testcontainers (hoy la verificación contra la base real fue manual y está registrada) y Playwright para los flujos completos | Medio |
 | **Observabilidad** | Identificador de petición, logs JSON con `pino`, métricas Prometheus y trazas OpenTelemetry | Medio |
+| **Tablero de totales y gráficos** | Endpoints de agregación (`GET /api/stats`: totales, libros por género y editorial, precio medio) con `groupBy` de Prisma, resueltos en el servidor y con índices existentes; una pantalla con tarjetas y gráficos (p. ej. con una librería de gráficos ligera). Encaja tras los roles, porque expone datos del negocio | Medio |
 | **Rendimiento del frontend** | El paquete pesa ~570 kB: cargar las rutas con `React.lazy` y dividir el código | Bajo |
 | **Actualizaciones mayores** | Prisma 7 (adaptadores y `prisma.config.ts`), ESLint 10 y Nest 12 (ESM); al hacerlo se retiran los `overrides` | Medio |
 
