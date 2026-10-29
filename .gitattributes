@@ -5,3 +5,12 @@ Dockerfile* text eol=lf
 .dockerignore text eol=lf
 *.conf text eol=lf
 *.template text eol=lf
+
+# Everything else: LF in the working copy too. Prettier and ESLint expect LF, so a
+# Windows checkout converted to CRLF would fail `npm run lint` on every file.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.svg text eol=lf
