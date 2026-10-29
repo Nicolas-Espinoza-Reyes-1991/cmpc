@@ -293,7 +293,7 @@ Nada del enunciado quedó sin hacer; esto es lo que se dejó **fuera de alcance 
 ## Cómo se trabajó
 
 - **Spec-Driven Development.** Antes de programar una funcionalidad se escribe su especificación; después se implementa tarea por tarea y una tarea solo se marca hecha cuando su prueba pasa. Las specs, en orden: [`platform`](.ai/specs/platform), [`auth`](.ai/specs/auth), [`books-crud`](.ai/specs/books-crud), [`books-listing`](.ai/specs/books-listing), [`book-image-upload`](.ai/specs/book-image-upload), [`books-export-csv`](.ai/specs/books-export-csv), [`audit-log`](.ai/specs/audit-log) y [`docs-delivery`](.ai/specs/docs-delivery). El contexto del proyecto vive en [`.ai/steering/`](.ai/steering) y las reglas de trabajo en [`CLAUDE.md`](CLAUDE.md).
-- **Ramas y *pull requests*.** `main` solo recibe cambios mediante PR (protegida); cada spec vive en su rama `feat/<spec>`, con **un commit convencional por tarea**, y el PR resume lo hecho, la evidencia y los hallazgos. Las últimas specs están en PR apilados: se fusionan en orden.
+- **Ramas y *pull requests*.** `main` solo recibe cambios mediante PR (protegida); cada spec vive en su rama `feat/<spec>`, con **un commit convencional por tarea**, y el PR resume lo hecho, la evidencia y los hallazgos. Como las specs se apoyan unas en otras, sus ramas se fueron fusionando en orden (`platform` → `auth` → `books-crud` → … → `docs-delivery`) y `main` conserva un commit de fusión por PR.
 - **Verificación real.** Además de las pruebas, cada spec termina con un registro de verificación contra el sistema real (base de datos, Docker y navegador) en su `tasks.md`.
 
 ## Estructura del repositorio
