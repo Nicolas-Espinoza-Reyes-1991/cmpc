@@ -6,10 +6,17 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CatalogService } from '../catalog/catalog.service';
+import type { PaginatedResult } from '../common/types/api-response.types';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildBookOrderBy,
+  buildBookWhere,
+  sortCriteria,
+} from './book-list.query';
 import { BOOK_INCLUDE, toBookDto } from './book.mapper';
 import type { BookDto } from './dto/book.dto';
 import type { CreateBookDto } from './dto/create-book.dto';
+import type { ListBooksQueryDto } from './dto/list-books-query.dto';
 import type { UpdateBookDto } from './dto/update-book.dto';
 
 const NOT_FOUND_MESSAGE = 'Book not found';
@@ -78,6 +85,29 @@ export class BooksService {
     } catch (error) {
       throw this.translate(error);
     }
+  }
+
+  /**
+   * One page of the active books that match the filters. The count and the page
+   * are read in one transaction so `total` belongs to the same snapshot as
+   * `items`. The page is always at most `limit` books (L5.2).
+   */
+  async findAll(query: ListBooksQueryDto): Promise<PaginatedResult<BookDto>> {
+    const where = buildBookWhere(query);
+    const { page, limit } = query;
+
+    const [total, books] = await this.prisma.live.$transaction([
+      this.prisma.live.book.count({ where }),
+      this.prisma.live.book.findMany({
+        where,
+        orderBy: buildBookOrderBy(sortCriteria(query.sort)),
+        skip: (page - 1) * limit,
+        take: limit,
+        include: BOOK_INCLUDE,
+      }),
+    ]);
+
+    return { items: books.map(toBookDto), meta: { page, limit, total } };
   }
 
   async findOne(id: string): Promise<BookDto> {

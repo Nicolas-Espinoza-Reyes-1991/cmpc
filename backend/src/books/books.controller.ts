@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -22,14 +23,16 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { PaginatedResult } from '../common/types/api-response.types';
 import { BooksService } from './books.service';
 import { BookDto } from './dto/book.dto';
 import { CreateBookDto } from './dto/create-book.dto';
+import { ListBooksQueryDto } from './dto/list-books-query.dto';
+import { PaginatedBooksDto } from './dto/paginated-books.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 
 /**
- * The listing (`GET /books`) arrives with `books-listing`. Nothing here is
- * `@Public()`, so the global guard asks for a token (C7.1).
+ * Nothing here is `@Public()`, so the global guard asks for a token (C7.1).
  */
 @ApiTags('books')
 @ApiBearerAuth()
@@ -52,6 +55,20 @@ export class BooksController {
   })
   create(@Body() dto: CreateBookDto): Promise<BookDto> {
     return this.books.create(dto);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'List books',
+    description:
+      'Filtered, ordered and paginated on the server. The answer is `{ data, meta: { page, limit, total } }`.',
+  })
+  @ApiOkResponse({ type: PaginatedBooksDto })
+  @ApiBadRequestResponse({
+    description: 'Invalid query parameters (errors per field).',
+  })
+  list(@Query() query: ListBooksQueryDto): Promise<PaginatedResult<BookDto>> {
+    return this.books.findAll(query);
   }
 
   @Get(':id')

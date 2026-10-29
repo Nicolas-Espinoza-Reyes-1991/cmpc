@@ -12,6 +12,9 @@ import {
 } from './router';
 
 const ADMIN = { id: 'id-admin', email: 'admin@cmpc.local' };
+const EMPTY_LIST = {
+  data: { data: [], meta: { page: 1, limit: 10, total: 0 } },
+};
 
 function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -31,7 +34,12 @@ describe('routes', () => {
   beforeEach(() => {
     localStorage.clear();
     // A saved token is valid for every test that sets one.
-    api = mockApi({ 'GET /auth/me': { data: { data: ADMIN } } });
+    // The books page asks for its list as soon as it opens.
+    api = mockApi({
+      ...emptyCatalogs,
+      'GET /auth/me': { data: { data: ADMIN } },
+      'GET /books': EMPTY_LIST,
+    });
   });
 
   afterEach(() => {
@@ -170,12 +178,16 @@ describe('createAppRouter', () => {
 
 describe('registerUnauthorizedNavigation', () => {
   let api: MockApi;
+  let expired: boolean;
 
   beforeEach(() => {
     localStorage.clear();
+    expired = false;
     api = mockApi({
+      ...emptyCatalogs,
       'GET /auth/me': { data: { data: ADMIN } },
-      'GET /books': { status: 401, data: {} },
+      // The books page opens fine; the session expires only when the test says so.
+      'GET /books': () => (expired ? { status: 401, data: {} } : EMPTY_LIST),
     });
   });
 
@@ -189,6 +201,7 @@ describe('registerUnauthorizedNavigation', () => {
     const router = renderAt('/books');
     registerUnauthorizedNavigation(router);
     expect(await heading('Libros')).toBeInTheDocument();
+    expired = true;
 
     await apiClient.get('/books').catch(() => undefined);
 

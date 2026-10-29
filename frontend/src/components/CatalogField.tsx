@@ -1,7 +1,7 @@
 import type { UseFormRegisterReturn } from 'react-hook-form';
-import { useCatalogOptions } from '../hooks/useCatalogOptions';
 import type { CatalogKind } from '../types/book';
 import { errorAttributes, INPUT_CLASSES } from '../lib/form-attributes';
+import { CatalogOptions } from './CatalogOptions';
 import { FormField } from './FormField';
 
 interface CatalogFieldProps {
@@ -28,7 +28,6 @@ export function CatalogField({
 }: CatalogFieldProps) {
   const id = registration.name;
   const listId = `${id}-options`;
-  const { data } = useCatalogOptions(kind, value);
 
   return (
     <FormField id={id} label={label} error={error}>
@@ -41,11 +40,7 @@ export function CatalogField({
         {...errorAttributes(id, error)}
         {...registration}
       />
-      <datalist id={listId}>
-        {data?.map((item) => (
-          <option key={item.id} value={item.name} />
-        ))}
-      </datalist>
+      <CatalogOptions id={listId} kind={kind} text={value} />
     </FormField>
   );
 }

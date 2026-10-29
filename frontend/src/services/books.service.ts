@@ -1,6 +1,13 @@
 import { apiClient } from '../lib/api-client';
+import { toApiQuery } from '../lib/book-list-params';
 import type { ApiResponse } from '../types/api';
-import type { Book, BookChanges, BookInput } from '../types/book';
+import type {
+  Book,
+  BookChanges,
+  BookInput,
+  BookListParams,
+  Page,
+} from '../types/book';
 
 /** Registers a book; the API creates the author, publisher and genre if they are new. */
 export async function createBook(input: BookInput): Promise<Book> {
@@ -32,4 +39,25 @@ export async function updateBook(
 /** Soft delete: the API answers 204 with no body. */
 export async function deleteBook(id: string): Promise<void> {
   await apiClient.delete(`/books/${encodeURIComponent(id)}`);
+}
+
+/** One page of books for a view of the listing; the totals come in `meta`. */
+export async function listBooks(
+  params: BookListParams,
+  signal?: AbortSignal,
+): Promise<Page<Book>> {
+  const response = await apiClient.get<ApiResponse<Book[]>>('/books', {
+    params: toApiQuery(params),
+    signal,
+  });
+  const { data, meta } = response.data;
+  // The API always sends `meta` with a listing; the type says it is optional for other responses.
+  return {
+    items: data,
+    meta: meta ?? {
+      page: params.page,
+      limit: params.limit,
+      total: data.length,
+    },
+  };
 }
