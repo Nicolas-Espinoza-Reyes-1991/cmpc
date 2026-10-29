@@ -52,29 +52,29 @@ Marcar con `[x]` al terminar.
   - Pruebas: cada servicio llama a la ruta y método correctos y desenvuelve `data`; esquema Zod (cada regla y los bordes del precio); formatos de moneda y fecha; `useDebounce` con temporizadores simulados.
   - Commit: `feat(frontend): add book services, schema and debounce hook`
 
-- [ ] **C-09 Formulario de libro** (C8.2 a C8.5, C8.8)
+- [x] **C-09 Formulario de libro** (C8.2 a C8.5, C8.8)
   - `BookForm`, `CatalogField` y rutas `/books/new` y `/books/:id/edit` con `BookFormPage` (alta y edición).
   - Pruebas: validación en español por campo; envío correcto; 400 por campo; 409; red; botón "Guardando…" sin doble envío; foco en el primer error; sugerencias del catálogo con debounce y fallo silencioso; edición carga los datos y 404 muestra "Libro no encontrado"; éxito navega al detalle e invalida la caché.
   - Commit: `feat(frontend): add book create and edit form`
 
-- [ ] **C-10 Detalle y eliminación** (C8.9, C9.1 a C9.5)
+- [x] **C-10 Detalle y eliminación** (C8.9, C9.1 a C9.5)
   - `BookDetailPage`, `ConfirmDialog`, ruta `/books/:id` y el enlace "Nuevo libro" en `BooksPage`.
   - Pruebas: muestra todos los campos con formato; sin imagen muestra el marcador; 404; "Editar" y "Volver"; el diálogo pide confirmación, `Escape` cancela sin enviar nada, confirmar elimina, quita la caché y navega a `/books`; el error de borrado se muestra sin salir.
   - Commit: `feat(frontend): add book detail page with delete confirmation`
 
 ## Integración y cierre
-- [ ] **C-11 Verificación de punta a punta** (C10.4)
+- [x] **C-11 Verificación de punta a punta** (C10.4)
   - `docker compose up --build` y, en un navegador real: alta con catálogos nuevos y existentes; validaciones visibles; duplicado (409 en pantalla); edición; detalle; eliminación con confirmación y 404 al volver al detalle; sesión expirada durante un envío lleva a `/login`.
   - Hecho cuando: cada escenario queda anotado en el registro de verificación.
   - Commit: `docs(books-crud): record the end-to-end verification`
 
-- [ ] **C-12 Verificación de la spec**
+- [x] **C-12 Verificación de la spec**
   - Recorrer C1 a C10 con evidencia nueva (lint, tipos, build, `test:cov` ≥ 80% en ambas aplicaciones y fallando por debajo) y registrar el resultado al final de este archivo. Marcar como resuelta la salvedad 2 de `.ai/specs/platform/tasks.md` (P2002 real) y anotar los pendientes que sigan abiertos (`npm audit`, tamaño del paquete del frontend).
   - Hecho cuando: ningún criterio queda sin comprobación o sin una nota que explique por qué.
   - Commit: `docs(books-crud): record the spec verification`
 
 ## Registro de verificación
-(Se completa en C-01 a C-08, C-11 y C-12.)
+(Se completa en C-01 a C-12.)
 
 ### C-01: migraciones contra PostgreSQL real (2026-10-28)
 Entorno: PostgreSQL 16 del contenedor de desarrollo; base vacía temporal (`c01_check`, eliminada al terminar) para la prueba desde cero.
@@ -217,3 +217,79 @@ Pruebas con la capa HTTP simulada (`mockApi`, los interceptores reales siguen ac
 - **Hooks:** `useDebounce` (temporizadores simulados, reinicio de la espera, desmontaje), `useBook` (carga, 404 expuesto como `ApiError`, `meta.silent`) y `useCatalogOptions` (primera carga inmediata, espera de 250 ms, texto recortado y fallo silencioso). `useBook` recibe un `id` obligatorio: la página decide qué hacer cuando la ruta no trae `:id`, en vez de que el hook tenga una rama inalcanzable.
 - **Estabilidad:** las pruebas con temporizadores se repitieron 5 veces seguidas sin fallos.
 - **Calidad:** `lint`, tipos y build limpios; 308 pruebas (97 nuevas) con 100% de cobertura en sentencias, ramas, funciones y líneas.
+
+### C-09: formulario de libro (2026-10-28)
+Pruebas con la capa HTTP simulada y, aparte, navegador real (servidor de desarrollo de Vite con el proxy a `/api`, backend compilado y PostgreSQL de desarrollo, con login del administrador sembrado). Los datos de prueba se borraron al terminar (la base quedó con 0 libros y 0 catálogos) y los servidores se detuvieron.
+
+| Comprobación en el navegador real | Resultado |
+|---|---|
+| `/books/new` sin sesión | Lleva al login y, tras entrar, vuelve a `/books/new` con el foco en el título y la cabecera con el correo |
+| Envío vacío | 5 mensajes en español (título, autor, editorial, género, precio), los 5 campos `aria-invalid` y el foco en el primero |
+| Precio `10.123` | "El precio admite como máximo dos decimales." y el foco en el precio |
+| Alta válida con título `"  Dune   Messiah "` | Guardado como `Dune Messiah`, precio `9990.5`, disponible; navega a `/books/<id>` |
+| `/books/<id>/edit` | Rellena título, autor, editorial, género, precio y disponibilidad; "Cancelar" apunta al detalle; botón "Guardar cambios" |
+| Guardar sin cambios | No se envía ninguna petición y vuelve al detalle |
+| Cambiar precio y desmarcar disponible | La petición es `PATCH {"price":11000,"availability":false}` (solo lo cambiado); título intacto y `updatedAt` avanza |
+| Alta duplicada (`dune messiah` / `FRANK HERBERT` / `ace books`) | Aviso "Ya existe un libro con el mismo título, autor y editorial.", se queda en el formulario con lo escrito y el botón habilitado |
+| Sugerencias | Al abrir, cada lista trae el nombre existente; al escribir `ace` queda `Ace Books`; con `zzz-no-existe` queda vacía |
+| Libro inexistente (`/books/0000…/edit`) | "Libro no encontrado" con enlace a `/books` |
+| Id mal formado (`/books/not-a-uuid/edit`) | **Defecto encontrado**: mostraba "Los datos enviados no son válidos" con un "Reintentar" inútil. Corregido: ahora "Libro no encontrado" sin botón de reintento |
+
+Pruebas automáticas nuevas: `BookForm` (27: campos, foco, validación por campo y al salir, cada regla del precio, título de 201 caracteres, envío normalizado, disponibilidad, "Guardando…" sin doble envío, 400 por campo y de un campo ajeno, 409, red, 5xx y error inesperado, el aviso se limpia al reintentar, sugerencias con espera y fallo silencioso), `BookFormPage` (14: alta, caché, invalidación, 409 y 400; edición con carga, relleno, solo lo cambiado, sin cambios, 409, 404, 400 de id mal formado y reintento), `changedFields` (9) y las rutas `/books/new` y `/books/:id/edit` dentro del diseño y protegidas (4). Dos mutaciones comprobadas: con la invalidación de listas desactivada falla 1 prueba y con el libro guardado también invalidado fallan 2.
+
+Hallazgos de método: `prettier --write` y `git checkout` entre ramas dejaron `eslint.config.js` y `vite.config.ts` con fin de línea CRLF en el árbol de trabajo (Git con `autocrlf=true` en Windows); es inocuo, el índice sigue en LF, y se normalizaron. El primer borrador de la prueba de invalidación fabricaba un objeto `Query` con una conversión de tipo; se reescribió para comprobar el estado real de la caché.
+
+`lint` (0 avisos), `tsc`, build y `test:cov`: 362 pruebas con 100% de sentencias, ramas, funciones y líneas (tres ejecuciones seguidas estables).
+
+### C-10: detalle y eliminación (2026-10-29)
+Verificación automática aquí; la comprobación en el navegador real (diálogo nativo, Escape, foco, eliminación contra la API) se registra en C-11 junto con el resto del recorrido.
+
+- **`BookDetailPage`**: todos los campos con formato (`$12.990`, `28-10-2026, 10:30 a. m.`), disponibilidad como "Disponible"/"No disponible", portada o el marcador "Sin portada", enlaces "Editar" y "Volver a los libros", carga, "Libro no encontrado" (404 y 400 de id mal formado, con el helper común `isMissingBook`), error con "Reintentar" y ruta sin `:id`.
+- **`ConfirmDialog`** sobre el `<dialog>` nativo: el navegador atrapa el foco y cierra con Escape; el diálogo solo informa lo que el usuario eligió y lo cierra el padre. Escape se ignora mientras la acción corre, "Cancelar" tiene el foco al abrir (la opción segura) y el error se muestra dentro.
+- **Eliminar**: pide confirmación nombrando el libro; cancelar (botón o Escape) no envía nada; confirmar borra, quita el libro de la caché, invalida las listas y vuelve a `/books`; un fallo se muestra en el diálogo sin salir de la pantalla y permite reintentar; "Eliminando…" con un solo envío aunque se haga clic dos veces; el error antiguo no reaparece al reabrir.
+- **`BooksPage`**: enlace "Nuevo libro" (C8.9) mientras `books-listing` no lo reemplaza.
+- **jsdom no implementa `<dialog>`**: `test/setup.ts` modela lo mínimo (`showModal` abre, `close` cierra y dispara `close`) y está documentado allí.
+- **Mutación comprobada**: con "Eliminar" borrando sin pedir confirmación fallan 7 pruebas.
+- **Diseño**: el primer `ConfirmDialog` usaba `useRef` y tenía una guarda `if (!element)` inalcanzable (93 % de ramas); se rediseñó con un *callback ref* guardado en estado, de modo que el efecto se ejecuta otra vez cuando el elemento existe y la rama es real y está cubierta, sin comentarios de exclusión.
+- **Calidad**: `lint` (0 avisos), `tsc`, build y `test:cov`: **393 pruebas con 100 %** de sentencias, ramas, funciones y líneas (tres ejecuciones seguidas).
+
+### C-11: recorrido de punta a punta con Docker y navegador real (2026-10-28)
+Entorno: `docker compose up --build` (db, backend y frontend sanos; migraciones aplicadas sobre el volumen), navegador integrado, administrador sembrado. Se comprobó leyendo el DOM, la base con `psql` y pulsando Escape con una tecla real. Los datos de prueba se borraron del volumen al terminar y el stack se detuvo.
+
+| Escenario | Resultado |
+|---|---|
+| Login y `/books` | Cabecera con el correo; enlace "Nuevo libro" hacia `/books/new` |
+| Envío vacío | Los 5 mensajes en español y el foco en el título |
+| Alta con catálogos nuevos (`"  Cien   años de soledad "`) | Guardado normalizado; navega al detalle con autor, editorial, género, `$12.990`, "Disponible", "Sin portada", fechas y los botones Editar, Eliminar y Volver |
+| Segundo libro con los mismos catálogos escritos en mayúsculas y un género nuevo | Reutiliza autor y editorial (en la base: 1 autor, 1 editorial, 2 géneros, 2 libros); las sugerencias ofrecen los nombres existentes |
+| Duplicado con otra capitalización | Aviso de duplicado, sigue en el formulario con lo escrito |
+| Editar desde el detalle | Formulario relleno; al cambiar el precio el detalle muestra `$7.500,50` sin recargar |
+| Eliminar | `<dialog>` modal nativo (`:modal`), con el nombre del libro y el foco en "Cancelar"; **Escape real** lo cierra sin eliminar; se puede reabrir; confirmar elimina y vuelve a `/books` |
+| Después de eliminar | La API responde 404; el enlace directo `/books/<id>` (por nginx, recarga completa) muestra "Libro no encontrado"; en la base la fila sigue con `deleted_at` y el autor se conserva |
+| Sesión que expira durante el envío (`JWT_EXPIRES_IN=25s`, envío a los 28 s) | Lleva a `/login` con el token borrado; el libro no se guardó (0 filas) |
+| Cabecera de nginx | `Content-Security-Policy` presente |
+
+Hallazgo de método: el primer `docker compose up --build` falló en `npm ci --omit=dev` del Dockerfile del backend (error transitorio de red o del registro; la reconstrucción inmediata terminó bien). Anotado por si reaparece.
+
+### C-12: verificación de la spec (2026-10-28)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**33 suites, 405 pruebas, 100 %**) y e2e (**8**); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**30 archivos, 393 pruebas, 100 %** en sentencias, ramas, funciones y líneas); más los registros C-01 a C-11.
+
+| Criterio | Evidencia |
+|---|---|
+| C1.1–C1.5 | C-01: `migrate deploy` desde cero (también en C-07 sobre una base nueva), `migrate diff` vacío, índices y restricciones comprobados con inserciones reales |
+| C2.1–C2.6 | Pruebas de DTO (con el `ValidationPipe` de la aplicación), de `BooksService` y HTTP; C-05, C-06 y C-07 con base real: normalización, reutilización de catálogos sin distinguir mayúsculas, reversión de la transacción, 409 real y altas simultáneas |
+| C3.1–C3.3 | HTTP real (C-06): 200, 400 por id que no es UUID y 404; la respuesta no trae `deletedAt` (C-07) |
+| C4.1–C4.5 | Edición parcial con `updatedAt` que avanza, cuerpo vacío → 400, catálogos resueltos en la misma transacción, 404/409 y propiedades prohibidas → 400 (C-05, C-06, C-07) |
+| C5.1–C5.4 | Borrado lógico real: la fila se conserva, 404 al consultar, editar o volver a eliminar, catálogos intactos, re-alta permitida (C-02, C-07, C-11) |
+| C6.1–C6.3 | Catálogos: orden, `search` sin distinguir mayúsculas con comodines escapados, `limit` de 1 a 50, sin rutas de escritura (C-03) |
+| C7.1–C7.4 | El e2e de `auth` recorre el OpenAPI y exige 401 en las rutas nuevas; el controlador no usa Prisma (prueba de arquitectura); Swagger documenta 200/201/204, 400, 401, 404 y 409; el log del servidor no contiene datos de los libros (C-06) |
+| C8.1–C8.9 | Pruebas del formulario y las páginas; C-09 y C-11 en el navegador: validación reactiva, foco, sugerencias con espera, errores por campo, 409, "Guardando…", navegación al detalle con la caché al día, "Libro no encontrado" |
+| C9.1–C9.5 | Detalle con todos los campos formateados, portada o marcador, diálogo nativo con confirmación (Escape real), eliminación y 404 posterior (C-10, C-11) |
+| C10.1–C10.3 | 33 suites de backend y 30 archivos de frontend con las pruebas citadas; cobertura 100 % en ambas apps; el umbral forzado a 101 % falla en las dos ("does not meet global threshold") |
+| C10.4 | C-07 (PostgreSQL real) y C-11 (Docker y navegador real) |
+
+Resultado: sin criterios pendientes.
+
+Defectos que halló la verificación real y que las pruebas unitarias no veían (todos corregidos y con prueba): la carrera al crear catálogos (`upsert` con `update: {}` no es atómico), los comodines de `LIKE` sin escapar, el precio `1e-7` (500 en el backend y aceptado por el formulario) y el id mal formado en la pantalla de edición.
+
+Pendientes que siguen abiertos (no son de esta spec): `npm audit` del backend en producción con 7 hallazgos (5 altos, 2 moderados; el de `multer` se corrige con `book-image-upload`; `deepmerge-ts` y `js-yaml` exigen `--force` y quedan evaluados para `docs-delivery`); aviso de paquete mayor de 500 kB en el build del frontend (carga diferida de rutas cuando haya más pantallas); la auditoría dentro de las transacciones llega con `audit-log`; y el listado, con filtros, orden y paginación, con `books-listing`.

@@ -150,7 +150,7 @@ Estado en el momento de la verificación:
 
 ### Salvedades
 1. **R2.1.** En local, el cliente de Prisma carga `backend/.env` al importarse y puede completar variables antes de que `ConfigModule` valide; por eso la prueba de "sin variables" se hace en un entorno limpio (el contenedor). Está documentado en `design.md` §2.
-2. **R4.5.** Se probó con errores de Prisma construidos a mano. La comprobación con una base real (un `P2002` de verdad por un título duplicado) llega con la spec `books-crud`.
+2. **R4.5.** ~~Se probó con errores de Prisma construidos a mano.~~ **Resuelta en la spec `books-crud` (C-07):** un `P2002` real por un título duplicado, contra PostgreSQL, se traduce a 409. Antes: se probó con errores de Prisma construidos a mano.
 3. **R7.1.** Verificado en Windows con Docker Desktop; no se probó en Linux ni en un clon desde GitHub.
 4. **R7.5.** La imagen del backend incluye la CLI de `prisma` (necesaria para `migrate deploy` en el arranque) y `typescript` (dependencia par de Prisma, 23 MB). No incluye herramientas de prueba ni de compilación de Nest. Documentado en `design.md` §8.
 5. **R7.6.** El servicio `pgadmin` solo se validó por configuración; no se arrancó (la imagen pesa cerca de 500 MB).
