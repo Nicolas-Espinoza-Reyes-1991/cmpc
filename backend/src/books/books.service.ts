@@ -14,15 +14,20 @@ import {
   sortCriteria,
 } from './book-list.query';
 import { BOOK_INCLUDE, toBookDto } from './book.mapper';
+import { ImageStorage } from './images/image-storage';
+import { sniffImageType } from './images/image-type';
 import type { BookDto } from './dto/book.dto';
 import type { CreateBookDto } from './dto/create-book.dto';
 import type { ListBooksQueryDto } from './dto/list-books-query.dto';
 import type { UpdateBookDto } from './dto/update-book.dto';
+import type { UploadedImage } from './images/image-upload.config';
 
 const NOT_FOUND_MESSAGE = 'Book not found';
 const DUPLICATE_MESSAGE =
   'A book with the same title, author and publisher already exists';
 const EMPTY_UPDATE_MESSAGE = 'At least one field is required';
+const INVALID_IMAGE_MESSAGE =
+  'The file is not a valid image: only JPEG, PNG and WebP are accepted';
 
 /** Prisma error codes this service turns into specific answers. */
 const UNIQUE_VIOLATION = 'P2002';
@@ -55,6 +60,7 @@ export class BooksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
+    private readonly storage: ImageStorage,
   ) {}
 
   async create(dto: CreateBookDto): Promise<BookDto> {
@@ -175,6 +181,76 @@ export class BooksService {
     } catch (error) {
       throw this.translate(error);
     }
+  }
+
+  /**
+   * Sets the cover of a book. The type is decided by the bytes of the file, the
+   * book must exist before anything is written, and the order is: write the new
+   * file, update the book, delete the old file. If the update fails the new file
+   * is removed; if deleting the old one fails only an unreferenced file is left.
+   * The opposite order could leave a book pointing at a file that is not there.
+   */
+  async setImage(id: string, image: UploadedImage): Promise<BookDto> {
+    const type = sniffImageType(image.buffer);
+    if (!type) throw new BadRequestException(INVALID_IMAGE_MESSAGE);
+
+    const current = await this.prisma.live.book.findUnique({
+      where: { id },
+      select: { imageUrl: true },
+    });
+    if (!current) throw new NotFoundException(NOT_FOUND_MESSAGE);
+
+    const name = await this.storage.save(image.buffer, type.extension);
+    let book: BookDto;
+    try {
+      book = await this.updateImageUrl(id, this.storage.urlFor(name));
+    } catch (error) {
+      await this.storage.remove(name);
+      throw this.translate(error);
+    }
+    // Outside the `try`: the book already points at the new file.
+    await this.removeStored(current.imageUrl);
+    return book;
+  }
+
+  /** Removes the cover. A book without one is returned as it is (idempotent). */
+  async removeImage(id: string): Promise<BookDto> {
+    const current = await this.prisma.live.book.findUnique({
+      where: { id },
+      include: BOOK_INCLUDE,
+    });
+    if (!current) throw new NotFoundException(NOT_FOUND_MESSAGE);
+    if (!current.imageUrl) return toBookDto(current);
+
+    let book: BookDto;
+    try {
+      book = await this.updateImageUrl(id, null);
+    } catch (error) {
+      throw this.translate(error);
+    }
+    await this.removeStored(current.imageUrl);
+    return book;
+  }
+
+  private async updateImageUrl(
+    id: string,
+    imageUrl: string | null,
+  ): Promise<BookDto> {
+    return this.prisma.live.$transaction(async (tx) => {
+      const book = await tx.book.update({
+        where: { id },
+        data: { imageUrl },
+        include: BOOK_INCLUDE,
+      });
+      // audit-log adds here: await this.audit.log(tx, { action: 'UPDATE', ... })
+      return toBookDto(book);
+    });
+  }
+
+  /** Deletes the file behind an `imageUrl`, if it is one of ours. */
+  private async removeStored(imageUrl: string | null): Promise<void> {
+    const name = this.storage.nameFromUrl(imageUrl);
+    if (name) await this.storage.remove(name);
   }
 
   /** The answers this service owns; anything else goes on to the global filter. */

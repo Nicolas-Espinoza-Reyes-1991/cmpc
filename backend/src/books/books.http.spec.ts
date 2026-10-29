@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ConfigModule } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -74,6 +76,8 @@ describe('books over HTTP (real Passport)', () => {
               validateEnv({
                 DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
                 JWT_SECRET: SECRET,
+                // The image storage creates this directory on start: keep it out of the repository.
+                UPLOAD_DIR: join(tmpdir(), 'cmpc-books-http-uploads'),
               }),
           ],
         }),

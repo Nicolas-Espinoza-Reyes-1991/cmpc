@@ -77,3 +77,11 @@ export interface Page<T> {
   items: T[];
   meta: PaginationMeta;
 }
+
+/** What the user decided about the cover in the form, besides the book data. */
+export interface ImageChoice {
+  /** A new file to upload (validated), or `null`. */
+  image: File | null;
+  /** Remove the current cover when saving (only meaningful without a new file). */
+  removeImage: boolean;
+}

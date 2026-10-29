@@ -6,20 +6,27 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  BadRequestException,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPayloadTooLargeResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -29,6 +36,12 @@ import { BookDto } from './dto/book.dto';
 import { CreateBookDto } from './dto/create-book.dto';
 import { ListBooksQueryDto } from './dto/list-books-query.dto';
 import { PaginatedBooksDto } from './dto/paginated-books.dto';
+import {
+  IMAGE_FIELD,
+  IMAGE_UPLOAD_LIMITS,
+  MAX_IMAGE_BYTES,
+  type UploadedImage,
+} from './images/image-upload.config';
 import { UpdateBookDto } from './dto/update-book.dto';
 
 /**
@@ -98,6 +111,54 @@ export class BooksController {
     @Body() dto: UpdateBookDto,
   ): Promise<BookDto> {
     return this.books.update(id, dto);
+  }
+
+  @Post(':id/image')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FileInterceptor(IMAGE_FIELD, { limits: IMAGE_UPLOAD_LIMITS }),
+  )
+  @ApiOperation({
+    summary: 'Set the cover image of a book',
+    description: `Send the file as \`multipart/form-data\` in the field \`${IMAGE_FIELD}\`. Only JPEG, PNG and WebP are accepted, decided by the content of the file, up to ${MAX_IMAGE_BYTES / 1024 / 1024} MB. It replaces the current cover, if any.`,
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: [IMAGE_FIELD],
+      properties: { [IMAGE_FIELD]: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiOkResponse({ type: BookDto })
+  @ApiBadRequestResponse({
+    description:
+      'No file, more than one, another field, or the content is not a JPEG, PNG or WebP image; or `id` is not a UUID.',
+  })
+  @ApiPayloadTooLargeResponse({ description: 'The file is larger than 2 MB.' })
+  @ApiNotFoundResponse({ description: 'No active book with that id.' })
+  uploadImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: UploadedImage | undefined,
+  ): Promise<BookDto> {
+    if (!file) {
+      throw new BadRequestException(
+        `An image file is required in the field "${IMAGE_FIELD}"`,
+      );
+    }
+    return this.books.setImage(id, file);
+  }
+
+  @Delete(':id/image')
+  @ApiOperation({
+    summary: 'Remove the cover image of a book',
+    description: 'A book without a cover is returned unchanged.',
+  })
+  @ApiOkResponse({ type: BookDto })
+  @ApiBadRequestResponse({ description: '`id` is not a UUID.' })
+  @ApiNotFoundResponse({ description: 'No active book with that id.' })
+  removeImage(@Param('id', ParseUUIDPipe) id: string): Promise<BookDto> {
+    return this.books.removeImage(id);
   }
 
   @Delete(':id')

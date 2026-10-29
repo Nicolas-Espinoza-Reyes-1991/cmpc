@@ -20,3 +20,12 @@ HTMLDialogElement.prototype.close = function close(
   this.removeAttribute('open');
   this.dispatchEvent(new Event('close'));
 };
+
+/**
+ * jsdom has no `URL.createObjectURL`. The previews only need a unique string
+ * back and to know when it is revoked, so this model returns `blob:test-N` and
+ * leaves the revoking to be spied on.
+ */
+let objectUrls = 0;
+URL.createObjectURL = () => `blob:test-${(objectUrls += 1)}`;
+URL.revokeObjectURL = () => undefined;

@@ -1,0 +1,119 @@
+# Spec book-image-upload: Tareas
+
+Reglas: seguir el orden; una tarea está hecha solo cuando su criterio se cumple y sus pruebas pasan. Un commit por tarea (formato convencional, en inglés).
+Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de decisión se refleja en `design.md`.
+Marcar con `[x]` al terminar.
+
+## Backend
+- [x] **U-01 Actualizar `multer`** (U4.5)
+  - `npm audit fix` no puede resolverlo: ninguna versión 11.x de `@nestjs/platform-express` fija todavía `multer` 2.5.0 (la 11.2.8 fija la 2.4.0, vulnerable). Se fija con `overrides` en `package.json` (`multer: 2.5.0`) y se comprueba que `npm audit --omit=dev` ya no lista `multer` (de 7 hallazgos a 5).
+  - Hecho cuando: `lint`, `tsc`, build, `test:cov` y e2e siguen pasando.
+  - Commit: `build(backend): update multer to fix the denial of service advisory`
+
+- [x] **U-02 Validación por contenido y almacenamiento** (U1.3, U1.5, U3.4, U4.2, U4.4, U6.1)
+  - `image-type.ts` (`sniffImageType`) e `image-storage.ts` (`ImageStorage`: `save`, `remove`, `urlFor`, `nameFromUrl`).
+  - Pruebas: firmas reales de JPEG, PNG y WebP; buffers cortos, vacíos y firmas falsas; el almacenamiento con un directorio temporal real (crea el directorio, nombres únicos, escribe, borra, rechaza nombres inválidos y `..`, tolera un archivo inexistente).
+  - Commit: `feat(books): add image type detection and file storage`
+
+- [x] **U-03 Servicio y controlador de la imagen** (U1.1, U1.2, U1.4, U1.6, U1.7, U2.1 a U2.3, U4.1, U4.3)
+  - `BooksService.setImage` y `removeImage`, `POST` y `DELETE /api/books/:id/image` con `FileInterceptor` y Swagger multipart.
+  - Pruebas: éxito, reemplazo (borra el anterior), libro inexistente sin escribir, contenido falso, fallo de la base con limpieza, fallo al borrar el anterior, idempotencia de quitar; controlador; HTTP con Passport y `multipart` real (401, 200, 400, 413, 404 sin archivos).
+  - Commit: `feat(books): add book image upload and removal endpoints`
+
+- [x] **U-04 Servir las imágenes** (U3.1 a U3.3)
+  - `useStaticAssets` en `configureApp` con caché larga y `nosniff`; el e2e comprueba que `/api/uploads` es público y no entra en Swagger.
+  - Pruebas HTTP: se sirve el archivo subido con sus cabeceras; 404 si no existe; `..` y archivos ocultos no salen del directorio; no lista el directorio.
+  - Commit: `feat(app): serve uploaded images with long cache headers`
+
+- [x] **U-05 Verificación contra PostgreSQL y disco reales** (U6.4)
+  - Backend compilado: subir PNG, JPEG y WebP reales; texto renombrado, GIF, SVG, vacío y 2 MB + 1 rechazados sin dejar archivos; reemplazo y borrado sin huérfanos; libro eliminado → 404 sin archivo; cabeceras; sin token; intentos de salir del directorio.
+  - Hecho cuando: cada comprobación queda en el registro de verificación.
+  - Commit: `docs(book-image-upload): record the backend verification`
+
+## Frontend
+- [x] **U-06 Servicio y validación del archivo** (U5.2, U6.2)
+  - `validateImageFile`, `uploadBookImage` y `deleteBookImage`.
+  - Pruebas: cada tipo y tamaño permitido y rechazado (el límite exacto de 2 MB); el servicio envía `FormData` con el campo `image` y desenvuelve `data`.
+  - Commit: `feat(frontend): add image file validation and upload services`
+
+- [x] **U-07 Campo de imagen en el formulario** (U5.1, U5.3 a U5.6)
+  - `ImageField` con vista previa, imagen actual, «Quitar imagen» y errores; integración en `BookForm` y en el flujo de `BookFormPage` (alta, edición, solo imagen y fallo de subida con aviso en la edición).
+  - Pruebas: vista previa y revocación de la URL; error de tipo y de tamaño sin enviar nada; alta con imagen; edición con reemplazo; quitar; solo imagen sin `PATCH`; fallo de subida deja el libro guardado y avisa; la caché queda al día.
+  - Commit: `feat(frontend): add the cover image field to the book form`
+
+## Integración y cierre
+- [x] **U-08 Verificación de punta a punta** (U6.4)
+  - Docker y navegador real: subir una portada en el alta, verla en el detalle, reemplazarla y quitarla; archivo falso y archivo grande rechazados en pantalla; la imagen sigue tras reiniciar el backend (volumen); cabeceras de caché.
+  - Hecho cuando: cada escenario queda anotado.
+  - Commit: `docs(book-image-upload): record the end-to-end verification`
+
+- [x] **U-09 Verificación de la spec**
+  - Recorrer U1 a U6 con evidencia nueva (lint, tipos, build, cobertura ≥ 80 % y fallando por debajo en ambas apps; `npm audit`) y registrar el resultado. Marcar el pendiente de `multer` en `platform/tasks.md` como resuelto.
+  - Commit: `docs(book-image-upload): record the spec verification`
+
+## Registro de verificación
+(Se completa en U-05, U-08 y U-09.)
+
+### U-05: subida de imágenes contra el servidor, PostgreSQL y el disco reales (2026-10-29)
+Entorno: backend compilado (`node dist/main`) contra la base de desarrollo, con `UPLOAD_DIR` en un directorio temporal vacío (borrado al terminar) y peticiones `multipart` reales de Node (`FormData`); PNG, JPEG y WebP reales de 1×1 píxel. Los datos de prueba se borraron de la base.
+
+| Comprobación | Resultado |
+|---|---|
+| Subir un PNG | 200; `imageUrl` = `/api/uploads/<uuid>.png`; 1 archivo en disco; la base coincide |
+| Ver el PNG **sin token** | 200, `Content-Type: image/png`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff`, bytes idénticos a los subidos |
+| Reemplazar por JPEG y luego por WebP | 200 en ambos, extensión `.jpg` y `.webp` según el contenido; el archivo anterior desaparece del disco cada vez (siempre 1 archivo) y la base apunta al nuevo |
+| Texto renombrado `.png`, HTML con tipo `image/png`, SVG con script, GIF, archivo vacío y un `.exe` | 400 los seis; el disco y la base no cambian |
+| 2 MB exactos / 2 MB + 1 byte | 200 / **413** (cuerpo `statusCode: 413`); el archivo rechazado no deja nada en disco |
+| Sin archivo, otro nombre de campo (`photo`), dos archivos, un campo de texto extra y un cuerpo JSON | 400 las cinco |
+| `POST` y `DELETE` sin token | 401 las dos |
+| Libro inexistente / `:id` que no es UUID | 404 / 400, sin dejar archivos |
+| Salir del directorio: `/api/uploads/../package.json`, `..%2f..%2f.env`, `%2e%2e/%2e%2e/.env`, `..%5c..%5c.env`, el directorio con y sin barra y `.hidden` | 404 los siete; ningún contenido secreto en las respuestas |
+| `DELETE` de la imagen | 200 con `imageUrl: null`; el archivo se borra; la base queda en `null`; la segunda llamada también da 200 (idempotente) |
+| Libro eliminado (borrado lógico) | Subir y quitar imagen dan 404 y no tocan el disco |
+| Archivos en disco frente a los que referencia la base | Idénticos: sin archivos huérfanos |
+| Log del servidor | Solo líneas `[HTTP]` con método, ruta, estado, duración y usuario (los 4xx como `WARN`); ningún contenido de archivos |
+
+Observaciones:
+- **Libro eliminado con imagen**: el borrado lógico conserva la fila y, por tanto, su archivo, que sigue sirviéndose en `/api/uploads/<nombre>` (200). Es coherente con el borrado lógico (el libro podría restaurarse) y con que las portadas no son datos sensibles, pero conviene saberlo; la limpieza de archivos de libros eliminados queda como mejora futura en `design.md` §6.
+- Una comprobación de mi script ("ver la imagen sin token" al final del recorrido) dio 404 porque usé la URL de un archivo que el paso anterior (los 2 MB exactos) ya había reemplazado; el 404 es el comportamiento correcto y el acceso público sin token ya quedó probado en el primer paso.
+
+### U-08: recorrido de punta a punta con Docker y navegador real (2026-10-29)
+Entorno: `docker compose up --build` (db, backend y frontend sanos), navegador integrado, administrador sembrado. Las imágenes son reales (PNG, JPEG y WebP de 120×180 píxeles generados en un `canvas` del navegador) y se eligieron en el campo de archivo con un evento `change` real. Se comprobó leyendo el DOM, las cabeceras de las respuestas, el volumen del contenedor y la base. Al terminar se borraron los datos y los archivos y se detuvo el stack.
+
+| Escenario | Resultado |
+|---|---|
+| El volumen del contenedor | `/app/uploads` pertenece al usuario `node` (sin privilegios) y es escribible |
+| Campo «Portada (opcional)» en `/books/new` | Presente, con `accept="image/jpeg,image/png,image/webp"` y el marcador «Sin portada» |
+| Elegir un GIF / un PNG de 2 MB + 1 byte | «La portada debe ser una imagen JPG, PNG o WebP.» / «La portada no puede pesar más de 2 MB.», sin enviar nada |
+| Elegir un PNG real | Vista previa cargada (`naturalWidth` 120); el mensaje de error desaparece |
+| Registrar el libro con la portada | Navega al detalle y la imagen se muestra cargada, con `alt` «Portada de …» |
+| Cabeceras de la imagen y acceso sin token | 200, `image/png`, `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options: nosniff` y la CSP; la petición no lleva `Authorization` |
+| Editar: la pantalla muestra la portada actual | «Portada actual del libro» cargada |
+| Reemplazar por un JPEG | Vista previa, guardado y el detalle muestra el `.jpg` nuevo |
+| El archivo anterior | En el disco del contenedor solo queda el `.jpg` nuevo y la base lo referencia. (Un `fetch` de la URL vieja devolvió 200 por la caché `immutable` del navegador; saltando la caché, el servidor responde 404) |
+| «Quitar la imagen actual» | La vista previa pasa a «Sin portada»; al guardar el detalle no muestra imagen y la URL anterior da 404 |
+| Registrar un libro con un archivo que dice ser PNG pero es texto | El navegador lo acepta (va por el nombre y el tipo declarado); el servidor lo rechaza por su contenido; **el libro queda guardado** y se abre su edición con el aviso «El libro se guardó, pero la portada no se pudo subir: El archivo no es una imagen válida: usa un JPG, PNG o WebP.» |
+| Elegir un WebP real en esa pantalla y guardar | El libro queda con la portada (`.webp` cargado); no se creó ningún libro duplicado |
+| Reiniciar el backend (`docker compose restart backend`) | La imagen sigue sirviéndose (200, `image/webp`, caché de un año); el volumen contiene solo el archivo referenciado por la base: sin huérfanos |
+
+Hallazgo de la verificación real: con el archivo falso, el aviso decía «Los datos enviados no son válidos», que no habla de la portada. Se cambió por «El archivo no es una imagen válida: usa un JPG, PNG o WebP.» (un 400 al subir solo puede significar que el contenido no es una imagen), con pruebas en los tres caminos (alta, edición solo con portada y edición con datos y portada); 617 pruebas del frontend con 100 % de cobertura.
+
+### U-09: verificación de la spec (2026-10-29)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**40 suites, 663 pruebas, 100 %**) y e2e (**9**); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**39 archivos, 617 pruebas, 100 %** en sentencias, ramas, funciones y líneas); más los registros U-05 y U-08.
+
+| Criterio | Evidencia |
+|---|---|
+| U1.1–U1.7 | 31 pruebas HTTP con `multipart` real y archivos reales en un directorio temporal (200 con PNG, JPEG y WebP; contenido falso → 400; 2 MB exactos pasan y 2 MB + 1 da 413; sin archivo, otro campo, dos archivos, campo extra y JSON → 400; 404 sin dejar archivos; reemplazo borra el anterior; fallo de la base limpia el archivo nuevo); pruebas del servicio con el orden escribir → base → borrar; U-05 contra el servidor, PostgreSQL y el disco reales y U-08 en el navegador |
+| U2.1–U2.3 | Pruebas de `removeImage` (idempotente, 404, el archivo se conserva si falla la base) y de `ImageStorage.remove` (nunca lanza, avisa en el log); U-05 y U-08: el archivo se borra y la base queda en `null` |
+| U3.1–U3.5 | 21 pruebas de `uploads.http.spec` con el guard real presente (público, `Cache-Control: public, max-age=31536000, immutable`, `nosniff`, tipo por extensión, HEAD, 404, sin listado ni redirecciones, ocultos ignorados, sin `..` ni rutas absolutas ni byte nulo); U-05 con 7 intentos de salir del directorio; U-08: volumen persistente tras reiniciar el backend; el detalle ya mostraba `imageUrl` |
+| U4.1–U4.5 | El e2e recorre el OpenAPI y exige 401 en `POST` y `DELETE /books/:id/image` y comprueba que `/api/uploads` no está en Swagger; `sniffImageType` por contenido (SVG, HTML y GIF rechazados); el tope de 2 MB lo aplica multer al leer; `UPLOAD_DIR` se crea al arrancar y el usuario `node` puede escribir (U-08); `npm audit --omit=dev` ya no lista `multer` (7 → 5 hallazgos) |
+| U5.1–U5.6 | `ImageField` (22 pruebas), `BookForm` y `BookFormPage` (alta con subida posterior, fallo de subida con aviso en la edición y sin duplicar el libro, solo imagen sin `PATCH`, datos e imagen en orden, quitar, fallo parcial con reintento solo de la portada); U-08 en el navegador real con imágenes reales |
+| U6.1–U6.4 | Suites citadas; cobertura 100 % en ambas apps; el umbral forzado a 101 % falla en las dos ("does not meet global threshold"); U-05 y U-08 contra PostgreSQL, disco, Docker y navegador reales, incluido el reinicio del backend |
+
+Resultado: sin criterios pendientes.
+
+Defectos y hallazgos de la verificación (corregidos y con prueba): `npm audit fix` no podía actualizar `multer` (Nest 11.2.8 fija la 2.4.0), se resolvió con `overrides`; las suites que levantan `BooksModule` creaban `backend/uploads` en el repositorio (ahora usan un directorio temporal); el aviso de una portada rechazada decía solo «datos no válidos» y ahora dice que el archivo no es una imagen válida; una regla de React (`set-state-in-effect`) llevó a crear la URL de vista previa en el manejador del evento y a dejar en el efecto solo su liberación. Una comprobación de caché dio 200 para una imagen ya borrada: era la caché `immutable` del navegador (con `cache: 'reload'` el servidor responde 404).
+
+Pendiente resuelto en otra spec: el hallazgo de `multer` que `platform` dejó anotado queda cerrado (ver `.ai/specs/platform/tasks.md`).
+
+Pendientes (no son de esta spec): quedan 5 hallazgos de `npm audit` en producción (3 altos y 2 moderados: `deepmerge-ts` y `js-yaml`, cuyas correcciones exigen `--force`; se evalúan en `docs-delivery`); el paquete del frontend pesa ya 570 kB (aviso de Vite); y las mejoras de `design.md` §6 (nube, miniaturas, metadatos, limpieza de archivos y de libros eliminados).

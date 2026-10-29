@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { BooksController } from './books.controller';
 import { BooksService } from './books.service';
@@ -14,6 +15,8 @@ describe('BooksController', () => {
   const update = jest.fn();
   const remove = jest.fn();
   const findAll = jest.fn();
+  const setImage = jest.fn();
+  const removeImage = jest.fn();
   let controller: BooksController;
 
   beforeEach(async () => {
@@ -21,6 +24,8 @@ describe('BooksController', () => {
     findOne.mockReset().mockResolvedValue(book);
     update.mockReset().mockResolvedValue(book);
     remove.mockReset().mockResolvedValue(undefined);
+    setImage.mockReset().mockResolvedValue(book);
+    removeImage.mockReset().mockResolvedValue(book);
     findAll.mockReset().mockResolvedValue({
       items: [book],
       meta: { page: 1, limit: 10, total: 1 },
@@ -30,7 +35,15 @@ describe('BooksController', () => {
       providers: [
         {
           provide: BooksService,
-          useValue: { create, findOne, update, remove, findAll },
+          useValue: {
+            create,
+            findOne,
+            update,
+            remove,
+            findAll,
+            setImage,
+            removeImage,
+          },
         },
       ],
     }).compile();
@@ -67,6 +80,28 @@ describe('BooksController', () => {
   it('remove passes the id to the service and returns nothing', async () => {
     await expect(controller.remove(ID)).resolves.toBeUndefined();
     expect(remove).toHaveBeenCalledWith(ID);
+  });
+
+  it('uploadImage passes the id and the file to the service', async () => {
+    const file = { buffer: Buffer.from('x') };
+
+    await expect(controller.uploadImage(ID, file)).resolves.toBe(book);
+    expect(setImage).toHaveBeenCalledWith(ID, file);
+  });
+
+  it('uploadImage answers 400 when there is no file, without calling the service', () => {
+    expect(() => controller.uploadImage(ID, undefined)).toThrow(
+      BadRequestException,
+    );
+    expect(() => controller.uploadImage(ID, undefined)).toThrow(
+      'field "image"',
+    );
+    expect(setImage).not.toHaveBeenCalled();
+  });
+
+  it('removeImage passes the id to the service', async () => {
+    await expect(controller.removeImage(ID)).resolves.toBe(book);
+    expect(removeImage).toHaveBeenCalledWith(ID);
   });
 
   it('lets service errors propagate to the global filter', async () => {

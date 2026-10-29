@@ -61,3 +61,26 @@ export async function listBooks(
     },
   };
 }
+
+/**
+ * Sets or replaces the cover. The body is `multipart/form-data` with the file
+ * in the field `image`; no `Content-Type` is set here so the browser adds the
+ * `boundary` it needs. Resolves with the book pointing at the new image.
+ */
+export async function uploadBookImage(id: string, file: File): Promise<Book> {
+  const body = new FormData();
+  body.append('image', file);
+  const response = await apiClient.post<ApiResponse<Book>>(
+    `/books/${encodeURIComponent(id)}/image`,
+    body,
+  );
+  return response.data.data;
+}
+
+/** Removes the cover. A book without one is returned unchanged. */
+export async function deleteBookImage(id: string): Promise<Book> {
+  const response = await apiClient.delete<ApiResponse<Book>>(
+    `/books/${encodeURIComponent(id)}/image`,
+  );
+  return response.data.data;
+}

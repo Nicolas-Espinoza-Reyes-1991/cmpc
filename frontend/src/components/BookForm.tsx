@@ -3,10 +3,13 @@ import { useState } from 'react';
 import { useForm, useWatch, type DefaultValues } from 'react-hook-form';
 import { Link } from 'react-router';
 import { ApiError, getErrorMessage } from '../lib/api-error';
+import { FormMessageError } from '../lib/form-message-error';
 import { bookSchema, type BookFormValues } from '../lib/book-schema';
+import type { ImageChoice } from '../types/book';
 import { CatalogField } from './CatalogField';
 import { errorAttributes, INPUT_CLASSES } from '../lib/form-attributes';
 import { FormField } from './FormField';
+import { ImageField } from './ImageField';
 
 const DUPLICATE_MESSAGE =
   'Ya existe un libro con el mismo título, autor y editorial.';
@@ -29,8 +32,10 @@ interface BookFormProps {
   submitLabel: string;
   /** Where "Cancelar" goes. */
   cancelTo: string;
-  /** Saves the book. A rejection is shown by the form itself. */
-  onSubmit: (values: BookFormValues) => Promise<void>;
+  /** The cover the book has now (editing), to show and to remove. */
+  currentImageUrl?: string | null;
+  /** Saves the book and what was decided about the cover. A rejection is shown by the form itself. */
+  onSubmit: (values: BookFormValues, image: ImageChoice) => Promise<void>;
 }
 
 /**
@@ -43,10 +48,16 @@ export function BookForm({
   defaultValues,
   submitLabel,
   cancelTo,
+  currentImageUrl = null,
   onSubmit,
 }: BookFormProps) {
   // Problems that do not belong to one field: a duplicate, the network, a 5xx...
   const [formError, setFormError] = useState<string | null>(null);
+  // The cover is not a value of the form (a File is not), so it is kept next to it.
+  const [imageChoice, setImageChoice] = useState<ImageChoice>({
+    image: null,
+    removeImage: false,
+  });
 
   const {
     register,
@@ -67,6 +78,11 @@ export function BookForm({
   const genre = useWatch({ control, name: 'genre' });
 
   function showFailure(error: unknown): void {
+    // A message already written for the user (a partial save) is shown as it is.
+    if (error instanceof FormMessageError) {
+      setFormError(error.message);
+      return;
+    }
     if (!(error instanceof ApiError)) {
       setFormError(getErrorMessage(error));
       return;
@@ -89,7 +105,7 @@ export function BookForm({
   const submit = handleSubmit(async (values) => {
     setFormError(null);
     try {
-      await onSubmit(values);
+      await onSubmit(values, imageChoice);
     } catch (error) {
       showFailure(error);
     }
@@ -175,6 +191,12 @@ export function BookForm({
           </p>
         )}
       </div>
+
+      <ImageField
+        currentUrl={currentImageUrl}
+        choice={imageChoice}
+        onChange={setImageChoice}
+      />
 
       <div className="flex items-center gap-3">
         <button

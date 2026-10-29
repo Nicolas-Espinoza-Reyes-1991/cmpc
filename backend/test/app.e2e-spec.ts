@@ -91,6 +91,14 @@ describe('Application (e2e)', () => {
       );
     });
 
+    it('documents the image routes but not the public static route', () => {
+      const paths = Object.keys(doc.paths);
+
+      expect(paths).toContain('/api/books/{id}/image');
+      // Express serves the files; they are not a controller and stay out of Swagger.
+      expect(paths.some((path) => path.includes('/uploads'))).toBe(false);
+    });
+
     it('answers 401 without a token on every documented operation except the public ones', async () => {
       const checked: string[] = [];
 
