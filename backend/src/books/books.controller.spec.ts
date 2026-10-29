@@ -8,6 +8,7 @@ import { ListBooksQueryDto } from './dto/list-books-query.dto';
 
 const ID = '3f6c2a52-7f0e-4c3e-9d57-1d8f0f6a9b11';
 const book = { id: ID, title: 'Dune' } as BookDto;
+const ACTOR = { userId: 'user-1', ip: '203.0.113.7' };
 
 describe('BooksController', () => {
   const create = jest.fn();
@@ -50,11 +51,11 @@ describe('BooksController', () => {
     controller = moduleRef.get(BooksController);
   });
 
-  it('create passes the body to the service', async () => {
+  it('create passes the body and the actor to the service', async () => {
     const dto = { title: 'Dune' } as CreateBookDto;
 
-    await expect(controller.create(dto)).resolves.toBe(book);
-    expect(create).toHaveBeenCalledWith(dto);
+    await expect(controller.create(dto, ACTOR)).resolves.toBe(book);
+    expect(create).toHaveBeenCalledWith(dto, ACTOR);
   });
 
   it('list passes the query to the service and returns its page', async () => {
@@ -73,35 +74,37 @@ describe('BooksController', () => {
   });
 
   it('update passes the id and the changes to the service', async () => {
-    await expect(controller.update(ID, { price: 10 })).resolves.toBe(book);
-    expect(update).toHaveBeenCalledWith(ID, { price: 10 });
+    await expect(controller.update(ID, { price: 10 }, ACTOR)).resolves.toBe(
+      book,
+    );
+    expect(update).toHaveBeenCalledWith(ID, { price: 10 }, ACTOR);
   });
 
   it('remove passes the id to the service and returns nothing', async () => {
-    await expect(controller.remove(ID)).resolves.toBeUndefined();
-    expect(remove).toHaveBeenCalledWith(ID);
+    await expect(controller.remove(ID, ACTOR)).resolves.toBeUndefined();
+    expect(remove).toHaveBeenCalledWith(ID, ACTOR);
   });
 
   it('uploadImage passes the id and the file to the service', async () => {
     const file = { buffer: Buffer.from('x') };
 
-    await expect(controller.uploadImage(ID, file)).resolves.toBe(book);
-    expect(setImage).toHaveBeenCalledWith(ID, file);
+    await expect(controller.uploadImage(ID, file, ACTOR)).resolves.toBe(book);
+    expect(setImage).toHaveBeenCalledWith(ID, file, ACTOR);
   });
 
   it('uploadImage answers 400 when there is no file, without calling the service', () => {
-    expect(() => controller.uploadImage(ID, undefined)).toThrow(
+    expect(() => controller.uploadImage(ID, undefined, ACTOR)).toThrow(
       BadRequestException,
     );
-    expect(() => controller.uploadImage(ID, undefined)).toThrow(
+    expect(() => controller.uploadImage(ID, undefined, ACTOR)).toThrow(
       'field "image"',
     );
     expect(setImage).not.toHaveBeenCalled();
   });
 
   it('removeImage passes the id to the service', async () => {
-    await expect(controller.removeImage(ID)).resolves.toBe(book);
-    expect(removeImage).toHaveBeenCalledWith(ID);
+    await expect(controller.removeImage(ID, ACTOR)).resolves.toBe(book);
+    expect(removeImage).toHaveBeenCalledWith(ID, ACTOR);
   });
 
   it('lets service errors propagate to the global filter', async () => {

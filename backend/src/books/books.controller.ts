@@ -35,6 +35,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuditActor } from '../audit/audit.types';
+import { Actor } from '../common/decorators/actor.decorator';
 import { RawResponse } from '../common/decorators/raw-response.decorator';
 import type { PaginatedResult } from '../common/types/api-response.types';
 import { BooksService } from './books.service';
@@ -81,8 +83,11 @@ export class BooksController {
     description:
       'An active book with the same title, author and publisher already exists.',
   })
-  create(@Body() dto: CreateBookDto): Promise<BookDto> {
-    return this.books.create(dto);
+  create(
+    @Body() dto: CreateBookDto,
+    @Actor() actor: AuditActor,
+  ): Promise<BookDto> {
+    return this.books.create(dto, actor);
   }
 
   @Get()
@@ -178,8 +183,9 @@ export class BooksController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateBookDto,
+    @Actor() actor: AuditActor,
   ): Promise<BookDto> {
-    return this.books.update(id, dto);
+    return this.books.update(id, dto, actor);
   }
 
   @Post(':id/image')
@@ -209,13 +215,14 @@ export class BooksController {
   uploadImage(
     @Param('id', ParseUUIDPipe) id: string,
     @UploadedFile() file: UploadedImage | undefined,
+    @Actor() actor: AuditActor,
   ): Promise<BookDto> {
     if (!file) {
       throw new BadRequestException(
         `An image file is required in the field "${IMAGE_FIELD}"`,
       );
     }
-    return this.books.setImage(id, file);
+    return this.books.setImage(id, file, actor);
   }
 
   @Delete(':id/image')
@@ -226,8 +233,11 @@ export class BooksController {
   @ApiOkResponse({ type: BookDto })
   @ApiBadRequestResponse({ description: '`id` is not a UUID.' })
   @ApiNotFoundResponse({ description: 'No active book with that id.' })
-  removeImage(@Param('id', ParseUUIDPipe) id: string): Promise<BookDto> {
-    return this.books.removeImage(id);
+  removeImage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Actor() actor: AuditActor,
+  ): Promise<BookDto> {
+    return this.books.removeImage(id, actor);
   }
 
   @Delete(':id')
@@ -242,7 +252,10 @@ export class BooksController {
   @ApiNotFoundResponse({
     description: 'No active book with that id (or already deleted).',
   })
-  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.books.remove(id);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Actor() actor: AuditActor,
+  ): Promise<void> {
+    return this.books.remove(id, actor);
   }
 }

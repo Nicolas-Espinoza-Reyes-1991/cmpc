@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import { AuditService } from '../audit/audit.service';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { PasswordHasher } from './password-hasher';
@@ -13,10 +14,12 @@ const user = {
 };
 const DUMMY_HASH = '$argon2id$v=19$dummy-hash-built-at-startup';
 const SECRET = 'unit-test-secret';
+const ACTOR = { userId: null, ip: '203.0.113.7' };
 
 describe('AuthService', () => {
   const findByEmail = jest.fn();
   const hasher = { hash: jest.fn(), verify: jest.fn() };
+  const audit = { logBestEffort: jest.fn() };
   const jwt = new JwtService({
     secret: SECRET,
     signOptions: { algorithm: 'HS256', expiresIn: '1h' },
@@ -28,6 +31,7 @@ describe('AuthService', () => {
     findByEmail.mockReset();
     hasher.hash.mockReset().mockResolvedValue(DUMMY_HASH);
     hasher.verify.mockReset();
+    audit.logBestEffort.mockReset().mockResolvedValue(undefined);
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -35,6 +39,7 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: { findByEmail } },
         { provide: JwtService, useValue: jwt },
         { provide: PasswordHasher, useValue: hasher },
+        { provide: AuditService, useValue: audit },
       ],
     }).compile();
     await moduleRef.init();
@@ -57,7 +62,11 @@ describe('AuthService', () => {
     });
 
     it('returns a Bearer token and the public data of the user', async () => {
-      const result = await service.login('admin@cmpc.local', 'secret-pass');
+      const result = await service.login(
+        'admin@cmpc.local',
+        'secret-pass',
+        ACTOR,
+      );
 
       expect(result.tokenType).toBe('Bearer');
       expect(result.user).toEqual({ id: user.id, email: user.email });
@@ -65,7 +74,7 @@ describe('AuthService', () => {
     });
 
     it('checks the password against the stored hash', async () => {
-      await service.login('admin@cmpc.local', 'secret-pass');
+      await service.login('admin@cmpc.local', 'secret-pass', ACTOR);
 
       expect(hasher.verify).toHaveBeenCalledWith(
         user.passwordHash,
@@ -74,7 +83,7 @@ describe('AuthService', () => {
     });
 
     it('passes the email on as received: normalizing belongs to the users service', async () => {
-      await service.login('Admin@CMPC.local', 'secret-pass');
+      await service.login('Admin@CMPC.local', 'secret-pass', ACTOR);
 
       expect(findByEmail).toHaveBeenCalledWith('Admin@CMPC.local');
     });
@@ -83,6 +92,7 @@ describe('AuthService', () => {
       const { accessToken } = await service.login(
         'admin@cmpc.local',
         'secret-pass',
+        ACTOR,
       );
 
       const header = JSON.parse(
@@ -100,6 +110,7 @@ describe('AuthService', () => {
       const { accessToken, expiresAt } = await service.login(
         'admin@cmpc.local',
         'secret-pass',
+        ACTOR,
       );
 
       const { exp } = jwt.decode<{ exp: number }>(accessToken);
@@ -110,7 +121,11 @@ describe('AuthService', () => {
     });
 
     it('never leaks the hash or the password', async () => {
-      const result = await service.login('admin@cmpc.local', 'secret-pass');
+      const result = await service.login(
+        'admin@cmpc.local',
+        'secret-pass',
+        ACTOR,
+      );
 
       const serialized = JSON.stringify(result);
       expect(serialized).not.toContain(user.passwordHash);
@@ -124,9 +139,9 @@ describe('AuthService', () => {
       findByEmail.mockResolvedValue(user);
       hasher.verify.mockResolvedValue(false);
 
-      await expect(service.login('admin@cmpc.local', 'wrong')).rejects.toThrow(
-        new UnauthorizedException('Invalid credentials'),
-      );
+      await expect(
+        service.login('admin@cmpc.local', 'wrong', ACTOR),
+      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
       expect(hasher.verify).toHaveBeenCalledWith(user.passwordHash, 'wrong');
     });
 
@@ -134,20 +149,20 @@ describe('AuthService', () => {
       findByEmail.mockResolvedValue(null);
       hasher.verify.mockResolvedValue(false);
 
-      await expect(service.login('nobody@cmpc.local', 'x')).rejects.toThrow(
-        new UnauthorizedException('Invalid credentials'),
-      );
+      await expect(
+        service.login('nobody@cmpc.local', 'x', ACTOR),
+      ).rejects.toThrow(new UnauthorizedException('Invalid credentials'));
     });
 
     it('answers exactly the same for an unknown email and a wrong password', async () => {
       hasher.verify.mockResolvedValue(false);
       findByEmail.mockResolvedValueOnce(user);
       const wrongPassword = (await service
-        .login('admin@cmpc.local', 'wrong')
+        .login('admin@cmpc.local', 'wrong', ACTOR)
         .catch((e: unknown) => e)) as UnauthorizedException;
       findByEmail.mockResolvedValueOnce(null);
       const unknownEmail = (await service
-        .login('nobody@cmpc.local', 'wrong')
+        .login('nobody@cmpc.local', 'wrong', ACTOR)
         .catch((e: unknown) => e)) as UnauthorizedException;
 
       expect(unknownEmail.getStatus()).toBe(wrongPassword.getStatus());
@@ -158,7 +173,9 @@ describe('AuthService', () => {
       findByEmail.mockResolvedValue(null);
       hasher.verify.mockResolvedValue(false);
 
-      await service.login('nobody@cmpc.local', 'whatever').catch(() => null);
+      await service
+        .login('nobody@cmpc.local', 'whatever', ACTOR)
+        .catch(() => null);
 
       expect(hasher.verify).toHaveBeenCalledTimes(1);
       expect(hasher.verify).toHaveBeenCalledWith(DUMMY_HASH, 'whatever');
@@ -168,7 +185,7 @@ describe('AuthService', () => {
       findByEmail.mockResolvedValue(user);
       hasher.verify.mockResolvedValue(false);
 
-      await service.login('admin@cmpc.local', 'wrong').catch(() => null);
+      await service.login('admin@cmpc.local', 'wrong', ACTOR).catch(() => null);
 
       expect(hasher.verify).toHaveBeenCalledTimes(1);
     });
@@ -177,9 +194,9 @@ describe('AuthService', () => {
       findByEmail.mockResolvedValue(null);
       hasher.verify.mockResolvedValue(true);
 
-      await expect(service.login('nobody@cmpc.local', 'x')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(
+        service.login('nobody@cmpc.local', 'x', ACTOR),
+      ).rejects.toThrow(UnauthorizedException);
     });
 
     it('does not sign anything when the login fails', async () => {
@@ -187,7 +204,7 @@ describe('AuthService', () => {
       findByEmail.mockResolvedValue(user);
       hasher.verify.mockResolvedValue(false);
 
-      await service.login('admin@cmpc.local', 'wrong').catch(() => null);
+      await service.login('admin@cmpc.local', 'wrong', ACTOR).catch(() => null);
 
       expect(sign).not.toHaveBeenCalled();
     });
@@ -197,9 +214,9 @@ describe('AuthService', () => {
     it('propagates a database error instead of pretending the login failed', async () => {
       findByEmail.mockRejectedValue(new Error('connection lost'));
 
-      await expect(service.login('admin@cmpc.local', 'x')).rejects.toThrow(
-        'connection lost',
-      );
+      await expect(
+        service.login('admin@cmpc.local', 'x', ACTOR),
+      ).rejects.toThrow('connection lost');
     });
 
     it('fails to start if the dummy hash cannot be built', async () => {
@@ -208,6 +225,93 @@ describe('AuthService', () => {
       await expect(service.onModuleInit()).rejects.toThrow(
         'argon2 unavailable',
       );
+    });
+  });
+
+  describe('audit trail', () => {
+    const entries = () =>
+      audit.logBestEffort.mock.calls.map(([entry]) => entry as unknown);
+
+    it('records LOGIN_SUCCESS with the user and the ip', async () => {
+      findByEmail.mockResolvedValue(user);
+      hasher.verify.mockResolvedValue(true);
+
+      await service.login('admin@cmpc.local', 'secret-pass', ACTOR);
+
+      expect(entries()).toEqual([
+        {
+          action: 'LOGIN_SUCCESS',
+          entity: 'User',
+          entityId: user.id,
+          actor: { userId: user.id, ip: '203.0.113.7' },
+        },
+      ]);
+    });
+
+    it('records LOGIN_FAILED with the user when the password is wrong', async () => {
+      findByEmail.mockResolvedValue(user);
+      hasher.verify.mockResolvedValue(false);
+
+      await service.login('admin@cmpc.local', 'wrong', ACTOR).catch(() => null);
+
+      expect(entries()).toEqual([
+        {
+          action: 'LOGIN_FAILED',
+          entity: 'User',
+          entityId: user.id,
+          actor: { userId: user.id, ip: '203.0.113.7' },
+        },
+      ]);
+    });
+
+    it('records LOGIN_FAILED without a user when the email does not exist', async () => {
+      findByEmail.mockResolvedValue(null);
+      hasher.verify.mockResolvedValue(false);
+
+      await service.login('nobody@cmpc.local', 'x', ACTOR).catch(() => null);
+
+      expect(entries()).toEqual([
+        {
+          action: 'LOGIN_FAILED',
+          entity: 'User',
+          entityId: null,
+          actor: { userId: null, ip: '203.0.113.7' },
+        },
+      ]);
+    });
+
+    it('writes one entry in every outcome, so the work does not reveal which emails exist', async () => {
+      hasher.verify.mockResolvedValue(false);
+      findByEmail.mockResolvedValueOnce(user);
+      await service.login('admin@cmpc.local', 'wrong', ACTOR).catch(() => null);
+      findByEmail.mockResolvedValueOnce(null);
+      await service
+        .login('nobody@cmpc.local', 'wrong', ACTOR)
+        .catch(() => null);
+
+      expect(audit.logBestEffort).toHaveBeenCalledTimes(2);
+    });
+
+    it('never stores the email that was typed, the password or the token', async () => {
+      findByEmail.mockResolvedValue(null);
+      hasher.verify.mockResolvedValue(false);
+      await service
+        .login('someone.typed@this.com', 'my-password-123', ACTOR)
+        .catch(() => null);
+      findByEmail.mockResolvedValue(user);
+      hasher.verify.mockResolvedValue(true);
+      const { accessToken } = await service.login(
+        'admin@cmpc.local',
+        'my-password-123',
+        ACTOR,
+      );
+
+      const written = JSON.stringify(entries());
+      expect(written).not.toContain('someone.typed@this.com');
+      expect(written).not.toContain('admin@cmpc.local');
+      expect(written).not.toContain('my-password-123');
+      expect(written).not.toContain(user.passwordHash);
+      expect(written).not.toContain(accessToken);
     });
   });
 });

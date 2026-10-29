@@ -50,7 +50,9 @@ const valid = {
 /** The real Passport guard, validation pipe, filter and interceptor; only the database is faked. */
 describe('books over HTTP (real Passport)', () => {
   const tx = {
-    book: { create: jest.fn(), update: jest.fn() },
+    book: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
+    auditLog: { create: jest.fn() },
+    $queryRaw: jest.fn().mockResolvedValue([]),
     author: { findFirst: jest.fn(), upsert: jest.fn() },
     publisher: { findFirst: jest.fn(), upsert: jest.fn() },
     genre: { findFirst: jest.fn(), upsert: jest.fn() },
@@ -122,6 +124,8 @@ describe('books over HTTP (real Passport)', () => {
     findUnique.mockReset().mockResolvedValue(row);
     tx.book.create.mockReset().mockResolvedValue(row);
     tx.book.update.mockReset().mockResolvedValue(row);
+    tx.book.findUnique.mockReset().mockResolvedValue(row);
+    tx.auditLog.create.mockReset().mockResolvedValue({});
     for (const catalog of [tx.author, tx.publisher, tx.genre]) {
       catalog.findFirst.mockReset().mockResolvedValue(null);
       catalog.upsert.mockReset().mockResolvedValue({ id: 'new' });

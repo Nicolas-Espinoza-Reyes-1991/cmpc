@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { AuditSnapshot } from '../audit/audit.types';
 import type { BookDto } from './dto/book.dto';
 
 /** What every book query includes, so the mapper can read the catalog names. */
@@ -29,5 +30,22 @@ export function toBookDto(book: BookWithCatalogs): BookDto {
     imageUrl: book.imageUrl,
     createdAt: book.createdAt,
     updatedAt: book.updatedAt,
+  };
+}
+
+/**
+ * What the audit trail keeps of a book: its business data, without timestamps
+ * (the entry has its own) and without anything internal (G2.7).
+ */
+export function toAuditSnapshot(book: BookDto): AuditSnapshot {
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author,
+    publisher: book.publisher,
+    genre: book.genre,
+    price: book.price,
+    availability: book.availability,
+    imageUrl: book.imageUrl,
   };
 }

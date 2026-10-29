@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import type { AuditActor } from '../audit/audit.types';
 import { CatalogService } from '../catalog/catalog.service';
 import type { PaginatedResult } from '../common/types/api-response.types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,7 +15,7 @@ import {
   buildBookWhere,
   sortCriteria,
 } from './book-list.query';
-import { BOOK_INCLUDE, toBookDto } from './book.mapper';
+import { BOOK_INCLUDE, toAuditSnapshot, toBookDto } from './book.mapper';
 import { ImageStorage } from './images/image-storage';
 import { sniffImageType } from './images/image-type';
 import type { BookDto } from './dto/book.dto';
@@ -25,6 +27,9 @@ import type { UploadedImage } from './images/image-upload.config';
 
 /** Books read from the database at a time while exporting. */
 export const EXPORT_BATCH_SIZE = 500;
+
+/** Name of the entity in the audit trail. */
+const AUDIT_ENTITY = 'Book';
 
 const NOT_FOUND_MESSAGE = 'Book not found';
 const DUPLICATE_MESSAGE =
@@ -57,7 +62,9 @@ const isBookDuplicate = (error: unknown): boolean =>
 /**
  * Every write runs in one transaction on `prisma.live` (which hides deleted
  * books): the catalog entries it creates and the book itself are saved together
- * or not at all (C2.5). `audit-log` will add its entry to the same transaction.
+ * or not at all (C2.5). The audit entry is written in the same transaction, so
+ * an operation without its entry (or an entry without its operation) cannot
+ * exist (G2.4).
  */
 @Injectable()
 export class BooksService {
@@ -65,9 +72,10 @@ export class BooksService {
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly storage: ImageStorage,
+    private readonly audit: AuditService,
   ) {}
 
-  async create(dto: CreateBookDto): Promise<BookDto> {
+  async create(dto: CreateBookDto, actor: AuditActor): Promise<BookDto> {
     try {
       return await this.prisma.live.$transaction(async (tx) => {
         const authorId = await this.catalog.resolve(tx, 'author', dto.author);
@@ -89,8 +97,15 @@ export class BooksService {
           },
           include: BOOK_INCLUDE,
         });
-        // audit-log adds here: await this.audit.log(tx, { action: 'CREATE', ... })
-        return toBookDto(book);
+        const created = toBookDto(book);
+        await this.audit.log(tx, {
+          action: 'CREATE',
+          entity: AUDIT_ENTITY,
+          entityId: created.id,
+          after: toAuditSnapshot(created),
+          actor,
+        });
+        return created;
       });
     } catch (error) {
       throw this.translate(error);
@@ -162,13 +177,18 @@ export class BooksService {
     return toBookDto(book);
   }
 
-  async update(id: string, dto: UpdateBookDto): Promise<BookDto> {
+  async update(
+    id: string,
+    dto: UpdateBookDto,
+    actor: AuditActor,
+  ): Promise<BookDto> {
     if (Object.values(dto).every((value) => value === undefined)) {
       throw new BadRequestException(EMPTY_UPDATE_MESSAGE);
     }
 
     try {
       return await this.prisma.live.$transaction(async (tx) => {
+        const before = await this.readForAudit(tx, id);
         // Only the catalogs that came in the body are resolved (and created).
         const authorId =
           dto.author === undefined
@@ -197,8 +217,16 @@ export class BooksService {
           },
           include: BOOK_INCLUDE,
         });
-        // audit-log adds here: await this.audit.log(tx, { action: 'UPDATE', ... })
-        return toBookDto(book);
+        const updated = toBookDto(book);
+        await this.audit.log(tx, {
+          action: 'UPDATE',
+          entity: AUDIT_ENTITY,
+          entityId: id,
+          before: toAuditSnapshot(before),
+          after: toAuditSnapshot(updated),
+          actor,
+        });
+        return updated;
       });
     } catch (error) {
       throw this.translate(error);
@@ -206,14 +234,21 @@ export class BooksService {
   }
 
   /** Soft delete: the row stays, marked with the date (C5.1). */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor: AuditActor): Promise<void> {
     try {
       await this.prisma.live.$transaction(async (tx) => {
+        const before = await this.readForAudit(tx, id);
         await tx.book.update({
           where: { id },
           data: { deletedAt: new Date() },
         });
-        // audit-log adds here: await this.audit.log(tx, { action: 'DELETE', ... })
+        await this.audit.log(tx, {
+          action: 'DELETE',
+          entity: AUDIT_ENTITY,
+          entityId: id,
+          before: toAuditSnapshot(before),
+          actor,
+        });
       });
     } catch (error) {
       throw this.translate(error);
@@ -227,7 +262,11 @@ export class BooksService {
    * is removed; if deleting the old one fails only an unreferenced file is left.
    * The opposite order could leave a book pointing at a file that is not there.
    */
-  async setImage(id: string, image: UploadedImage): Promise<BookDto> {
+  async setImage(
+    id: string,
+    image: UploadedImage,
+    actor: AuditActor,
+  ): Promise<BookDto> {
     const type = sniffImageType(image.buffer);
     if (!type) throw new BadRequestException(INVALID_IMAGE_MESSAGE);
 
@@ -240,7 +279,7 @@ export class BooksService {
     const name = await this.storage.save(image.buffer, type.extension);
     let book: BookDto;
     try {
-      book = await this.updateImageUrl(id, this.storage.urlFor(name));
+      book = await this.updateImageUrl(id, this.storage.urlFor(name), actor);
     } catch (error) {
       await this.storage.remove(name);
       throw this.translate(error);
@@ -251,7 +290,7 @@ export class BooksService {
   }
 
   /** Removes the cover. A book without one is returned as it is (idempotent). */
-  async removeImage(id: string): Promise<BookDto> {
+  async removeImage(id: string, actor: AuditActor): Promise<BookDto> {
     const current = await this.prisma.live.book.findUnique({
       where: { id },
       include: BOOK_INCLUDE,
@@ -261,7 +300,7 @@ export class BooksService {
 
     let book: BookDto;
     try {
-      book = await this.updateImageUrl(id, null);
+      book = await this.updateImageUrl(id, null, actor);
     } catch (error) {
       throw this.translate(error);
     }
@@ -272,16 +311,47 @@ export class BooksService {
   private async updateImageUrl(
     id: string,
     imageUrl: string | null,
+    actor: AuditActor,
   ): Promise<BookDto> {
     return this.prisma.live.$transaction(async (tx) => {
+      const before = await this.readForAudit(tx, id);
       const book = await tx.book.update({
         where: { id },
         data: { imageUrl },
         include: BOOK_INCLUDE,
       });
-      // audit-log adds here: await this.audit.log(tx, { action: 'UPDATE', ... })
-      return toBookDto(book);
+      const updated = toBookDto(book);
+      await this.audit.log(tx, {
+        action: 'UPDATE',
+        entity: AUDIT_ENTITY,
+        entityId: id,
+        before: toAuditSnapshot(before),
+        after: toAuditSnapshot(updated),
+        actor,
+      });
+      return updated;
     });
+  }
+
+  /**
+   * The book as it is right now, read inside the transaction that is about to
+   * change it, so the `before` of the audit entry is exactly what gets
+   * overwritten. The row is locked first: two edits of the same book queue here
+   * instead of both reading the same state, which would leave a `before` that
+   * is not the `after` of the previous entry (found verifying against
+   * PostgreSQL). A missing or deleted book ends the transaction with a 404.
+   */
+  private async readForAudit(
+    tx: Pick<PrismaService['live'], 'book' | '$queryRaw'>,
+    id: string,
+  ): Promise<BookDto> {
+    await tx.$queryRaw`SELECT 1 FROM books WHERE id = ${id}::uuid FOR UPDATE`;
+    const book = await tx.book.findUnique({
+      where: { id },
+      include: BOOK_INCLUDE,
+    });
+    if (!book) throw new NotFoundException(NOT_FOUND_MESSAGE);
+    return toBookDto(book);
   }
 
   /** Deletes the file behind an `imageUrl`, if it is one of ours. */

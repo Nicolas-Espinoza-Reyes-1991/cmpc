@@ -64,6 +64,7 @@ const STORED = /^\/api\/uploads\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
 describe('book image over HTTP (real multipart and real files)', () => {
   const update = jest.fn();
   const findUnique = jest.fn();
+  const auditCreate = jest.fn();
   const $transaction = jest.fn();
   let uploadDir: string;
   let app: NestExpressApplication;
@@ -126,10 +127,15 @@ describe('book image over HTTP (real multipart and real files)', () => {
         Promise.resolve(bookRow(data.imageUrl)),
       );
     findUnique.mockReset().mockResolvedValue(bookRow(null));
+    auditCreate.mockReset().mockResolvedValue({});
     $transaction
       .mockReset()
       .mockImplementation((work: (tx: unknown) => Promise<unknown>) =>
-        work({ book: { update } }),
+        work({
+          $queryRaw: () => Promise.resolve([]),
+          book: { update, findUnique },
+          auditLog: { create: auditCreate },
+        }),
       );
   });
 

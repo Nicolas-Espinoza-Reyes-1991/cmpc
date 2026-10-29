@@ -10,6 +10,8 @@ const loginResult: LoginResult = {
   user: { id: 'user-1', email: 'admin@cmpc.local' },
 };
 
+const ACTOR = { userId: null, ip: '203.0.113.7' };
+
 describe('AuthController', () => {
   const login = jest.fn();
   let controller: AuthController;
@@ -28,20 +30,23 @@ describe('AuthController', () => {
   });
 
   it('delegates the login to the service with the email and password of the body', async () => {
-    const result = await controller.login({
-      email: 'admin@cmpc.local',
-      password: 'secret',
-    });
+    const result = await controller.login(
+      {
+        email: 'admin@cmpc.local',
+        password: 'secret',
+      },
+      ACTOR,
+    );
 
     expect(result).toBe(loginResult);
-    expect(login).toHaveBeenCalledWith('admin@cmpc.local', 'secret');
+    expect(login).toHaveBeenCalledWith('admin@cmpc.local', 'secret', ACTOR);
   });
 
   it('lets a failed login propagate', async () => {
     login.mockRejectedValue(new Error('invalid'));
 
     await expect(
-      controller.login({ email: 'a@b.co', password: 'x' }),
+      controller.login({ email: 'a@b.co', password: 'x' }, ACTOR),
     ).rejects.toThrow('invalid');
   });
 

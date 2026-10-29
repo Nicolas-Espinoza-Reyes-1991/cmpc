@@ -20,6 +20,7 @@ const LOGIN = '/api/auth/login';
 
 let passwordHash: string;
 let userExists = true;
+const auditCreate = jest.fn();
 const findUnique = jest.fn(
   ({ where }: { where: { email?: string; id?: string } }) => {
     if (!userExists) return Promise.resolve(null);
@@ -60,7 +61,7 @@ async function createApp(throttle: {
     ],
   })
     .overrideProvider(PrismaService)
-    .useValue({ user: { findUnique } })
+    .useValue({ user: { findUnique }, auditLog: { create: auditCreate } })
     .compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({
