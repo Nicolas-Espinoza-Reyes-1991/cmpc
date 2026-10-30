@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { formatDateTime, formatPrice } from '../lib/format';
 import type { Book, SortCriterion, SortField } from '../types/book';
+import { BookCoverCell } from './BookCoverCell';
+import { BookDownloadCell } from './BookDownloadCell';
 
 interface Column {
   field: SortField;
@@ -72,12 +75,28 @@ function SortHeader({
 
 /** The books of one page, with headers that order the listing when pressed. */
 export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
+  // The covers that did not load. A row only gives up its own picture and
+  // download, and a new upload has another URL, so it is tried again.
+  const [brokenCovers, setBrokenCovers] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+
+  const markBroken = (imageUrl: string) =>
+    setBrokenCovers((current) => new Set(current).add(imageUrl));
+
   return (
     <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
       <table aria-busy={busy} className="min-w-full divide-y divide-slate-200">
         <caption className="sr-only">Libros</caption>
         <thead className="bg-slate-50">
           <tr>
+            {/* Not sortable: the API does not order by "has a cover". */}
+            <th
+              scope="col"
+              className="px-3 py-2 text-left text-sm font-semibold text-slate-700"
+            >
+              Portada
+            </th>
             {COLUMNS.map((column) => (
               <SortHeader
                 key={column.field}
@@ -86,43 +105,63 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
                 onSort={onSort}
               />
             ))}
+            <th scope="col" className="px-3 py-2">
+              <span className="sr-only">Descargar portada</span>
+            </th>
           </tr>
         </thead>
         <tbody
           className={`divide-y divide-slate-100 ${busy ? 'opacity-60' : ''}`}
         >
-          {books.map((book) => (
-            <tr key={book.id}>
-              <td className="px-3 py-2">
-                <Link
-                  to={`/books/${book.id}`}
-                  className="font-medium text-blue-700 underline-offset-2 hover:underline"
-                >
-                  {book.title}
-                </Link>
-              </td>
-              <td className="px-3 py-2 text-slate-700">{book.author}</td>
-              <td className="px-3 py-2 text-slate-700">{book.publisher}</td>
-              <td className="px-3 py-2 text-slate-700">{book.genre}</td>
-              <td className="px-3 py-2 text-right text-slate-900">
-                {formatPrice(book.price)}
-              </td>
-              <td className="px-3 py-2">
-                <span
-                  className={
-                    book.availability
-                      ? 'rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800'
-                      : 'rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700'
-                  }
-                >
-                  {book.availability ? 'Disponible' : 'No disponible'}
-                </span>
-              </td>
-              <td className="px-3 py-2 text-sm text-slate-600">
-                {formatDateTime(book.createdAt)}
-              </td>
-            </tr>
-          ))}
+          {books.map((book) => {
+            const broken =
+              book.imageUrl !== null && brokenCovers.has(book.imageUrl);
+            // What is on screen: nothing to show or download when it did not load.
+            const cover = broken ? null : book.imageUrl;
+            return (
+              <tr key={book.id}>
+                <td className="px-3 py-2">
+                  <BookCoverCell
+                    title={book.title}
+                    imageUrl={cover}
+                    broken={broken}
+                    onError={markBroken}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <Link
+                    to={`/books/${book.id}`}
+                    className="font-medium text-blue-700 underline-offset-2 hover:underline"
+                  >
+                    {book.title}
+                  </Link>
+                </td>
+                <td className="px-3 py-2 text-slate-700">{book.author}</td>
+                <td className="px-3 py-2 text-slate-700">{book.publisher}</td>
+                <td className="px-3 py-2 text-slate-700">{book.genre}</td>
+                <td className="px-3 py-2 text-right text-slate-900">
+                  {formatPrice(book.price)}
+                </td>
+                <td className="px-3 py-2">
+                  <span
+                    className={
+                      book.availability
+                        ? 'rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800'
+                        : 'rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700'
+                    }
+                  >
+                    {book.availability ? 'Disponible' : 'No disponible'}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-sm text-slate-600">
+                  {formatDateTime(book.createdAt)}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <BookDownloadCell title={book.title} imageUrl={cover} />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

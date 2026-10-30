@@ -126,6 +126,30 @@ describe('BooksPage', () => {
       expect(await screen.findByText('1 resultado')).toBeInTheDocument();
     });
 
+    it('shows the cover and a download only for the books that have one', async () => {
+      start(
+        page([
+          book(1, { imageUrl: '/api/uploads/cover-1.png' }),
+          book(2, { imageUrl: null }),
+        ]),
+      );
+
+      expect(
+        await screen.findByRole('button', {
+          name: 'Ampliar portada de Libro 1',
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Descargar portada de Libro 1' }),
+      ).toHaveAttribute('download', 'libro-1.png');
+      expect(
+        screen.getByRole('img', { name: 'Libro 2 todavía no tiene portada' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'Descargar portada de Libro 2' }),
+      ).not.toBeInTheDocument();
+    });
+
     it('keeps the way into the new book form', async () => {
       start(page([book(1)]));
 

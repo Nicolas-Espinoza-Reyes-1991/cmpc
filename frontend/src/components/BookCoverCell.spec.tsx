@@ -66,6 +66,7 @@ describe('BookCoverCell', () => {
     fireEvent.error(screen.getByRole('img', { name: 'Portada de Dune' }));
 
     expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(src);
   });
 
   it('shows a marker of the same size when the book has no cover', () => {

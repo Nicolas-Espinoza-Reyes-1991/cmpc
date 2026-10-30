@@ -13,7 +13,7 @@ Marcar con `[x]` al terminar.
   - `BookCoverCell` y `BookDownloadCell`, con su estado de imagen rota.
   - Commit: `feat(frontend): add the cover and download cells of the books table`
 
-- [ ] **M-03 La tabla** (M3.2, M3.4)
+- [x] **M-03 La tabla** (M3.2, M3.4)
   - `BookTable` con la columna de portada al inicio y la de descarga al final, sin ordenar; la imagen rota de una fila no afecta a las demás.
   - Commit: `feat(frontend): show the cover and a download button in the books table`
 

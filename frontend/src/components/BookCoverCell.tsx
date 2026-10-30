@@ -6,8 +6,8 @@ interface BookCoverCellProps {
   imageUrl: string | null;
   /** The book has a cover but its file did not load (it says so to screen readers). */
   broken: boolean;
-  /** Called when the file fails to load. */
-  onError: () => void;
+  /** Called with the URL of the file when it fails to load. */
+  onError: (imageUrl: string) => void;
 }
 
 /**
@@ -23,7 +23,12 @@ export function BookCoverCell({
 }: BookCoverCellProps) {
   if (imageUrl) {
     return (
-      <CoverPreview src={imageUrl} title={title} onError={onError} size="row" />
+      <CoverPreview
+        src={imageUrl}
+        title={title}
+        onError={() => onError(imageUrl)}
+        size="row"
+      />
     );
   }
 
