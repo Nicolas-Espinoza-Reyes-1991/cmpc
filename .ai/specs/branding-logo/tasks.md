@@ -9,7 +9,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `lint`, `tsc`, build y pruebas pasan; el build publica el logo con *hash*.
   - Commit: `feat(frontend): add the CMPC logo component`
 
-- [ ] **B-02 Cabecera y login** (B1.1, B1.2, B3.1, B3.3, B5.1)
+- [x] **B-02 Cabecera y login** (B1.1, B1.2, B3.1, B3.3, B5.1)
   - Usar el logo en `AppLayout` (enlace a `/books`) y en `LoginPage`; actualizar sus pruebas.
   - Commit: `feat(frontend): show the CMPC logo in the header and the login`
 
