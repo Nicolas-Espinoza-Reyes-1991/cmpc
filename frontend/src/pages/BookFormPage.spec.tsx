@@ -5,6 +5,7 @@ import {
   RouterProvider,
   type RouteObject,
 } from 'react-router';
+import { SERVER_FIELD_MESSAGE } from '../lib/api-error';
 import { bookKey } from '../hooks/useBook';
 import { emptyCatalogs } from '../test/catalog-routes';
 import { mockApi, type MockApi, type MockRoute } from '../test/mock-api';
@@ -157,7 +158,9 @@ describe('BookFormPage', () => {
       await fillAndSubmit();
 
       await waitFor(() =>
-        expect(field('Título')).toHaveAccessibleDescription('title is taken'),
+        expect(field('Título')).toHaveAccessibleDescription(
+          SERVER_FIELD_MESSAGE,
+        ),
       );
     });
   });

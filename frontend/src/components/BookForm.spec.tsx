@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { ApiError } from '../lib/api-error';
+import { ApiError, SERVER_FIELD_MESSAGE } from '../lib/api-error';
 import { FormMessageError } from '../lib/form-message-error';
 import type { BookFormValues } from '../lib/book-schema';
 import { emptyCatalogs } from '../test/catalog-routes';
@@ -255,7 +255,7 @@ describe('BookForm', () => {
   });
 
   describe('when saving fails', () => {
-    it('shows each message of a 400 under its own field, not in the alert', async () => {
+    it('shows each rejected field under its own field, in Spanish, not in the alert', async () => {
       renderForm({
         onSubmit: () =>
           Promise.reject(
@@ -271,12 +271,11 @@ describe('BookForm', () => {
 
       await waitFor(() =>
         expect(field('Título')).toHaveAccessibleDescription(
-          'title should not be empty',
+          SERVER_FIELD_MESSAGE,
         ),
       );
-      expect(field('Precio')).toHaveAccessibleDescription(
-        'must be a number too small',
-      );
+      expect(field('Precio')).toHaveAccessibleDescription(SERVER_FIELD_MESSAGE);
+      expect(screen.queryByText(/should not be empty/)).not.toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
@@ -293,7 +292,7 @@ describe('BookForm', () => {
 
       await userEvent.click(submitButton());
 
-      expect(await screen.findByText('must be a boolean')).toBeInTheDocument();
+      expect(await screen.findByText(SERVER_FIELD_MESSAGE)).toBeInTheDocument();
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 

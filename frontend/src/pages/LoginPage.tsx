@@ -4,7 +4,11 @@ import { useForm } from 'react-hook-form';
 import { Navigate, useLocation } from 'react-router';
 import { AuthStatusScreen } from '../components/AuthStatusScreen';
 import { useAuth } from '../hooks/useAuth';
-import { ApiError, getErrorMessage } from '../lib/api-error';
+import {
+  ApiError,
+  getErrorMessage,
+  SERVER_FIELD_MESSAGE,
+} from '../lib/api-error';
 import { loginSchema, type LoginFormValues } from '../lib/login-schema';
 import { redirectTarget } from '../lib/redirect';
 
@@ -59,8 +63,8 @@ export function LoginPage() {
     }
 
     // Only the errors of fields this form has; flatMap narrows the name to `Field`.
-    const fieldErrors = error.fieldErrors.flatMap(({ field, messages }) =>
-      isField(field) ? [{ field, message: messages.join(' ') }] : [],
+    const fieldErrors = error.fieldErrors.flatMap(({ field }) =>
+      isField(field) ? [{ field, message: SERVER_FIELD_MESSAGE }] : [],
     );
     if (error.status === 400 && fieldErrors.length > 0) {
       for (const { field, message } of fieldErrors) {

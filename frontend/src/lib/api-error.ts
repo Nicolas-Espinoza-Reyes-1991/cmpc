@@ -44,6 +44,14 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Shown under a field the server rejected. The server's own messages are in
+ * English (they are the API contract and stay in `serverMessage`). The client
+ * schemas check the same rules in Spanish first, so this is reached only when
+ * the two disagree, and the user still gets a message in their language.
+ */
+export const SERVER_FIELD_MESSAGE = 'Este valor no es válido. Revísalo.';
+
 /** User-facing Spanish message for an HTTP status. */
 export function messageForStatus(status: number): string {
   switch (status) {
