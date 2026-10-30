@@ -9,7 +9,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: la ficha se ve igual (pruebas de `BookDetailPage` sin cambios) y las pruebas de ambos componentes cubren las dos variantes.
   - Commit: `feat(frontend): add a compact size to the cover components`
 
-- [ ] **M-02 Celdas de portada y de descarga** (M1.1 a M1.4, M2.1 a M2.4)
+- [x] **M-02 Celdas de portada y de descarga** (M1.1 a M1.4, M2.1 a M2.4)
   - `BookCoverCell` y `BookDownloadCell`, con su estado de imagen rota.
   - Commit: `feat(frontend): add the cover and download cells of the books table`
 
