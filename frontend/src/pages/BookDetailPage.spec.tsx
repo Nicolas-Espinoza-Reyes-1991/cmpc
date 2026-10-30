@@ -170,6 +170,32 @@ describe('BookDetailPage', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('lists the actions in one order, the same on phones and on desktop', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/api/uploads/dune.png' } },
+        },
+      });
+      renderAt();
+      await screen.findByRole('heading', { name: 'Dune' });
+
+      // The thumbnail button and the dialogs' buttons are not page actions.
+      const actions = [
+        ...document.querySelectorAll('main a[href], main button'),
+      ]
+        .filter(
+          (element) =>
+            !element.closest('dialog') && !element.hasAttribute('aria-label'),
+        )
+        .map((element) => element.textContent?.trim());
+      expect(actions).toEqual([
+        'Editar',
+        'Descargar portada',
+        'Eliminar',
+        'Volver a los libros',
+      ]);
+    });
+
     it('shows a placeholder when the cover file cannot be loaded', async () => {
       start({
         [`GET /books/${ID}`]: {

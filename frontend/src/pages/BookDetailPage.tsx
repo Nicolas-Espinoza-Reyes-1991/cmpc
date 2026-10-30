@@ -13,7 +13,7 @@ import { deleteBook } from '../services/books.service';
 import type { Book } from '../types/book';
 
 function Page({ children }: { children: ReactNode }) {
-  return <main className="mx-auto max-w-3xl p-8">{children}</main>;
+  return <main className="mx-auto max-w-3xl px-4 py-6 sm:p-8">{children}</main>;
 }
 
 function Detail({ label, children }: { label: string; children: ReactNode }) {
@@ -27,6 +27,10 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 /** Same size for the thumbnail and the placeholder, so the page does not move. */
 const COVER_SIZE = 'mx-auto aspect-[2/3] w-40 sm:w-full';
+
+/** Actions take the full width on phones and a row from 640 px; at least 44 px tall to touch. */
+const ACTION =
+  'flex min-h-11 items-center justify-center rounded-md px-4 py-2 font-medium';
 
 /** `broken` is set by the page when the cover file fails to load. */
 function Cover({
@@ -124,7 +128,7 @@ function BookDetail({ id }: { id: string }) {
 
   return (
     <Page>
-      <div className="grid gap-8 sm:grid-cols-[12rem_1fr]">
+      <div className="grid gap-6 sm:grid-cols-[12rem_1fr] sm:gap-8">
         <Cover
           book={book}
           broken={coverBroken}
@@ -132,7 +136,7 @@ function BookDetail({ id }: { id: string }) {
         />
 
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <h1 className="text-2xl font-semibold break-words text-slate-900">
             {book.title}
           </h1>
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -157,10 +161,10 @@ function BookDetail({ id }: { id: string }) {
             </Detail>
           </dl>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Link
               to={`/books/${id}/edit`}
-              className="rounded-md bg-blue-700 px-4 py-2 font-medium text-white hover:bg-blue-800 focus:outline-2 focus:outline-offset-2 focus:outline-blue-700"
+              className={`${ACTION} bg-blue-700 text-white hover:bg-blue-800 focus:outline-2 focus:outline-offset-2 focus:outline-blue-700`}
             >
               Editar
             </Link>
@@ -170,13 +174,13 @@ function BookDetail({ id }: { id: string }) {
             <button
               type="button"
               onClick={() => setConfirming(true)}
-              className="rounded-md border border-red-300 px-4 py-2 font-medium text-red-700 hover:bg-red-50 focus:outline-2 focus:outline-offset-2 focus:outline-red-700"
+              className={`${ACTION} border border-red-300 text-red-700 hover:bg-red-50 focus:outline-2 focus:outline-offset-2 focus:outline-red-700`}
             >
               Eliminar
             </button>
             <Link
               to="/books"
-              className="rounded-md px-4 py-2 text-slate-700 underline hover:text-slate-900"
+              className={`${ACTION} text-slate-700 underline hover:text-slate-900`}
             >
               Volver a los libros
             </Link>
