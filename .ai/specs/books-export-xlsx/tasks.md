@@ -5,7 +5,7 @@ Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de deci
 Marcar con `[x]` al terminar.
 
 ## Backend
-- [ ] **E-01 Dependencia y generador del archivo** (E2.1 a E2.5, E5.1)
+- [x] **E-01 Dependencia y generador del archivo** (E2.1 a E2.5, E5.1)
   - Instalar `write-excel-file` 4.1.1 exacta (CommonJS) y escribir `book-xlsx.ts`: tope, tipo de contenido, nombre del archivo y `buildBooksXlsx`; el ayudante de pruebas que descomprime un `.xlsx`.
   - Pruebas: encabezados y orden, tipos y formatos de precio y fechas, `Sí`/`No`, anchos, fila fija, hoja «Libros», vacío y un título `=HYPERLINK(...)` guardado como texto.
   - Hecho cuando: `lint`, `tsc`, build, `test:cov` y `npm audit --omit=dev` (0) pasan.
