@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation } from 'react-router';
 import { AuthStatusScreen } from '../components/AuthStatusScreen';
+import { Logo } from '../components/Logo';
 import { useAuth } from '../hooks/useAuth';
 import {
   ApiError,
@@ -96,8 +97,8 @@ export function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow">
-        <p className="text-sm font-medium text-slate-500">CMPC Libros</p>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-900">
+        <Logo className="mx-auto h-14" />
+        <h1 className="mt-6 text-2xl font-semibold text-slate-900">
           Iniciar sesión
         </h1>
 

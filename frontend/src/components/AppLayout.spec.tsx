@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { session } from '../lib/session';
@@ -31,11 +31,27 @@ describe('AppLayout', () => {
     api.restore();
   });
 
-  it('shows the application name and who is signed in', async () => {
+  it('shows the logo and who is signed in', async () => {
     renderBooks();
 
     expect(await screen.findByText(ADMIN.email)).toBeInTheDocument();
-    expect(screen.getByText('CMPC Libros')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('banner')).getByRole('img', {
+        name: 'CMPC Libros',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('takes the logo back to the list of books', async () => {
+    const router = renderBooks();
+    await screen.findByText(ADMIN.email);
+    await router.navigate('/books/new');
+
+    await userEvent.click(
+      screen.getByRole('link', { name: 'CMPC Libros, ir al listado' }),
+    );
+
+    expect(router.state.location.pathname).toBe('/books');
   });
 
   it('renders the protected page inside the layout', async () => {
