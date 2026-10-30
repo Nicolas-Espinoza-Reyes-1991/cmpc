@@ -124,6 +124,28 @@ describe('BookDetailPage', () => {
 
       const cover = await screen.findByRole('img', { name: 'Portada de Dune' });
       expect(cover).toHaveAttribute('src', '/uploads/dune.png');
+      expect(cover).toHaveAttribute('loading', 'lazy');
+      expect(cover).toHaveAttribute('decoding', 'async');
+    });
+
+    it('shows a placeholder when the cover file cannot be loaded', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/uploads/roto.png' } },
+        },
+      });
+      renderAt();
+
+      fireEvent.error(
+        await screen.findByRole('img', { name: 'Portada de Dune' }),
+      );
+
+      expect(
+        screen.getByRole('img', { name: 'La portada no se pudo cargar' }),
+      ).toHaveTextContent('Sin portada');
+      expect(
+        screen.queryByRole('img', { name: 'Portada de Dune' }),
+      ).not.toBeInTheDocument();
     });
 
     it('shows a placeholder when the book has no cover', async () => {

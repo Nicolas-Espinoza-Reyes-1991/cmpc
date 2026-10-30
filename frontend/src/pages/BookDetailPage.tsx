@@ -23,21 +23,33 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** Same size for the image and the placeholder, so the page does not move. */
+const COVER_SIZE = 'mx-auto aspect-[2/3] w-40 sm:w-full';
+
 function Cover({ book }: { book: Book }) {
-  if (book.imageUrl) {
+  // A file that fails to load shows the placeholder. The parent gives this a new `key` per image, so a new upload is tried again.
+  const [failed, setFailed] = useState(false);
+  if (book.imageUrl && !failed) {
     return (
       <img
         src={book.imageUrl}
         alt={`Portada de ${book.title}`}
-        className="aspect-[2/3] w-full rounded-md border border-slate-200 object-cover"
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+        className={`${COVER_SIZE} rounded-md border border-slate-200 object-cover`}
       />
     );
   }
   return (
     <div
       role="img"
-      aria-label="Este libro todavía no tiene portada"
-      className="flex aspect-[2/3] w-full items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-100 text-sm text-slate-500"
+      aria-label={
+        failed
+          ? 'La portada no se pudo cargar'
+          : 'Este libro todavía no tiene portada'
+      }
+      className={`${COVER_SIZE} flex items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-100 text-sm text-slate-500`}
     >
       Sin portada
     </div>
@@ -107,7 +119,7 @@ function BookDetail({ id }: { id: string }) {
   return (
     <Page>
       <div className="grid gap-8 sm:grid-cols-[12rem_1fr]">
-        <Cover book={book} />
+        <Cover key={book.imageUrl ?? ''} book={book} />
 
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
