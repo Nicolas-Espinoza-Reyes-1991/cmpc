@@ -2,7 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { useForm, useWatch, type DefaultValues } from 'react-hook-form';
 import { Link } from 'react-router';
-import { ApiError, getErrorMessage } from '../lib/api-error';
+import {
+  ApiError,
+  getErrorMessage,
+  SERVER_FIELD_MESSAGE,
+} from '../lib/api-error';
 import { FormMessageError } from '../lib/form-message-error';
 import { bookSchema, type BookFormValues } from '../lib/book-schema';
 import type { ImageChoice } from '../types/book';
@@ -89,8 +93,8 @@ export function BookForm({
     }
 
     // Only the errors of fields this form has; flatMap narrows the name to `Field`.
-    const fieldErrors = error.fieldErrors.flatMap(({ field, messages }) =>
-      isField(field) ? [{ field, message: messages.join(' ') }] : [],
+    const fieldErrors = error.fieldErrors.flatMap(({ field }) =>
+      isField(field) ? [{ field, message: SERVER_FIELD_MESSAGE }] : [],
     );
     if (error.status === 400 && fieldErrors.length > 0) {
       for (const { field, message } of fieldErrors) {

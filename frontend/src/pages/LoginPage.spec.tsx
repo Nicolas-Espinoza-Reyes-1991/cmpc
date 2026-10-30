@@ -7,6 +7,7 @@ import {
 } from 'react-router';
 import { AppProviders } from '../components/AppProviders';
 import { setUnauthorizedHandler } from '../lib/api-client';
+import { SERVER_FIELD_MESSAGE } from '../lib/api-error';
 import { session } from '../lib/session';
 import { mockApi, type MockApi, type MockReply } from '../test/mock-api';
 import type { LoginResponse } from '../types/auth';
@@ -367,9 +368,8 @@ describe('LoginPage', () => {
 
       await fillAndSubmit();
 
-      expect(
-        await screen.findByText('email must be an email'),
-      ).toBeInTheDocument();
+      expect(await screen.findByText(SERVER_FIELD_MESSAGE)).toBeInTheDocument();
+      expect(screen.queryByText(/must be an email/)).not.toBeInTheDocument();
       expect(emailField()).toHaveAttribute('aria-invalid', 'true');
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
