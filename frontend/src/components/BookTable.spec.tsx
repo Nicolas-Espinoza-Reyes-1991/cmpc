@@ -60,7 +60,7 @@ describe('BookTable', () => {
       'Precio',
       'Disponibilidad',
       'Registrado',
-      'Descargar portada',
+      'Acciones',
     ]);
   });
 
@@ -80,10 +80,7 @@ describe('BookTable', () => {
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
     const first = within(rows[0] as HTMLElement);
-    expect(first.getByRole('link', { name: 'Dune' })).toHaveAttribute(
-      'href',
-      '/books/b1',
-    );
+    expect(first.getByText('Dune')).toBeInTheDocument();
     expect(first.getByText('Frank Herbert')).toBeInTheDocument();
     expect(first.getByText('Ace')).toBeInTheDocument();
     expect(first.getByText('Ciencia ficción')).toBeInTheDocument();
@@ -168,16 +165,16 @@ describe('BookTable', () => {
     const withCover = (id: string, title: string, name = id) =>
       book({ id, title, imageUrl: `/api/uploads/${name}.png` });
     const rowOf = (title: string) =>
-      screen.getByRole('link', { name: title }).closest('tr') as HTMLElement;
+      screen
+        .getByRole('link', { name: `Ver detalle de ${title}` })
+        .closest('tr') as HTMLElement;
 
-    it('puts the cover first and the download last, and neither can be ordered', () => {
+    it('puts the cover first and the actions last, and neither can be ordered', () => {
       renderTable({ books: [withCover('b1', 'Dune')] });
 
       const headers = screen.getAllByRole('columnheader');
       expect(headers[0]).toHaveTextContent('Portada');
-      expect(headers[headers.length - 1]).toHaveTextContent(
-        'Descargar portada',
-      );
+      expect(headers[headers.length - 1]).toHaveTextContent('Acciones');
       expect(
         within(headers[0] as HTMLElement).queryByRole('button'),
       ).toBeNull();
@@ -185,7 +182,7 @@ describe('BookTable', () => {
         within(headers.at(-1) as HTMLElement).queryByRole('button'),
       ).toBeNull();
       expect(headers[0]).not.toHaveAttribute('aria-sort');
-      // The cell of the row is where the header says: the cover first, the download last.
+      // The cell of the row is where the header says: the cover first, the actions last.
       const cells = within(rowOf('Dune')).getAllByRole('cell');
       expect(
         within(cells[0] as HTMLElement).getByRole('button', {
@@ -199,7 +196,7 @@ describe('BookTable', () => {
       ).toBeInTheDocument();
     });
 
-    it('keeps the hidden header text inside the scrolling box, so it cannot widen the page', () => {
+    it('scrolls inside its own box, so nothing in the table can widen the page', () => {
       renderTable({ books: [withCover('b1', 'Dune')] });
 
       const box = screen.getByRole('table', { name: 'Libros' }).parentElement;

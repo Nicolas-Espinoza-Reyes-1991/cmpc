@@ -114,10 +114,9 @@ describe('BooksPage', () => {
       release();
 
       expect(await screen.findByText('3 resultados')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Libro 2' })).toHaveAttribute(
-        'href',
-        '/books/id-2',
-      );
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 2' }),
+      ).toHaveAttribute('href', '/books/id-2');
     });
 
     it('asks for the first page of 10, newest first, without filters', async () => {
@@ -456,11 +455,13 @@ describe('BooksPage', () => {
       await waitFor(() =>
         expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'true'),
       );
-      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 1' }),
+      ).toBeInTheDocument();
 
       release();
       expect(
-        await screen.findByRole('link', { name: 'Libro 11' }),
+        await screen.findByRole('link', { name: 'Ver detalle de Libro 11' }),
       ).toBeInTheDocument();
       expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'false');
     });
@@ -711,7 +712,9 @@ describe('BooksPage', () => {
       expect(alert).toHaveTextContent('Ocurrió un error en el servidor');
       expect(saved).not.toHaveBeenCalled();
       // The list stays on screen.
-      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 1' }),
+      ).toBeInTheDocument();
 
       await userEvent.click(
         within(alert).getByRole('button', { name: 'Reintentar exportación' }),
@@ -858,7 +861,9 @@ describe('BooksPage', () => {
         'Hay demasiados libros para Excel (máximo 20.000). Aplica filtros o descarga el CSV.',
       );
       expect(saved).not.toHaveBeenCalled();
-      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 1' }),
+      ).toBeInTheDocument();
     });
 
     it('retries the same format that failed', async () => {

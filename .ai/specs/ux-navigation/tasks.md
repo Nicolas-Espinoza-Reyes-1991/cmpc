@@ -9,7 +9,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: pruebas de guardar/leer/borrar, sin `sessionStorage` y con error; `lint`, `tsc` y cobertura pasan.
   - Commit: `feat(frontend): remember the listing view of the tab`
 
-- [ ] **N-02 Botón «Ver» y columna «Acciones»** (N1.1 a N1.5, N5.1)
+- [x] **N-02 Botón «Ver» y columna «Acciones»** (N1.1 a N1.5, N5.1)
   - Título como texto; `BookActionsCell` con «Ver» y «Descargar»; encabezado visible.
   - Hecho cuando: pruebas de la tabla pasan y, en el navegador a 1400 px con palabras largas, no hay desplazamiento.
   - Commit: `feat(frontend): replace the title link with a View button in the books table`
