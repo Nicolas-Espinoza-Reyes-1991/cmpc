@@ -12,6 +12,7 @@
 - Configuración: `@nestjs/config` con validación de variables de entorno (`joi`)
 - Seguridad: `helmet` y `@nestjs/throttler`
 - Exportación CSV: `fast-csv` (streaming)
+- Exportación Excel (`.xlsx`): `write-excel-file` 4.1.1 (versión exacta)
 - Testing: Jest con `@nestjs/testing`; umbral de cobertura 80%
 
 ## Frontend
@@ -40,4 +41,5 @@ Las versiones exactas se fijan en cada `package.json` al crearlo. No usar `lates
 - Dependencias de Nest con línea CommonJS: `@nestjs/config` 4.x, no 12.x. La 12 es solo ESM y Jest (CommonJS) no puede cargarla. Lo mismo con `@nestjs/swagger` (11.4.x), `@nestjs/jwt` (11.x) y `@nestjs/passport` (11.x): sus versiones 12 son solo ESM. `@nestjs/throttler` 6.x sí es CommonJS y declara soporte para Nest 11. Al añadir paquetes `@nestjs/*`, comprobar que su versión sea compatible con Nest 11 y con CommonJS.
 - Frontend generado con `create-vite` 9 (Vite 8, React 19), con dos cambios sobre lo que genera: `typescript` fijado en la 5.9 (el generador trae la 7, pero `typescript-eslint` declara soporte solo para versiones menores de 6.1, y es la misma versión del backend) y ESLint 9 en lugar de `oxlint`, para tener las mismas reglas que el backend (`no-explicit-any`, reglas con tipos, Prettier). Vitest 5 y `@tailwindcss/vite` declaran compatibilidad con Vite 8. Prettier usa la misma configuración en ambas aplicaciones.
 - ESLint 9 sigue en ambos proyectos (npm avisa de que ya no tiene soporte). Subir backend y frontend a ESLint 10 queda como mejora futura; los plugins instalados ya lo declaran compatible.
+- Excel con `write-excel-file` 4.1.1 y no `exceljs` ni SheetJS: una sola dependencia transitiva (`fflate`), 1,8 MB, 0 hallazgos de `npm audit`, publicada en 2026 y con compilación CommonJS (`require` en su `exports`), que es la que usa el backend. `exceljs` trae 194 paquetes, 22 MB y hallazgos de `npm audit`, sin versión desde 2024; el `xlsx` de npm está desactualizado y vulnerable. La librería arma el libro en memoria, por eso la API limita el Excel a 20.000 filas (el CSV, en flujo, no tiene tope). Detalle en `.ai/specs/books-export-xlsx/design.md`.
 - Idioma: identificadores, código, mensajes de commit y respuestas de la API en inglés; documentación (README, specs, steering) y textos de la interfaz en español.

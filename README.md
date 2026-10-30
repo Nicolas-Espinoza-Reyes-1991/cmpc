@@ -40,7 +40,7 @@ Espera a que `docker compose ps` muestre los tres servicios *healthy*.
 **Qué mirar**
 1. **Libros → Nuevo libro:** crea varios (con una portada JPG/PNG/WebP y con un campo vacío para ver la validación).
 2. **Listado:** busca escribiendo, filtra por autor, editorial, género y disponibilidad, ordena pulsando dos encabezados y cambia de página.
-3. **Exportar CSV:** descarga los libros filtrados; ábrelo en Excel.
+3. **Exportar Excel** (o **Exportar CSV**): descarga los libros filtrados; el Excel se abre con cada campo en su columna.
 4. **Documentación de la API:** <http://localhost:8080/api/docs> (botón *Authorize* con el token del login).
 5. **Auditoría:** cada alta, edición, baja y login queda en la tabla `audit_logs`:
    ```bash
@@ -184,7 +184,9 @@ El backend, el seed y los *scripts* `prisma:*` leen el `.env` de la raíz (o `ba
 3. **Nuevo libro** (`/books/new`): título, autor, editorial, género, precio y disponibilidad. Autor, editorial y género se escriben (con sugerencias): si no existen, se crean. La **portada** es opcional (JPG, PNG o WebP de hasta 2 MB; el tipo se decide por el contenido del archivo, no por su nombre).
 4. **Detalle** (`/books/:id`): todos los datos y la portada, con acciones para editar y eliminar (con confirmación).
 5. **Editar**: cambia solo lo que quieras; la portada se puede reemplazar o quitar.
-6. **Exportar CSV**: el botón del listado descarga **todos** los libros que cumplen los filtros y el orden actuales (no solo la página visible). El archivo abre bien en Excel (UTF-8 con BOM). Si el valor de una celda empezara como una fórmula (`=`, `+`, `-`, `@`), se escapa para que la hoja de cálculo no la ejecute.
+6. **Exportar Excel** y **Exportar CSV**: los botones del listado descargan **todos** los libros que cumplen los filtros y el orden actuales (no solo la página visible).
+   - **Excel (`.xlsx`)**: una hoja «Libros» con **cada campo en su columna** (ID, título, autor, editorial, género, precio, disponible y fechas), encabezado en negrita y fijo, precio como número y fechas reales; funciona igual en Excel en cualquier idioma. Admite hasta **20.000 libros**; si hay más, avisa que apliques filtros o uses el CSV.
+   - **CSV**: sin tope y en flujo, para otras herramientas. Usa coma como separador: un Excel con la configuración regional en español puede mostrarlo todo en una columna (use «Datos → Desde texto/CSV» o el botón de Excel). Si el valor de una celda empezara como una fórmula (`=`, `+`, `-`, `@`), se escapa para que la hoja de cálculo no la ejecute.
 
 ### Con la API
 Referencia completa e interactiva en <http://localhost:8080/api/docs> (botón **Authorize**: pega el `accessToken` del login). Los ejemplos son de bash (en Windows, Git Bash o WSL; si un acento sale mal, es la codificación de la consola, no la API).
@@ -245,6 +247,7 @@ El detalle y las alternativas descartadas están en el `design.md` de cada spec;
 | **Auditoría en la misma transacción** que la operación | Sin registro no hay operación y viceversa. Detalle: el estado previo se lee con `SELECT … FOR UPDATE`; sin ese bloqueo, ediciones simultáneas del mismo libro dejaban un historial inconsistente (lo encontró la verificación contra PostgreSQL real) |
 | **Soft delete mediante una extensión del cliente Prisma** | Añade `deleted_at IS NULL` a toda lectura de libros; una prueba de arquitectura falla si algún servicio lee libros sin pasar por ella |
 | **Catálogos por nombre** (`connectOrCreate`/`upsert` dentro de la transacción) | El formulario es simple y no exige administrar catálogos aparte; el `upsert` evita la carrera de dos peticiones que crean el mismo autor |
+| **Excel (`.xlsx`) con `write-excel-file`**, hasta 20.000 libros | Al abrir el CSV en un Excel en español todo caía en una sola celda (el separador de lista es `;`). El `.xlsx` no depende de la configuración regional. La librería arma el libro en memoria (1 dependencia, 0 hallazgos de `npm audit`); por eso el tope de 20.000 filas, comprobado antes y durante la lectura, y el CSV queda para volúmenes grandes. Los textos se guardan como texto: un título `=…` no se ejecuta como fórmula |
 | **CSV en flujo** (generador asíncrono, lotes de 500 con cursor, `fast-csv`, contrapresión) | Memoria acotada: con 305.000 libros el pico fue +24 MB; primer byte en ~250 ms. El cursor evita el coste cuadrático del `OFFSET` |
 | **Imagen decidida por su contenido** (bytes mágicos), nombre `<uuid>.<ext>` generado por el servidor, límite de 2 MB | No se confía en el nombre ni en el tipo que declara el cliente; sin rutas controladas por el usuario |
 | **JWT de 1 h** con `passport-jwt`, contraseñas con **argon2** y el mismo coste de respuesta para correo desconocido y contraseña incorrecta | No revela qué correos existen; límite de intentos en el login |
@@ -309,7 +312,7 @@ Con su fundamento; si alguno no se cumple, la sección siguiente indica el cambi
 | El volumen esperado es de miles de libros; aun así el listado y la exportación están pensados para cientos de miles | Índices, paginación en el servidor y CSV en flujo |
 | La zona horaria del servidor es UTC y las fechas se muestran en la del navegador | Determinismo entre entornos |
 | El frontend y la API se sirven desde el mismo origen (nginx) | Sin CORS y con cabeceras de seguridad estrictas |
-| El «análisis de datos» que menciona el objetivo del enunciado se cubre con la **exportación a CSV** con los filtros activos | El enunciado no detalla ninguna funcionalidad de análisis (ni tablero ni gráficos) y la única de datos que lista es la exportación; el CSV permite analizarlos en una hoja de cálculo |
+| El «análisis de datos» que menciona el objetivo del enunciado se cubre con la **exportación a Excel y a CSV** con los filtros activos | El enunciado no detalla ninguna funcionalidad de análisis (ni tablero ni gráficos) y la única de datos que lista es la exportación; el CSV permite analizarlos en una hoja de cálculo |
 | Los textos de la interfaz están en **español** y los identificadores, mensajes de commit y respuestas de la API en **inglés** | El usuario final habla español; el código sigue la convención habitual |
 
 ---
@@ -327,7 +330,7 @@ Nada del enunciado quedó sin hacer; esto es lo que se dejó **fuera de alcance 
 | **Imágenes en la nube (S3/MinIO)** | `ImageStorage` ya aísla `save/remove/urlFor/nameFromUrl`: se añade una implementación `S3ImageStorage` seleccionada por variable de entorno, URLs de CDN y un *script* que migre los archivos del volumen | Medio |
 | **Varios autores por libro (N:M)** | Tabla `book_authors`, migración de datos desde `author_id`, y selector múltiple en el formulario; el filtro y el CSV se adaptan en `buildBookWhere` y `toCsvRow` | Medio |
 | **Exportaciones enormes** (millones de libros) | Hoy una exportación de 305.000 libros tarda de 1 a 5 min en flujo. Pasar a un trabajo en segundo plano (cola con BullMQ/Redis o una tabla de trabajos), archivo en almacenamiento y descarga posterior con aviso | Medio |
-| **Más formatos y opciones de exportación** | Selector de separador (`;`) y XLSX con `exceljs` en flujo; columnas configurables | Bajo |
+| **Excel de más de 20.000 libros y más opciones** | Escritura del `.xlsx` en flujo (librería con *streaming*) o generación en segundo plano, como las exportaciones enormes; selector de separador (`;`) para el CSV; columnas configurables | Bajo a medio |
 | **Sesión más robusta** | *Refresh tokens* rotatorios con revocación, o cookie `httpOnly` en lugar de `localStorage`; cierre de sesión que invalide el token | Medio |
 | **Internacionalización** | `react-i18next`, extraer los textos de la interfaz a catálogos por idioma | Medio |
 | **Integración continua** | Flujo de GitHub Actions: `lint`, pruebas con cobertura, `build`, `npm audit` y construcción de imágenes en cada PR, y bloquear la fusión si falla | Bajo |

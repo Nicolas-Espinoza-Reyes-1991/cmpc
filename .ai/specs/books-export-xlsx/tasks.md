@@ -36,7 +36,7 @@ Marcar con `[x]` al terminar.
   - Docker y navegador real: descargar el Excel con y sin filtros, abrirlo con `openpyxl`, comprobar columnas, formatos y fila fija; el aviso del tope; ambos botones.
   - Commit: `docs(books-export-xlsx): record the end-to-end verification`
 
-- [ ] **E-07 Documentación**
+- [x] **E-07 Documentación**
   - `tech-stack.md` (librería y motivo), README (guía de uso, decisiones, pendientes), `enunciado.md` (la spec en la tabla) y `architecture.md` (flujo de la exportación); enlaces comprobados.
   - Commit: `docs: document the Excel export`
 

@@ -18,6 +18,7 @@ Fuente de verdad: PDF "Prueba Técnica Full Stack - CMPC Libros". Este archivo r
 | `books-listing` | Listado con filtros, orden múltiple, paginación y búsqueda con debounce |
 | `book-image-upload` | Carga de imagen por libro |
 | `books-export-csv` | Exportación a CSV |
+| `books-export-xlsx` | Exportación a Excel (`.xlsx`), complemento del CSV (fuera del enunciado: usabilidad en Excel en español) |
 | `audit-log` | Auditoría de operaciones |
 | `docs-delivery` | README, Swagger, diagrama de arquitectura y modelo relacional |
 
@@ -35,7 +36,7 @@ Fuente de verdad: PDF "Prueba Técnica Full Stack - CMPC Libros". Este archivo r
 | BE-1 | Arquitectura modular y escalable con SOLID | `platform` |
 | BE-2 | Autenticación JWT | `auth` |
 | BE-3 | Endpoints REST para el CRUD de libros | `books-crud` |
-| BE-4 | Exportación de datos en CSV | `books-export-csv` |
+| BE-4 | Exportación de datos en CSV | `books-export-csv` (y `books-export-xlsx` como complemento) |
 | BE-5 | Soft delete | `books-crud` |
 | BE-6 | Logging para auditoría de operaciones | `audit-log` |
 | DB-0 | Prisma o Drizzle: migraciones, esquema declarativo, cliente tipado | `platform` |

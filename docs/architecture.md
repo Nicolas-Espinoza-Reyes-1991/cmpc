@@ -125,6 +125,22 @@ flowchart LR
 - La memoria usada depende del tamaño del lote, no del de la tabla (medido: +24 MB con 305.000 libros).
 - Los filtros y el orden se construyen con las mismas funciones puras que el listado (`buildBookWhere`, `buildBookOrderBy`), por lo que el CSV y la tabla no pueden divergir.
 
+### Exportación a Excel
+
+```mermaid
+flowchart LR
+    req["GET /api/books/export/xlsx<br/>(mismos filtros y orden)"] --> ctl["BooksController"]
+    ctl --> all["BooksService.exportAll"]
+    all -- "count" --> db[("PostgreSQL")]
+    all -- "más de 20.000" --> r422["422: aplica filtros<br/>o usa el CSV"]
+    all -- "hasta 20.000: mismos lotes<br/>de exportRows" --> db
+    all --> build["buildBooksXlsx<br/>write-excel-file, en memoria"]
+    build --> res["Respuesta HTTP<br/>.xlsx · attachment · Content-Length"]
+```
+
+- A diferencia del CSV, el archivo se arma completo **antes** de enviar el primer byte (un `.xlsx` es un zip): por eso el tope y cualquier fallo de la base responden con el formato normal de error.
+- Una columna por campo, encabezado en negrita y fijo, precio numérico y fechas reales. Los textos van como texto, así que `=…` no se ejecuta como fórmula.
+
 ## 5. Frontend
 
 ```mermaid
