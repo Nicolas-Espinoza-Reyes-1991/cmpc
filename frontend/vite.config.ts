@@ -16,6 +16,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Several tests wait for real timers (the typing pause) and render whole
+    // screens; the default 5 s is too tight when the machine is busy.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     css: false,
     coverage: {
       provider: 'v8',

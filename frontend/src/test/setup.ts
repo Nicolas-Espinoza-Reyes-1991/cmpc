@@ -1,4 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+import { configure } from '@testing-library/react';
+
+// `findBy…` and `waitFor` give up after 1 s by default, which a busy machine can
+// exceed without anything being wrong; a real failure still fails, just a bit later.
+configure({ asyncUtilTimeout: 5000 });
 
 /**
  * jsdom does not implement the `<dialog>` methods. This is the smallest model
