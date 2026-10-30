@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { BookBreadcrumb } from '../components/BookBreadcrumb';
 import { BookNotFound } from '../components/BookNotFound';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CoverDownload } from '../components/CoverDownload';
@@ -128,6 +129,7 @@ function BookDetail({ id }: { id: string }) {
 
   return (
     <Page>
+      <BookBreadcrumb title={book.title} />
       <div className="grid items-start gap-6 sm:grid-cols-[12rem_1fr] sm:gap-8">
         <Cover
           book={book}
@@ -178,12 +180,6 @@ function BookDetail({ id }: { id: string }) {
             >
               Eliminar
             </button>
-            <Link
-              to="/books"
-              className={`${ACTION} text-slate-700 underline hover:text-slate-900`}
-            >
-              Volver a los libros
-            </Link>
           </div>
         </div>
       </div>

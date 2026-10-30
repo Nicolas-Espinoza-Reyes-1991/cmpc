@@ -189,10 +189,11 @@ describe('BookDetailPage', () => {
         )
         .map((element) => element.textContent?.trim());
       expect(actions).toEqual([
+        'Libros',
+        '←Volver a los libros',
         'Editar',
         'Descargar portada',
         'Eliminar',
-        'Volver a los libros',
       ]);
     });
 
@@ -227,16 +228,26 @@ describe('BookDetailPage', () => {
       ).toHaveTextContent('Sin portada');
     });
 
-    it('offers to edit it, and to go back to the books', async () => {
+    it('offers to edit it, and a single way back at the top, before the title', async () => {
       start();
       renderAt();
 
       expect(
         await screen.findByRole('link', { name: 'Editar' }),
       ).toHaveAttribute('href', `/books/${ID}/edit`);
+      const back = screen.getAllByRole('link', { name: 'Volver a los libros' });
+      expect(back).toHaveLength(1);
+      expect(back[0]).toHaveAttribute('href', '/books');
       expect(
-        screen.getByRole('link', { name: 'Volver a los libros' }),
-      ).toHaveAttribute('href', '/books');
+        back[0]?.compareDocumentPosition(
+          screen.getByRole('heading', { name: 'Dune' }),
+        ),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(
+        within(
+          screen.getByRole('navigation', { name: 'Ruta de navegación' }),
+        ).getByText('Dune'),
+      ).toHaveAttribute('aria-current', 'page');
     });
 
     it.each([

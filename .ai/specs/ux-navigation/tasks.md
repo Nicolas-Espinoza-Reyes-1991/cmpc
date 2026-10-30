@@ -14,7 +14,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: pruebas de la tabla pasan y, en el navegador a 1400 px con palabras largas, no hay desplazamiento.
   - Commit: `feat(frontend): replace the title link with a View button in the books table`
 
-- [ ] **N-03 Ficha: botón y ruta de navegación** (N2.1 a N2.3, N2.6, N5.1)
+- [x] **N-03 Ficha: botón y ruta de navegación** (N2.1 a N2.3, N2.6, N5.1)
   - Ruta «Libros › título» y botón «← Volver a los libros» arriba; se elimina el enlace del final.
   - Commit: `feat(frontend): add a back button and breadcrumb to the book detail`
 
