@@ -40,7 +40,7 @@ Marcar con `[x]` al terminar.
   - `tech-stack.md` (librería y motivo), README (guía de uso, decisiones, pendientes), `enunciado.md` (la spec en la tabla) y `architecture.md` (flujo de la exportación); enlaces comprobados.
   - Commit: `docs: document the Excel export`
 
-- [ ] **E-08 Verificación de la spec**
+- [x] **E-08 Verificación de la spec**
   - Recorrer E1 a E5 con evidencia nueva (lint, tipos, build, cobertura ≥ 80 % y fallando por debajo en ambas apps; `npm audit`) y registrar el resultado.
   - Commit: `docs(books-export-xlsx): record the spec verification`
 
@@ -95,3 +95,23 @@ Entorno: `docker compose up --build` de la rama, en su **propio proyecto, puerto
 Observaciones:
 - No se pudo abrir el archivo en **Microsoft Excel** (no está disponible en este equipo): el lector independiente fue `openpyxl`, que avisa de que el libro «no contiene estilo por defecto»; el archivo se lee bien. Conviene que el usuario lo abra en su Excel una vez.
 - Al terminar se eliminó el sistema aislado con sus volúmenes y sus imágenes; el sistema del usuario (`:8080`) no se tocó.
+
+### E-08: verificación de la spec (2026-10-30)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**52 suites, 873 pruebas, 100 %** en sentencias, ramas, funciones y líneas; con el umbral forzado a 101 % falla: "does not meet global threshold") y e2e (**15**, con las 15 operaciones de la API); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**42 archivos, 665 pruebas, 100 %**; el umbral forzado también falla); `npm audit --omit=dev`: **0** en ambas apps; más los registros E-04 y E-06.
+
+| Criterio | Evidencia |
+|---|---|
+| E1.1, E1.5 | `books-export-xlsx.http.spec` (cabeceras, nombre con la fecha, `no-store`, `Content-Length` exacto) y E-04 con la base real |
+| E1.2 | Pruebas HTTP (mismos filtros y orden con `count` y `findMany`; 400 por `page`, `limit`, parámetros desconocidos y orden inválido, sin leer nada) y E-04: 5 combinaciones con el mismo orden que el listado |
+| E1.3, E1.4 | 401 sin token; libro eliminado fuera del archivo (E-04); la ruta no la toma `:id` |
+| E2.1 a E2.5 | `book-xlsx.spec` (encabezados de `CSV_HEADERS`, tipos, formatos, anchos, fila fija, hoja «Libros», vacío, texto con `=`) y E-04: **400 filas × 9 columnas sin diferencias** abiertas con `openpyxl`; E-06 con el archivo del navegador |
+| E3.1 a E3.3 | `exportAll` (bajo el tope, exactamente 20.000, 20.001 sin leer, crecimiento durante la lectura) y E-04: 20.000 libros → 200; 20.001 → 422 |
+| E3.4 | Prueba HTTP: la base falla y la respuesta es un 500 genérico sin detalles, antes del primer byte |
+| E4.1 a E4.5 | `BooksPage.spec`, `useExportBooks.spec`, `books.service.spec` y E-06 en el navegador (dos botones, «Exportando…» solo en el pulsado, una descarga a la vez, aviso del tope con cerrar y reintentar, error con reintento, nombre saneado) |
+| E5.1 a E5.4 | Suites citadas; cobertura 100 %; E-04 (PostgreSQL y `openpyxl`) y E-06 (Docker y navegador) |
+
+Resultado: sin criterios pendientes.
+
+Hallazgos de la verificación (corregidos): la librería no escribe nada con una lista vacía (se arman las filas en el código); la fila de acciones se salía de la pantalla a 360 px con el tercer botón (se hizo que pase de línea); y las pruebas de tiempo real (argon2, límite de intentos y formularios) fallan de forma intermitente si la máquina está saturada y pasan solas (se corrigen aparte, con plazos más largos).
+
+Pendientes (no son de esta spec): abrir el archivo en Microsoft Excel real (no disponible en este equipo); Excel de más de 20.000 libros (README §10).
