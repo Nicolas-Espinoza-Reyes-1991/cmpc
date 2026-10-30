@@ -269,7 +269,7 @@ cd frontend && npm run test:cov
 | | Pruebas | Cobertura (sentencias / ramas / funciones / líneas) | Umbral |
 |---|---|---|---|
 | Backend (Jest) | 873 en 52 suites + 15 e2e | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
-| Frontend (Vitest + Testing Library) | 707 en 47 archivos | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
+| Frontend (Vitest + Testing Library) | 708 en 47 archivos | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
 
 - Los plazos de las pruebas son holgados a propósito (30 s por prueba y 5 s para `findBy…`/`waitFor`): varias esperan relojes reales o cifran con argon2, y con la máquina ocupada los plazos por defecto (5 s y 1 s) hacían fallar pruebas correctas de forma intermitente.
 - Las pruebas unitarias usan *mocks* de Prisma y de Axios: ninguna toca la base de datos real. Las HTTP levantan Nest con el guard JWT, la validación, el filtro y los interceptores reales.

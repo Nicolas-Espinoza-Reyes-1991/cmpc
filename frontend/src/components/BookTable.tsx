@@ -87,6 +87,8 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
   return (
     // `relative`: the hidden text of the download header (`sr-only` is absolute) is
     // then clipped with the rest of the table instead of widening the whole page.
+    // The scroll is only the last resort (a phone): the text cells break long
+    // words (`wrap-anywhere`), so a title without spaces cannot stretch the columns.
     <div className="relative overflow-x-auto rounded-md border border-slate-200 bg-white">
       <table aria-busy={busy} className="min-w-full divide-y divide-slate-200">
         <caption className="sr-only">Libros</caption>
@@ -130,7 +132,7 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
                     onError={markBroken}
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-3 py-2 wrap-anywhere">
                   <Link
                     to={`/books/${book.id}`}
                     className="font-medium text-blue-700 underline-offset-2 hover:underline"
@@ -138,9 +140,15 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
                     {book.title}
                   </Link>
                 </td>
-                <td className="px-3 py-2 text-slate-700">{book.author}</td>
-                <td className="px-3 py-2 text-slate-700">{book.publisher}</td>
-                <td className="px-3 py-2 text-slate-700">{book.genre}</td>
+                <td className="px-3 py-2 text-slate-700 wrap-anywhere">
+                  {book.author}
+                </td>
+                <td className="px-3 py-2 text-slate-700 wrap-anywhere">
+                  {book.publisher}
+                </td>
+                <td className="px-3 py-2 text-slate-700 wrap-anywhere">
+                  {book.genre}
+                </td>
                 <td className="px-3 py-2 text-right text-slate-900">
                   {formatPrice(book.price)}
                 </td>
