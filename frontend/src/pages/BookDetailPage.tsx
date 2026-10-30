@@ -128,7 +128,7 @@ function BookDetail({ id }: { id: string }) {
 
   return (
     <Page>
-      <div className="grid gap-6 sm:grid-cols-[12rem_1fr] sm:gap-8">
+      <div className="grid items-start gap-6 sm:grid-cols-[12rem_1fr] sm:gap-8">
         <Cover
           book={book}
           broken={coverBroken}

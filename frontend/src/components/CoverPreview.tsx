@@ -44,7 +44,7 @@ export function CoverPreview({ src, title, onError }: CoverPreviewProps) {
           loading="lazy"
           decoding="async"
           onError={onError}
-          className="aspect-[2/3] w-full rounded-md border border-slate-200 object-cover"
+          className="block aspect-[2/3] w-full rounded-md border border-slate-200 object-cover"
         />
       </button>
 
@@ -65,7 +65,7 @@ export function CoverPreview({ src, title, onError }: CoverPreviewProps) {
           setOpen(false);
           thumbnail.current?.focus();
         }}
-        className="max-h-[90vh] max-w-[90vw] rounded-lg bg-white p-4 shadow-xl backdrop:bg-slate-900/80"
+        className="m-auto max-h-[90vh] w-[min(90vw,48rem)] rounded-lg bg-white p-4 shadow-xl backdrop:bg-slate-900/80"
       >
         <div className="flex items-center justify-between gap-4">
           <h2
@@ -88,7 +88,7 @@ export function CoverPreview({ src, title, onError }: CoverPreviewProps) {
           <img
             src={src}
             alt={`Portada de ${title}`}
-            className="mx-auto mt-4 max-h-[75vh] max-w-full object-contain"
+            className="mx-auto mt-4 h-auto max-h-[75vh] w-full object-contain"
           />
         )}
       </dialog>
