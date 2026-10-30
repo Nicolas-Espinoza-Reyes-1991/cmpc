@@ -128,6 +128,48 @@ describe('BookDetailPage', () => {
       expect(cover).toHaveAttribute('decoding', 'async');
     });
 
+    it('offers the cover as a download only when there is one', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/api/uploads/dune.png' } },
+        },
+      });
+      renderAt();
+
+      expect(
+        await screen.findByRole('link', { name: 'Descargar portada' }),
+      ).toHaveAttribute('download', 'dune.png');
+    });
+
+    it('does not offer a download when the book has no cover', async () => {
+      start();
+      renderAt();
+
+      expect(
+        await screen.findByRole('heading', { name: 'Dune' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'Descargar portada' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('hides the download when the cover file cannot be loaded', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/uploads/roto.png' } },
+        },
+      });
+      renderAt();
+
+      fireEvent.error(
+        await screen.findByRole('img', { name: 'Portada de Dune' }),
+      );
+
+      expect(
+        screen.queryByRole('link', { name: 'Descargar portada' }),
+      ).not.toBeInTheDocument();
+    });
+
     it('shows a placeholder when the cover file cannot be loaded', async () => {
       start({
         [`GET /books/${ID}`]: {

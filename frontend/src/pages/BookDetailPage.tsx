@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { BookNotFound } from '../components/BookNotFound';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { CoverDownload } from '../components/CoverDownload';
 import { CoverPreview } from '../components/CoverPreview';
 import { bookKey, useBook } from '../hooks/useBook';
 import { getErrorMessage } from '../lib/api-error';
@@ -27,23 +28,26 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 /** Same size for the thumbnail and the placeholder, so the page does not move. */
 const COVER_SIZE = 'mx-auto aspect-[2/3] w-40 sm:w-full';
 
-function Cover({ book }: { book: Book }) {
-  // A file that fails to load shows the placeholder. The parent gives this a new `key` per image, so a new upload is tried again.
-  const [failed, setFailed] = useState(false);
-  if (book.imageUrl && !failed) {
+/** `broken` is set by the page when the cover file fails to load. */
+function Cover({
+  book,
+  broken,
+  onError,
+}: {
+  book: Book;
+  broken: boolean;
+  onError: () => void;
+}) {
+  if (book.imageUrl && !broken) {
     return (
-      <CoverPreview
-        src={book.imageUrl}
-        title={book.title}
-        onError={() => setFailed(true)}
-      />
+      <CoverPreview src={book.imageUrl} title={book.title} onError={onError} />
     );
   }
   return (
     <div
       role="img"
       aria-label={
-        failed
+        broken
           ? 'La portada no se pudo cargar'
           : 'Este libro todavía no tiene portada'
       }
@@ -61,6 +65,8 @@ function BookDetail({ id }: { id: string }) {
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // The cover URL that failed to load. A new upload has another URL, so it is tried again.
+  const [brokenCover, setBrokenCover] = useState<string | null>(null);
 
   if (isPending) {
     return (
@@ -114,10 +120,16 @@ function BookDetail({ id }: { id: string }) {
     void navigate('/books');
   };
 
+  const coverBroken = book.imageUrl !== null && brokenCover === book.imageUrl;
+
   return (
     <Page>
       <div className="grid gap-8 sm:grid-cols-[12rem_1fr]">
-        <Cover key={book.imageUrl ?? ''} book={book} />
+        <Cover
+          book={book}
+          broken={coverBroken}
+          onError={() => setBrokenCover(book.imageUrl)}
+        />
 
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
@@ -152,6 +164,9 @@ function BookDetail({ id }: { id: string }) {
             >
               Editar
             </Link>
+            {book.imageUrl && !coverBroken && (
+              <CoverDownload src={book.imageUrl} title={book.title} />
+            )}
             <button
               type="button"
               onClick={() => setConfirming(true)}
