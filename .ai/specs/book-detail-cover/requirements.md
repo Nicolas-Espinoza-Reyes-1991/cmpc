@@ -5,7 +5,7 @@ Depende de `books-crud` (pantalla de detalle `BookDetailPage`) y de `book-image-
 
 Formato: CUANDO <evento>, EL SISTEMA DEBERÁ <respuesta>. Cada criterio es verificable.
 
-> **Estado: pendiente de aprobación.** Según `CLAUDE.md`, esta spec no se implementa hasta que el usuario la apruebe. Las decisiones que requieren confirmación están en `design.md` §1.
+> **Estado: aprobada e implementada** (ver `tasks.md`). Las decisiones de `design.md` §1 se aprobaron tal como están escritas.
 
 ## Fuera de alcance
 - Generar miniaturas en el servidor (archivos redimensionados, recorte, WebP de vista previa). `product.md` deja «miniaturas» y «redimensionado» como mejoras futuras; aquí la miniatura es solo una presentación en el navegador.

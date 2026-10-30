@@ -14,13 +14,13 @@ Todo dentro de `frontend/src/pages/BookDetailPage.tsx` y componentes pequeños n
 - `Cover` (ya existe): añade `loading="lazy"`, `decoding="async"`, estado de error (`onError` → marcador «Sin portada») y el botón que abre el diálogo.
 - `CoverPreview` (nuevo, `components/CoverPreview.tsx`): `<dialog>` controlado con `showModal()` / `close()`; cierra al pulsar fuera (clic sobre el propio `<dialog>` cuando el objetivo es el `dialog`), restaura el foco al elemento que lo abrió.
 - `CoverDownload` (nuevo, `components/CoverDownload.tsx`): enlace `<a href={imageUrl} download={fileName}>` con el estilo de botón.
-- `lib/download-file-name.ts` (nuevo): `downloadFileName(title, imageUrl)` — función pura, probada con Vitest.
+- `lib/cover-file-name.ts` (nuevo): `coverFileName(title, imageUrl)` — función pura, probada con Vitest.
 
 ## 3. Diseño responsive
 - Contenedor `max-w-3xl`; `grid gap-6` en móvil y `sm:grid-cols-[12rem_1fr]` desde 640 px (ya existe).
 - Portada: `mx-auto w-40 sm:w-full` (ancho fijo 10rem en móvil, 12rem en escritorio), `aspect-[2/3]`.
 - Acciones: `flex flex-col gap-3 sm:flex-row sm:flex-wrap`, botones con `min-h-11` (44 px).
-- Dialog: `max-h-[90vh] max-w-[90vw]`, imagen `max-h-[85vh] object-contain`.
+- Dialog: `m-auto max-h-[90vh] w-[min(90vw,48rem)]`, imagen `w-full max-h-[75vh] object-contain` (ajustado al probar en navegador: sin ancho fijo, una imagen pequeña se veía en 16 px).
 - Movimiento: transición solo bajo `motion-safe:`.
 
 ## 4. Accesibilidad
@@ -29,7 +29,7 @@ Todo dentro de `frontend/src/pages/BookDetailPage.tsx` y componentes pequeños n
 - Marcador sin portada: `role="img"` con etiqueta (ya existe).
 
 ## 5. Pruebas
-- Vitest + React Testing Library en `BookDetailPage.spec.tsx` (ya existe, se amplía) y `CoverPreview.spec.tsx`, `CoverDownload.spec.tsx`, `download-file-name.spec.ts`.
+- Vitest + React Testing Library en `BookDetailPage.spec.tsx` (ya existe, se amplía) y `CoverPreview.spec.tsx`, `CoverDownload.spec.tsx`, `cover-file-name.spec.ts`.
 - Mocks: `useBook` mockeado a través de `mock-api` ya presente; `HTMLDialogElement.showModal` se simula en `test/setup.ts` porque jsdom no lo implementa.
 
 ## 6. Verificación manual
