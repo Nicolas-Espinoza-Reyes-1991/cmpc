@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { apiClient, setUnauthorizedHandler } from '../lib/api-client';
 import { ApiError } from '../lib/api-error';
+import { listingView } from '../lib/listingView';
 import { session } from '../lib/session';
 import {
   mockApi,
@@ -271,6 +272,19 @@ describe('AuthProvider', () => {
   });
 
   describe('logout', () => {
+    it('forgets the listing view of the user who leaves', async () => {
+      session.setToken('saved-token');
+      listingView.save('?q=secret');
+      mount({ 'GET /auth/me': { data: { data: ADMIN } } });
+      renderProbe();
+      await status('authenticated');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Salir' }));
+
+      expect(await status('anonymous')).toBeInTheDocument();
+      expect(listingView.read()).toBe('');
+    });
+
     it('clears the token and every cached query (A5.5)', async () => {
       session.setToken('saved-token');
       mount({ 'GET /auth/me': { data: { data: ADMIN } } });

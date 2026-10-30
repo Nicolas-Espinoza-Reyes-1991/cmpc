@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { AppProviders } from './components/AppProviders';
 import { apiClient, setUnauthorizedHandler } from './lib/api-client';
+import { listingView } from './lib/listingView';
 import { session } from './lib/session';
 import { emptyCatalogs } from './test/catalog-routes';
 import { mockApi, type MockApi } from './test/mock-api';
@@ -164,6 +165,17 @@ describe('routes', () => {
     expect(
       screen.getByRole('link', { name: 'Volver a los libros' }),
     ).toHaveAttribute('href', '/books');
+  });
+
+  it('sends the not found page back to the view of the list the user had', async () => {
+    listingView.save('?page=3');
+
+    renderAt('/nowhere');
+
+    expect(
+      await screen.findByRole('link', { name: 'Volver a los libros' }),
+    ).toHaveAttribute('href', '/books?page=3');
+    listingView.clear();
   });
 });
 

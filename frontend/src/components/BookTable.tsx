@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import { formatDateTime, formatPrice } from '../lib/format';
 import type { Book, SortCriterion, SortField } from '../types/book';
 import { BookCoverCell } from './BookCoverCell';
-import { BookDownloadCell } from './BookDownloadCell';
+import { BookActionsCell } from './BookActionsCell';
 
 interface Column {
   field: SortField;
@@ -85,8 +84,8 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
     setBrokenCovers((current) => new Set(current).add(imageUrl));
 
   return (
-    // `relative`: the hidden text of the download header (`sr-only` is absolute) is
-    // then clipped with the rest of the table instead of widening the whole page.
+    // `relative` keeps any absolute child (a hidden text) clipped with the table
+    // instead of widening the whole page.
     // The scroll is only the last resort (a phone): the text cells break long
     // words (`wrap-anywhere`), so a title without spaces cannot stretch the columns.
     <div className="relative overflow-x-auto rounded-md border border-slate-200 bg-white">
@@ -109,8 +108,12 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
                 onSort={onSort}
               />
             ))}
-            <th scope="col" className="px-3 py-2">
-              <span className="sr-only">Descargar portada</span>
+            {/* Not sortable either: it holds the actions of the row. */}
+            <th
+              scope="col"
+              className="px-3 py-2 text-left text-sm font-semibold text-slate-700"
+            >
+              Acciones
             </th>
           </tr>
         </thead>
@@ -132,13 +135,9 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
                     onError={markBroken}
                   />
                 </td>
-                <td className="px-3 py-2 wrap-anywhere">
-                  <Link
-                    to={`/books/${book.id}`}
-                    className="font-medium text-blue-700 underline-offset-2 hover:underline"
-                  >
-                    {book.title}
-                  </Link>
+                {/* Plain text: a book is opened with the "Ver" button of its row. */}
+                <td className="px-3 py-2 font-medium wrap-anywhere text-slate-900">
+                  {book.title}
                 </td>
                 <td className="px-3 py-2 text-slate-700 wrap-anywhere">
                   {book.author}
@@ -166,8 +165,12 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
                 <td className="px-3 py-2 text-sm text-slate-600">
                   {formatDateTime(book.createdAt)}
                 </td>
-                <td className="px-3 py-2 text-right">
-                  <BookDownloadCell title={book.title} imageUrl={cover} />
+                <td className="px-3 py-2">
+                  <BookActionsCell
+                    id={book.id}
+                    title={book.title}
+                    imageUrl={cover}
+                  />
                 </td>
               </tr>
             );

@@ -12,6 +12,7 @@ import {
   type RouteObject,
 } from 'react-router';
 import { bookKey } from '../hooks/useBook';
+import { listingView } from '../lib/listingView';
 import { mockApi, type MockApi, type MockRoute } from '../test/mock-api';
 import { createQueryWrapper } from '../test/query-wrapper';
 import type { Book } from '../types/book';
@@ -57,9 +58,44 @@ describe('BookDetailPage', () => {
 
   afterEach(() => {
     api.restore();
+    listingView.clear();
   });
 
   describe('reading the book', () => {
+    it('titles the tab with the book once it is read, and with «Libro» before', async () => {
+      let release: () => void = () => undefined;
+      start({
+        [`GET /books/${ID}`]: () =>
+          new Promise((resolve) => {
+            release = () => resolve({ data: { data: book } });
+          }),
+      });
+      renderAt();
+
+      await screen.findByRole('status');
+      expect(document.title).toBe('Libro · CMPC Libros');
+
+      release();
+      await screen.findByRole('heading', { name: 'Dune' });
+      expect(document.title).toBe('Dune · CMPC Libros');
+    });
+
+    it('lets a long word break in the title and the data, so it cannot widen the page', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, author: 'autorautorautorautorautorautor' } },
+        },
+      });
+      renderAt();
+
+      const heading = await screen.findByRole('heading', { name: 'Dune' });
+      expect(heading).toHaveClass('wrap-anywhere');
+      expect(heading.parentElement).toHaveClass('min-w-0');
+      expect(screen.getByText('autorautorautorautorautorautor')).toHaveClass(
+        'wrap-anywhere',
+      );
+    });
+
     it('shows a loading state while the book is read', async () => {
       let release: () => void = () => undefined;
       start({
@@ -189,10 +225,11 @@ describe('BookDetailPage', () => {
         )
         .map((element) => element.textContent?.trim());
       expect(actions).toEqual([
+        'Libros',
+        '←Volver a los libros',
         'Editar',
         'Descargar portada',
         'Eliminar',
-        'Volver a los libros',
       ]);
     });
 
@@ -227,16 +264,26 @@ describe('BookDetailPage', () => {
       ).toHaveTextContent('Sin portada');
     });
 
-    it('offers to edit it, and to go back to the books', async () => {
+    it('offers to edit it, and a single way back at the top, before the title', async () => {
       start();
       renderAt();
 
       expect(
         await screen.findByRole('link', { name: 'Editar' }),
       ).toHaveAttribute('href', `/books/${ID}/edit`);
+      const back = screen.getAllByRole('link', { name: 'Volver a los libros' });
+      expect(back).toHaveLength(1);
+      expect(back[0]).toHaveAttribute('href', '/books');
       expect(
-        screen.getByRole('link', { name: 'Volver a los libros' }),
-      ).toHaveAttribute('href', '/books');
+        back[0]?.compareDocumentPosition(
+          screen.getByRole('heading', { name: 'Dune' }),
+        ),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(
+        within(
+          screen.getByRole('navigation', { name: 'Ruta de navegación' }),
+        ).getByText('Dune'),
+      ).toHaveAttribute('aria-current', 'page');
     });
 
     it.each([
@@ -258,6 +305,18 @@ describe('BookDetailPage', () => {
         ).toHaveAttribute('href', '/books');
       },
     );
+
+    it('sends "Libro no encontrado" back to the view of the list the user had', async () => {
+      listingView.save('?genre=Novela');
+      start({
+        [`GET /books/${ID}`]: { status: 404, data: { message: 'nope' } },
+      });
+      renderAt();
+
+      expect(
+        await screen.findByRole('link', { name: 'Volver a los libros' }),
+      ).toHaveAttribute('href', '/books?genre=Novela');
+    });
 
     it('offers to retry when the book cannot be read for another reason', async () => {
       let calls = 0;
@@ -342,6 +401,23 @@ describe('BookDetailPage', () => {
 
       await waitFor(() => expect(dialog()).not.toBeInTheDocument());
       expect(api.requests.filter((r) => r.method === 'delete')).toHaveLength(0);
+    });
+
+    it('goes back to the view of the list the user had, also after deleting', async () => {
+      listingView.save('?q=dune&page=2');
+      start({ [`DELETE /books/${ID}`]: { status: 204 } });
+      const { router } = renderAt();
+      await openDialog();
+
+      await userEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Eliminar',
+        }),
+      );
+
+      expect(await screen.findByText('lista de libros')).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/books');
+      expect(router.state.location.search).toBe('?q=dune&page=2');
     });
 
     it('deletes the book, forgets it and goes back to the list', async () => {

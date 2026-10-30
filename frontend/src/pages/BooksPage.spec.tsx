@@ -7,6 +7,7 @@ import {
   type RouteObject,
 } from 'react-router';
 import * as download from '../lib/download-file';
+import { listingView } from '../lib/listingView';
 import { emptyCatalogs } from '../test/catalog-routes';
 import {
   mockApi,
@@ -82,9 +83,30 @@ describe('BooksPage', () => {
 
   afterEach(() => {
     api.restore();
+    listingView.clear();
   });
 
   describe('the list', () => {
+    it('remembers the view of the listing, so every way back can return to it', async () => {
+      const router = start(
+        page([book(1)], { total: 1 }),
+        '/books?q=dune&page=1',
+      );
+      await screen.findByText('Libro 1');
+      expect(listingView.read()).toBe('?q=dune&page=1');
+
+      await router.navigate('/books?q=dune&page=2');
+
+      await waitFor(() => expect(listingView.read()).toBe('?q=dune&page=2'));
+    });
+
+    it('titles the tab «Libros · CMPC Libros»', async () => {
+      start(page([book(1)]));
+      await screen.findByText('Libro 1');
+
+      expect(document.title).toBe('Libros · CMPC Libros');
+    });
+
     it('shows a loading state, then the books and how many there are', async () => {
       let release: () => void = () => undefined;
       start(
@@ -99,10 +121,9 @@ describe('BooksPage', () => {
       release();
 
       expect(await screen.findByText('3 resultados')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Libro 2' })).toHaveAttribute(
-        'href',
-        '/books/id-2',
-      );
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 2' }),
+      ).toHaveAttribute('href', '/books/id-2');
     });
 
     it('asks for the first page of 10, newest first, without filters', async () => {
@@ -441,11 +462,13 @@ describe('BooksPage', () => {
       await waitFor(() =>
         expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'true'),
       );
-      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 1' }),
+      ).toBeInTheDocument();
 
       release();
       expect(
-        await screen.findByRole('link', { name: 'Libro 11' }),
+        await screen.findByRole('link', { name: 'Ver detalle de Libro 11' }),
       ).toBeInTheDocument();
       expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'false');
     });
@@ -696,7 +719,9 @@ describe('BooksPage', () => {
       expect(alert).toHaveTextContent('Ocurrió un error en el servidor');
       expect(saved).not.toHaveBeenCalled();
       // The list stays on screen.
-      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 1' }),
+      ).toBeInTheDocument();
 
       await userEvent.click(
         within(alert).getByRole('button', { name: 'Reintentar exportación' }),
@@ -843,7 +868,9 @@ describe('BooksPage', () => {
         'Hay demasiados libros para Excel (máximo 20.000). Aplica filtros o descarga el CSV.',
       );
       expect(saved).not.toHaveBeenCalled();
-      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Ver detalle de Libro 1' }),
+      ).toBeInTheDocument();
     });
 
     it('retries the same format that failed', async () => {

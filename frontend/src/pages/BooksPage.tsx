@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { BookFilters } from '../components/BookFilters';
 import { BookTable } from '../components/BookTable';
 import { Pagination } from '../components/Pagination';
 import { useBookListParams } from '../hooks/useBookListParams';
 import { useBooks } from '../hooks/useBooks';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useExportBooks } from '../hooks/useExportBooks';
 import { hasActiveFilters } from '../lib/book-list-params';
+import { listingView } from '../lib/listingView';
 import type { ExportFormat } from '../services/books.service';
 
 /** Excel first: it opens with every field in its own column in any language. */
@@ -26,6 +28,7 @@ const FORMAT_NAMES: Record<ExportFormat, string> = {
  * reloading, going back and sharing the link keep it.
  */
 export function BooksPage() {
+  useDocumentTitle('Libros');
   const { params, change, goToPage, toggleSort, clearSort, clearFilters } =
     useBookListParams();
   const { data, error, isPending, isPlaceholderData, refetch } =
@@ -34,6 +37,12 @@ export function BooksPage() {
   // Read once: inside the notice it is known to be set, also in its click handler.
   const { failedFormat } = exporter;
   const filtersActive = hasActiveFilters(params);
+
+  // Every way back from a book returns to this view (filters, order, page).
+  const { search } = useLocation();
+  useEffect(() => {
+    listingView.save(search);
+  }, [search]);
 
   const total = data?.meta.total ?? 0;
   const lastPage = Math.max(1, Math.ceil(total / params.limit));

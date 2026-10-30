@@ -80,6 +80,12 @@ describe('LoginPage', () => {
   });
 
   describe('the form', () => {
+    it('titles the tab «Iniciar sesión · CMPC Libros»', () => {
+      renderLogin();
+
+      expect(document.title).toBe('Iniciar sesión · CMPC Libros');
+    });
+
     it('shows the title, both fields and the button', () => {
       renderLogin();
 

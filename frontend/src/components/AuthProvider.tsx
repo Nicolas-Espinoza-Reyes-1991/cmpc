@@ -11,6 +11,7 @@ import {
   type AuthStatus,
 } from '../hooks/useAuth';
 import { getErrorMessage } from '../lib/api-error';
+import { listingView } from '../lib/listingView';
 import { session } from '../lib/session';
 import { getMe, login as requestLogin } from '../services/auth.service';
 import type { LoginCredentials } from '../types/auth';
@@ -52,8 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     session.clear();
-    // Nothing fetched for this user may be shown to the next one (A5.5).
+    // Nothing fetched for this user may be shown to the next one (A5.5), nor the
+    // filters they had typed.
     queryClient.clear();
+    listingView.clear();
   }, [queryClient]);
 
   const retry = useCallback(() => {

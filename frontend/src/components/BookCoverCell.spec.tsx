@@ -2,7 +2,6 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { BookCoverCell } from './BookCoverCell';
-import { BookDownloadCell } from './BookDownloadCell';
 
 const src = '/api/uploads/3f6c2a52.png';
 
@@ -95,25 +94,5 @@ describe('BookCoverCell', () => {
     expect(
       screen.getByRole('img', { name: 'La portada de Dune no se pudo cargar' }),
     ).toHaveTextContent('Sin portada');
-  });
-});
-
-describe('BookDownloadCell', () => {
-  it('offers the download of the cover under a readable name, naming the book', () => {
-    render(<BookDownloadCell title="Cien años" imageUrl={src} />);
-
-    const link = screen.getByRole('link', {
-      name: 'Descargar portada de Cien años',
-    });
-    expect(link).toHaveAttribute('href', src);
-    expect(link).toHaveAttribute('download', 'cien-anos.png');
-  });
-
-  it('is empty when there is no cover to download', () => {
-    const { container } = render(
-      <BookDownloadCell title="Dune" imageUrl={null} />,
-    );
-
-    expect(container).toBeEmptyDOMElement();
   });
 });

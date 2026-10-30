@@ -1,11 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { BookBreadcrumb } from '../components/BookBreadcrumb';
 import { BookNotFound } from '../components/BookNotFound';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CoverDownload } from '../components/CoverDownload';
 import { CoverPreview } from '../components/CoverPreview';
 import { bookKey, useBook } from '../hooks/useBook';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useListingPath } from '../hooks/useListingPath';
 import { getErrorMessage } from '../lib/api-error';
 import { isMissingBook } from '../lib/book-errors';
 import { formatDateTime, formatPrice } from '../lib/format';
@@ -20,7 +23,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-slate-900">{children}</dd>
+      <dd className="mt-1 wrap-anywhere text-slate-900">{children}</dd>
     </div>
   );
 }
@@ -65,7 +68,9 @@ function Cover({
 function BookDetail({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const listingPath = useListingPath();
   const { data: book, error, isPending, refetch } = useBook(id);
+  useDocumentTitle(book?.title ?? 'Libro');
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -121,13 +126,14 @@ function BookDetail({ id }: { id: string }) {
     }
     queryClient.removeQueries({ queryKey: bookKey(id) });
     void queryClient.invalidateQueries({ queryKey: ['books'] });
-    void navigate('/books');
+    void navigate(listingPath);
   };
 
   const coverBroken = book.imageUrl !== null && brokenCover === book.imageUrl;
 
   return (
     <Page>
+      <BookBreadcrumb title={book.title} />
       <div className="grid items-start gap-6 sm:grid-cols-[12rem_1fr] sm:gap-8">
         <Cover
           book={book}
@@ -135,8 +141,9 @@ function BookDetail({ id }: { id: string }) {
           onError={() => setBrokenCover(book.imageUrl)}
         />
 
-        <div>
-          <h1 className="text-2xl font-semibold break-words text-slate-900">
+        {/* `min-w-0` and `wrap-anywhere`: a word without spaces breaks instead of widening the page. */}
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold wrap-anywhere text-slate-900">
             {book.title}
           </h1>
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -178,12 +185,6 @@ function BookDetail({ id }: { id: string }) {
             >
               Eliminar
             </button>
-            <Link
-              to="/books"
-              className={`${ACTION} text-slate-700 underline hover:text-slate-900`}
-            >
-              Volver a los libros
-            </Link>
           </div>
         </div>
       </div>

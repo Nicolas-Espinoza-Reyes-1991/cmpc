@@ -7,6 +7,7 @@ import {
 } from 'react-router';
 import { SERVER_FIELD_MESSAGE } from '../lib/api-error';
 import { bookKey } from '../hooks/useBook';
+import { listingView } from '../lib/listingView';
 import { emptyCatalogs } from '../test/catalog-routes';
 import { mockApi, type MockApi, type MockRoute } from '../test/mock-api';
 import { createQueryWrapper } from '../test/query-wrapper';
@@ -55,6 +56,7 @@ describe('BookFormPage', () => {
 
   afterEach(() => {
     api.restore();
+    listingView.clear();
   });
 
   describe('new book (/books/new)', () => {
@@ -69,6 +71,13 @@ describe('BookFormPage', () => {
       );
     }
 
+    it('titles the tab «Nuevo libro · CMPC Libros»', () => {
+      start();
+      renderAt('/books/new');
+
+      expect(document.title).toBe('Nuevo libro · CMPC Libros');
+    });
+
     it('shows the empty form under the heading "Nuevo libro"', () => {
       start();
       renderAt('/books/new');
@@ -77,6 +86,17 @@ describe('BookFormPage', () => {
         screen.getByRole('heading', { name: 'Nuevo libro' }),
       ).toBeInTheDocument();
       expect(field('Título')).toHaveValue('');
+    });
+
+    it('cancels back to the view of the list the user had', () => {
+      listingView.save('?availability=true');
+      start();
+      renderAt('/books/new');
+
+      expect(screen.getByRole('link', { name: 'Cancelar' })).toHaveAttribute(
+        'href',
+        '/books?availability=true',
+      );
     });
 
     it('creates the book, then opens its detail', async () => {
@@ -505,6 +525,14 @@ describe('BookFormPage', () => {
   });
 
   describe('edit a book (/books/:id/edit)', () => {
+    it('titles the tab «Editar libro · CMPC Libros»', async () => {
+      start({ [`GET /books/${ID}`]: { data: { data: book } } });
+      renderAt(`/books/${ID}/edit`);
+      await screen.findByLabelText('Título');
+
+      expect(document.title).toBe('Editar libro · CMPC Libros');
+    });
+
     it('shows a loading state while the book is read', async () => {
       let release: () => void = () => undefined;
       start({
