@@ -32,7 +32,7 @@ Marcar con `[x]` al terminar.
   - Commit: `feat(frontend): add the Excel export button to the books page`
 
 ## Integración y cierre
-- [ ] **E-06 Verificación de punta a punta** (E5.4)
+- [x] **E-06 Verificación de punta a punta** (E5.4)
   - Docker y navegador real: descargar el Excel con y sin filtros, abrirlo con `openpyxl`, comprobar columnas, formatos y fila fija; el aviso del tope; ambos botones.
   - Commit: `docs(books-export-xlsx): record the end-to-end verification`
 
@@ -72,3 +72,26 @@ Hallazgos:
 - **La librería no escribe nada con una lista vacía** (ni el encabezado): lo reveló la prueba unitaria de E-01 y se resolvió armando las filas en el propio código (`buildBooksXlsx`).
 - `openpyxl` avisa de que el libro «no contiene estilo por defecto»; el archivo se abre y se lee bien, y es una característica de la librería de escritura. Se comprobará en Excel real en E-06 si hay opción.
 - Un defecto de mi método: la primera ejecución de la prueba del tope falló al insertar el libro 20.001 por una columna sin valor (mi `INSERT`, no la aplicación).
+
+### E-06: recorrido de punta a punta con Docker y navegador real (2026-10-30)
+Entorno: `docker compose up --build` de la rama, en su **propio proyecto, puertos e imágenes** (`cmpc-xlsx`, `:18081`) para no tocar el sistema que el usuario tenía en `:8080`; navegador integrado; 20 libros cargados por la API, entre ellos `=HYPERLINK("http://malo.example","Clic")` con autor `+Anónimo`, `Uno, dos "tres"` y acentos. Para leer el archivo sin guardarlo se registró el `Blob` que la aplicación entrega al navegador (`URL.createObjectURL` y el `click` del enlace), se pasó a un archivo y se abrió con `openpyxl`.
+
+| Escenario | Resultado |
+|---|---|
+| Listado | Aparecen «Exportar Excel» y «Exportar CSV» (en ese orden) junto a «Nuevo libro» |
+| Descarga del Excel (sin filtros) | `libros-AAAA-MM-DD.xlsx`, tipo `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, 4.996 bytes, sin avisos; los botones vuelven a su texto |
+| El archivo descargado, abierto con `openpyxl` | Hoja «Libros», rango `A1:I21` (20 libros), encabezado en negrita, fila fija (`A2`), precio como número y fechas como `datetime`; el título `=HYPERLINK(...)` es una celda de **texto** (`s`), no una fórmula |
+| Más de 20.000 libros (20.020 en la base) | «Exportar Excel» no descarga nada y muestra «No se pudo exportar el Excel. Hay demasiados libros para Excel (máximo 20.000). Aplica filtros o descarga el CSV.» con «Reintentar exportación» y «Cerrar aviso»; el listado sigue en pantalla |
+| «Cerrar aviso» | El aviso desaparece |
+| El CSV con los 20.020 libros | Se descarga (2,78 MB, ~3 s): el CSV no tiene tope |
+| Buscar «Libro 1» (6 resultados) y exportar el Excel | Se descarga (3.781 bytes) sin avisos |
+| Backend detenido | En ~4 s: «No se pudo exportar el Excel. Ocurrió un error en el servidor. Inténtalo más tarde.»; el botón vuelve a estar activo y la tabla sigue |
+| «Reintentar exportación» con el backend de nuevo sano | Descarga el Excel y el aviso desaparece |
+| Sesión caducada (token inválido) | La exportación recibe 401, se borra la sesión y se navega a `/login`; no hay descarga |
+| Móvil (360 px) | **Defecto hallado, corregido** (abajo) |
+
+**Defecto de diseño hallado y corregido.** Con tres acciones en la cabecera (Excel, CSV y «Nuevo libro»), a 360 px la última terminaba en 409 px: **la página se desplazaba hacia los lados**. Se hizo que la cabecera y la fila de acciones pasen de línea (`flex-wrap`); repetido en el navegador: sin desborde (Excel y CSV en una línea y «Nuevo libro» en la siguiente). Commit: `fix(frontend): wrap the books actions on narrow screens`.
+
+Observaciones:
+- No se pudo abrir el archivo en **Microsoft Excel** (no está disponible en este equipo): el lector independiente fue `openpyxl`, que avisa de que el libro «no contiene estilo por defecto»; el archivo se lee bien. Conviene que el usuario lo abra en su Excel una vez.
+- Al terminar se eliminó el sistema aislado con sus volúmenes y sus imágenes; el sistema del usuario (`:8080`) no se tocó.
