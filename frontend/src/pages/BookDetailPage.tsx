@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { BookNotFound } from '../components/BookNotFound';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { CoverPreview } from '../components/CoverPreview';
 import { bookKey, useBook } from '../hooks/useBook';
 import { getErrorMessage } from '../lib/api-error';
 import { isMissingBook } from '../lib/book-errors';
@@ -23,7 +24,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** Same size for the image and the placeholder, so the page does not move. */
+/** Same size for the thumbnail and the placeholder, so the page does not move. */
 const COVER_SIZE = 'mx-auto aspect-[2/3] w-40 sm:w-full';
 
 function Cover({ book }: { book: Book }) {
@@ -31,13 +32,10 @@ function Cover({ book }: { book: Book }) {
   const [failed, setFailed] = useState(false);
   if (book.imageUrl && !failed) {
     return (
-      <img
+      <CoverPreview
         src={book.imageUrl}
-        alt={`Portada de ${book.title}`}
-        loading="lazy"
-        decoding="async"
+        title={book.title}
         onError={() => setFailed(true)}
-        className={`${COVER_SIZE} rounded-md border border-slate-200 object-cover`}
       />
     );
   }
