@@ -4,7 +4,7 @@ Reglas: seguir el orden; una tarea está hecha solo cuando su criterio se cumple
 **No empezar hasta aprobar `requirements.md` y `design.md`.**
 Marcar con `[x]` al terminar.
 
-- [ ] **M-01 Variante de fila de los componentes compartidos** (M1.5, M2.4, M4.3)
+- [x] **M-01 Variante de fila de los componentes compartidos** (M1.5, M2.4, M4.3)
   - `CoverPreview` y `CoverDownload` reciben `size` (`'detail'` por defecto, `'row'`); `CoverDownload` pone el título en su nombre accesible.
   - Hecho cuando: la ficha se ve igual (pruebas de `BookDetailPage` sin cambios) y las pruebas de ambos componentes cubren las dos variantes.
   - Commit: `feat(frontend): add a compact size to the cover components`

@@ -14,6 +14,41 @@ const thumbnail = () =>
   screen.getByRole('button', { name: 'Ampliar portada de Dune' });
 const dialog = () => screen.queryByRole('dialog', { name: 'Dune' });
 
+describe('CoverPreview sizes', () => {
+  it('is the book page thumbnail by default: fixed width, 2:3, no size attributes', () => {
+    renderPreview();
+
+    const image = screen.getByRole('img', { name: 'Portada de Dune' });
+    expect(thumbnail()).toHaveClass('w-40', 'sm:w-full');
+    expect(image).toHaveClass('aspect-[2/3]');
+    expect(image).not.toHaveAttribute('width');
+    expect(image).not.toHaveAttribute('height');
+  });
+
+  it('is a 48 × 72 px thumbnail in a row, with its space reserved', () => {
+    render(
+      <CoverPreview src={src} title="Dune" onError={vi.fn()} size="row" />,
+    );
+
+    const image = screen.getByRole('img', { name: 'Portada de Dune' });
+    expect(thumbnail()).toHaveClass('h-[72px]', 'w-12');
+    expect(thumbnail()).not.toHaveClass('sm:w-full');
+    expect(image).toHaveAttribute('width', '48');
+    expect(image).toHaveAttribute('height', '72');
+    expect(image).toHaveAttribute('loading', 'lazy');
+  });
+
+  it('opens the same dialog from a row thumbnail', async () => {
+    render(
+      <CoverPreview src={src} title="Dune" onError={vi.fn()} size="row" />,
+    );
+
+    await userEvent.click(thumbnail());
+
+    expect(dialog()).toBeInTheDocument();
+  });
+});
+
 describe('CoverPreview', () => {
   it('shows the cover as a thumbnail, lazy and decoded asynchronously', () => {
     renderPreview();
