@@ -91,6 +91,7 @@ Datos de un libro: título, autor, editorial, precio, disponibilidad y género (
 | **Docker** `docker-compose.yml` del stack completo | Hecho | [Inicio rápido](#2-inicio-rápido-con-docker) |
 | **Docs** README, Swagger, diagrama de arquitectura, modelo relacional | Hecho | Este archivo, `/api/docs`, [`docs/`](docs) |
 | **Adicional** Manejo de errores en frontend y backend, interceptores de NestJS | Hecho | Filtro global de errores y `TransformInterceptor`; interceptor de Axios |
+| **Mejoras de usabilidad** (fuera del enunciado) | Hecho | Exportación a Excel [`books-export-xlsx`](.ai/specs/books-export-xlsx); portada en la ficha [`book-detail-cover`](.ai/specs/book-detail-cover) y en la tabla [`books-table-cover`](.ai/specs/books-table-cover); logo y favicon [`branding-logo`](.ai/specs/branding-logo) |
 | **General** Supuestos, preparación para producción y lo no completado | Hecho | Secciones [8](#8-seguridad-y-puesta-en-producción), [9](#9-supuestos) y [10](#10-lo-que-no-se-hizo-y-cómo-se-implementaría) |
 
 La trazabilidad completa (cada requisito → su spec) está en [`.ai/steering/enunciado.md`](.ai/steering/enunciado.md).
@@ -179,7 +180,7 @@ El backend, el seed y los *scripts* `prisma:*` leen el `.env` de la raíz (o `ba
 ## 4. Guía de uso
 
 ### En la aplicación
-1. **Iniciar sesión** en `/login`. Tras 5 intentos fallidos en un minuto desde la misma IP, el servidor responde «Demasiados intentos».
+1. **Iniciar sesión** en `/login` (con el logo de CMPC; en el resto de la aplicación el logo de la cabecera lleva al listado). Tras 5 intentos fallidos en un minuto desde la misma IP, el servidor responde «Demasiados intentos».
 2. **Listado** (`/books`): la búsqueda por título responde mientras escribes (con una pausa de 300 ms) y se combina con los filtros de **autor**, **editorial**, **género** y **disponibilidad**. Pulsa el encabezado de una columna para ordenar; un segundo clic invierte el sentido y un tercero lo quita. Puedes combinar hasta cuatro columnas (el orden de los clics es el de prioridad). Cada fila muestra la **portada** en miniatura (al pulsarla se amplía) y, en la última columna, un botón **Descargar** que guarda la imagen con un nombre legible (`dune.png`); los libros sin portada muestran un marcador «Sin portada» y no ofrecen descarga. La paginación y el tamaño de página (10, 20 o 50) los resuelve el servidor. **Todo el estado vive en la URL**: recargar, volver atrás o compartir el enlace conserva la vista.
 3. **Nuevo libro** (`/books/new`): título, autor, editorial, género, precio y disponibilidad. Autor, editorial y género se escriben (con sugerencias): si no existen, se crean. La **portada** es opcional (JPG, PNG o WebP de hasta 2 MB; el tipo se decide por el contenido del archivo, no por su nombre).
 4. **Detalle** (`/books/:id`): todos los datos y la portada (se amplía al pulsarla y se puede descargar), con acciones para editar y eliminar (con confirmación).
@@ -268,8 +269,9 @@ cd frontend && npm run test:cov
 | | Pruebas | Cobertura (sentencias / ramas / funciones / líneas) | Umbral |
 |---|---|---|---|
 | Backend (Jest) | 873 en 52 suites + 15 e2e | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
-| Frontend (Vitest + Testing Library) | 703 en 46 archivos | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
+| Frontend (Vitest + Testing Library) | 707 en 47 archivos | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
 
+- Los plazos de las pruebas son holgados a propósito (30 s por prueba y 5 s para `findBy…`/`waitFor`): varias esperan relojes reales o cifran con argon2, y con la máquina ocupada los plazos por defecto (5 s y 1 s) hacían fallar pruebas correctas de forma intermitente.
 - Las pruebas unitarias usan *mocks* de Prisma y de Axios: ninguna toca la base de datos real. Las HTTP levantan Nest con el guard JWT, la validación, el filtro y los interceptores reales.
 - Una prueba e2e recorre el documento OpenAPI y exige **401** en cada ruta protegida y resumen, respuesta y seguridad documentados en cada operación.
 - Más allá de las pruebas automáticas, **cada spec se verificó contra el sistema real** (PostgreSQL, Docker y navegador) y los hallazgos quedaron registrados en su `tasks.md`: p. ej. una carrera al crear catálogos, la inconsistencia del historial de auditoría con ediciones simultáneas, el CSV vacío sin BOM, el límite de 15 s del cliente HTTP frente a exportaciones largas.
@@ -344,7 +346,7 @@ Nada del enunciado quedó sin hacer; esto es lo que se dejó **fuera de alcance 
 
 ## Cómo se trabajó
 
-- **Spec-Driven Development.** Antes de programar una funcionalidad se escribe su especificación; después se implementa tarea por tarea y una tarea solo se marca hecha cuando su prueba pasa. Las specs, en orden: [`platform`](.ai/specs/platform), [`auth`](.ai/specs/auth), [`books-crud`](.ai/specs/books-crud), [`books-listing`](.ai/specs/books-listing), [`book-image-upload`](.ai/specs/book-image-upload), [`books-export-csv`](.ai/specs/books-export-csv), [`audit-log`](.ai/specs/audit-log) y [`docs-delivery`](.ai/specs/docs-delivery). El contexto del proyecto vive en [`.ai/steering/`](.ai/steering) y las reglas de trabajo en [`CLAUDE.md`](CLAUDE.md).
+- **Spec-Driven Development.** Antes de programar una funcionalidad se escribe su especificación; después se implementa tarea por tarea y una tarea solo se marca hecha cuando su prueba pasa. Las specs, en orden: [`platform`](.ai/specs/platform), [`auth`](.ai/specs/auth), [`books-crud`](.ai/specs/books-crud), [`books-listing`](.ai/specs/books-listing), [`book-image-upload`](.ai/specs/book-image-upload), [`books-export-csv`](.ai/specs/books-export-csv), [`audit-log`](.ai/specs/audit-log) y [`docs-delivery`](.ai/specs/docs-delivery); después, las mejoras de usabilidad [`books-export-xlsx`](.ai/specs/books-export-xlsx), [`book-detail-cover`](.ai/specs/book-detail-cover), [`books-table-cover`](.ai/specs/books-table-cover) y [`branding-logo`](.ai/specs/branding-logo), con el mismo método. El contexto del proyecto vive en [`.ai/steering/`](.ai/steering) y las reglas de trabajo en [`CLAUDE.md`](CLAUDE.md).
 - **Ramas y *pull requests*.** `main` solo recibe cambios mediante PR (protegida); cada spec vive en su rama `feat/<spec>`, con **un commit convencional por tarea**, y el PR resume lo hecho, la evidencia y los hallazgos. Como las specs se apoyan unas en otras, sus ramas se fueron fusionando en orden (`platform` → `auth` → `books-crud` → … → `docs-delivery`) y `main` conserva un commit de fusión por PR.
 - **Verificación real.** Además de las pruebas, cada spec termina con un registro de verificación contra el sistema real (base de datos, Docker y navegador) en su `tasks.md`.
 
