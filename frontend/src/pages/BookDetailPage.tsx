@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CoverDownload } from '../components/CoverDownload';
 import { CoverPreview } from '../components/CoverPreview';
 import { bookKey, useBook } from '../hooks/useBook';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useListingPath } from '../hooks/useListingPath';
 import { getErrorMessage } from '../lib/api-error';
 import { isMissingBook } from '../lib/book-errors';
@@ -69,6 +70,7 @@ function BookDetail({ id }: { id: string }) {
   const navigate = useNavigate();
   const listingPath = useListingPath();
   const { data: book, error, isPending, refetch } = useBook(id);
+  useDocumentTitle(book?.title ?? 'Libro');
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);

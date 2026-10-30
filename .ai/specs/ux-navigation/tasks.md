@@ -22,7 +22,7 @@ Marcar con `[x]` al terminar.
   - La ficha, «Libro no encontrado», `NotFoundPage`, «Cancelar» del formulario y la navegación tras eliminar usan `useListingPath`.
   - Commit: `feat(frontend): return to the saved listing view from every screen`
 
-- [ ] **N-05 Cabecera activa y título de pestaña** (N3.1, N3.2, N5.1)
+- [x] **N-05 Cabecera activa y título de pestaña** (N3.1, N3.2, N5.1)
   - `NavLink` «Libros» con estado activo y `useDocumentTitle` en cada página.
   - Commit: `feat(frontend): mark the active section and title every page`
 

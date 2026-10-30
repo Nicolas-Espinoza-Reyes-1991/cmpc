@@ -5,6 +5,7 @@ import { BookTable } from '../components/BookTable';
 import { Pagination } from '../components/Pagination';
 import { useBookListParams } from '../hooks/useBookListParams';
 import { useBooks } from '../hooks/useBooks';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useExportBooks } from '../hooks/useExportBooks';
 import { hasActiveFilters } from '../lib/book-list-params';
 import { listingView } from '../lib/listingView';
@@ -27,6 +28,7 @@ const FORMAT_NAMES: Record<ExportFormat, string> = {
  * reloading, going back and sharing the link keep it.
  */
 export function BooksPage() {
+  useDocumentTitle('Libros');
   const { params, change, goToPage, toggleSort, clearSort, clearFilters } =
     useBookListParams();
   const { data, error, isPending, isPlaceholderData, refetch } =

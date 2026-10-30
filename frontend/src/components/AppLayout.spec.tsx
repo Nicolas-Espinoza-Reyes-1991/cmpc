@@ -70,6 +70,25 @@ describe('AppLayout', () => {
     expect(router.state.location.search).toBe('?q=dune');
   });
 
+  it('marks "Libros" as the active section in the list, a book and its forms', async () => {
+    const router = renderBooks();
+    const nav = within(
+      await screen.findByRole('navigation', { name: 'Principal' }),
+    );
+
+    expect(nav.getByRole('link', { name: 'Libros' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    for (const path of ['/books/new', '/books/id-1', '/books/id-1/edit']) {
+      await router.navigate(path);
+      expect(nav.getByRole('link', { name: 'Libros' })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    }
+  });
+
   it('renders the protected page inside the layout', async () => {
     renderBooks();
 

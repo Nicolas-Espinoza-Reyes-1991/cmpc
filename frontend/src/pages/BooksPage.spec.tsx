@@ -100,6 +100,13 @@ describe('BooksPage', () => {
       await waitFor(() => expect(listingView.read()).toBe('?q=dune&page=2'));
     });
 
+    it('titles the tab «Libros · CMPC Libros»', async () => {
+      start(page([book(1)]));
+      await screen.findByText('Libro 1');
+
+      expect(document.title).toBe('Libros · CMPC Libros');
+    });
+
     it('shows a loading state, then the books and how many there are', async () => {
       let release: () => void = () => undefined;
       start(

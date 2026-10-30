@@ -71,6 +71,13 @@ describe('BookFormPage', () => {
       );
     }
 
+    it('titles the tab «Nuevo libro · CMPC Libros»', () => {
+      start();
+      renderAt('/books/new');
+
+      expect(document.title).toBe('Nuevo libro · CMPC Libros');
+    });
+
     it('shows the empty form under the heading "Nuevo libro"', () => {
       start();
       renderAt('/books/new');
@@ -518,6 +525,14 @@ describe('BookFormPage', () => {
   });
 
   describe('edit a book (/books/:id/edit)', () => {
+    it('titles the tab «Editar libro · CMPC Libros»', async () => {
+      start({ [`GET /books/${ID}`]: { data: { data: book } } });
+      renderAt(`/books/${ID}/edit`);
+      await screen.findByLabelText('Título');
+
+      expect(document.title).toBe('Editar libro · CMPC Libros');
+    });
+
     it('shows a loading state while the book is read', async () => {
       let release: () => void = () => undefined;
       start({

@@ -62,6 +62,24 @@ describe('BookDetailPage', () => {
   });
 
   describe('reading the book', () => {
+    it('titles the tab with the book once it is read, and with «Libro» before', async () => {
+      let release: () => void = () => undefined;
+      start({
+        [`GET /books/${ID}`]: () =>
+          new Promise((resolve) => {
+            release = () => resolve({ data: { data: book } });
+          }),
+      });
+      renderAt();
+
+      await screen.findByRole('status');
+      expect(document.title).toBe('Libro · CMPC Libros');
+
+      release();
+      await screen.findByRole('heading', { name: 'Dune' });
+      expect(document.title).toBe('Dune · CMPC Libros');
+    });
+
     it('shows a loading state while the book is read', async () => {
       let release: () => void = () => undefined;
       start({
