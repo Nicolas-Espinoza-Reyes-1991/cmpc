@@ -7,6 +7,7 @@ import {
   type RouteObject,
 } from 'react-router';
 import * as download from '../lib/download-file';
+import { listingView } from '../lib/listingView';
 import { emptyCatalogs } from '../test/catalog-routes';
 import {
   mockApi,
@@ -82,9 +83,23 @@ describe('BooksPage', () => {
 
   afterEach(() => {
     api.restore();
+    listingView.clear();
   });
 
   describe('the list', () => {
+    it('remembers the view of the listing, so every way back can return to it', async () => {
+      const router = start(
+        page([book(1)], { total: 1 }),
+        '/books?q=dune&page=1',
+      );
+      await screen.findByText('Libro 1');
+      expect(listingView.read()).toBe('?q=dune&page=1');
+
+      await router.navigate('/books?q=dune&page=2');
+
+      await waitFor(() => expect(listingView.read()).toBe('?q=dune&page=2'));
+    });
+
     it('shows a loading state, then the books and how many there are', async () => {
       let release: () => void = () => undefined;
       start(

@@ -4,7 +4,7 @@ Reglas: seguir el orden; una tarea está hecha solo cuando su criterio se cumple
 Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de decisión se refleja en `design.md`.
 Marcar con `[x]` al terminar.
 
-- [ ] **N-01 Vista guardada del listado** (N2.4, N2.5, N4.2, N5.1)
+- [x] **N-01 Vista guardada del listado** (N2.4, N2.5, N4.2, N5.1)
   - `lib/listingView.ts`, `useListingPath` y que `BooksPage` guarde su `search`; «Cerrar sesión» la borra.
   - Hecho cuando: pruebas de guardar/leer/borrar, sin `sessionStorage` y con error; `lint`, `tsc` y cobertura pasan.
   - Commit: `feat(frontend): remember the listing view of the tab`
