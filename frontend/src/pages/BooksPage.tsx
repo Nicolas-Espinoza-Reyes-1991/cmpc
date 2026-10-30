@@ -48,9 +48,10 @@ export function BooksPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-8">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-slate-900">Libros</h1>
-        <div className="flex items-center gap-3">
+        {/* Three actions: they go to the next line on a phone instead of leaving the screen. */}
+        <div className="flex flex-wrap items-center gap-3">
           {EXPORT_BUTTONS.map(({ format, label }) => (
             <button
               key={format}
