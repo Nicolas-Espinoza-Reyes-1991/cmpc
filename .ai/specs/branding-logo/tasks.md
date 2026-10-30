@@ -13,7 +13,7 @@ Marcar con `[x]` al terminar.
   - Usar el logo en `AppLayout` (enlace a `/books`) y en `LoginPage`; actualizar sus pruebas.
   - Commit: `feat(frontend): show the CMPC logo in the header and the login`
 
-- [ ] **B-03 Favicon** (B2.1, B2.2)
+- [x] **B-03 Favicon** (B2.1, B2.2)
   - Reemplazar `public/favicon.svg` por el isotipo de las tres hojas, derivado del logo.
   - Hecho cuando: el favicon se ve nítido en la pestaña y a 16 px.
   - Commit: `feat(frontend): use the CMPC leaves as the favicon`
