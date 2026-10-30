@@ -23,7 +23,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-slate-900">{children}</dd>
+      <dd className="mt-1 wrap-anywhere text-slate-900">{children}</dd>
     </div>
   );
 }
@@ -141,8 +141,9 @@ function BookDetail({ id }: { id: string }) {
           onError={() => setBrokenCover(book.imageUrl)}
         />
 
-        <div>
-          <h1 className="text-2xl font-semibold break-words text-slate-900">
+        {/* `min-w-0` and `wrap-anywhere`: a word without spaces breaks instead of widening the page. */}
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold wrap-anywhere text-slate-900">
             {book.title}
           </h1>
           <dl className="mt-6 grid gap-4 sm:grid-cols-2">

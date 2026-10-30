@@ -80,6 +80,22 @@ describe('BookDetailPage', () => {
       expect(document.title).toBe('Dune · CMPC Libros');
     });
 
+    it('lets a long word break in the title and the data, so it cannot widen the page', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, author: 'autorautorautorautorautorautor' } },
+        },
+      });
+      renderAt();
+
+      const heading = await screen.findByRole('heading', { name: 'Dune' });
+      expect(heading).toHaveClass('wrap-anywhere');
+      expect(heading.parentElement).toHaveClass('min-w-0');
+      expect(screen.getByText('autorautorautorautorautorautor')).toHaveClass(
+        'wrap-anywhere',
+      );
+    });
+
     it('shows a loading state while the book is read', async () => {
       let release: () => void = () => undefined;
       start({

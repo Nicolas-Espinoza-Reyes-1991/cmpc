@@ -15,7 +15,7 @@ export function AppLayout() {
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-4">
+          <div className="flex shrink-0 items-center gap-4">
             <Link
               to={listingPath}
               aria-label="CMPC Libros, ir al listado"
@@ -33,7 +33,7 @@ export function AppLayout() {
               </NavLink>
             </nav>
           </div>
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex min-w-0 items-center gap-3 text-sm">
             <span className="truncate text-slate-600" title={user?.email}>
               {user?.email}
             </span>
