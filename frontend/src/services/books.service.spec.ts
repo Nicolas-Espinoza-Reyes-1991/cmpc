@@ -8,7 +8,10 @@ import {
   getBook,
   deleteBookImage,
   EXPORT_TIMEOUT_MS,
+  exportBooksAs,
   exportBooksCsv,
+  exportBooksXlsx,
+  XLSX_TOO_MANY_MESSAGE,
   listBooks,
   updateBook,
   uploadBookImage,
@@ -364,6 +367,109 @@ describe('books service', () => {
         status: 400,
         message: 'Los datos enviados no son válidos.',
       });
+    });
+  });
+
+  describe('exportBooksXlsx', () => {
+    const xlsx = new Blob(['x']);
+    const XLSX_TYPE =
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    it('asks the Excel route for the filters and the order, without page or size', async () => {
+      api = mockApi({ 'GET /books/export/xlsx': { data: xlsx } });
+
+      await exportBooksXlsx({
+        ...DEFAULT_PARAMS,
+        page: 3,
+        limit: 20,
+        genre: 'novela',
+        sort: [{ field: 'title', direction: 'asc' }],
+      });
+
+      expect(sent()?.url).toBe('/books/export/xlsx');
+      expect(sent()?.params).toMatchObject({
+        genre: 'novela',
+        sort: 'title:asc',
+      });
+      expect(sent()?.params).not.toHaveProperty('page');
+      expect(sent()?.params).not.toHaveProperty('limit');
+      expect(sent()?.responseType).toBe('blob');
+      expect(sent()?.timeout).toBe(EXPORT_TIMEOUT_MS);
+      expect(sent()?.headers.get('Accept')).toBe(XLSX_TYPE);
+    });
+
+    it('returns the file and the name the server proposes', async () => {
+      api = mockApi({
+        'GET /books/export/xlsx': {
+          data: xlsx,
+          headers: {
+            'content-disposition':
+              'attachment; filename="libros-2026-10-30.xlsx"',
+          },
+        },
+      });
+
+      await expect(exportBooksXlsx(DEFAULT_PARAMS)).resolves.toEqual({
+        blob: xlsx,
+        fileName: 'libros-2026-10-30.xlsx',
+      });
+    });
+
+    it('uses a fixed .xlsx name when the server proposes none', async () => {
+      api = mockApi({ 'GET /books/export/xlsx': { data: xlsx } });
+
+      await expect(exportBooksXlsx(DEFAULT_PARAMS)).resolves.toMatchObject({
+        fileName: 'libros.xlsx',
+      });
+    });
+
+    it('explains a 422 in Spanish: too many books for Excel, with the limit', async () => {
+      api = mockApi({
+        'GET /books/export/xlsx': { status: 422, data: new Blob(['{}']) },
+      });
+
+      const attempt = exportBooksXlsx(DEFAULT_PARAMS);
+
+      await expect(attempt).rejects.toBeInstanceOf(ApiError);
+      await expect(attempt).rejects.toMatchObject({
+        status: 422,
+        message: XLSX_TOO_MANY_MESSAGE,
+      });
+      expect(XLSX_TOO_MANY_MESSAGE).toBe(
+        'Hay demasiados libros para Excel (máximo 20.000). Aplica filtros o descarga el CSV.',
+      );
+    });
+
+    it('lets any other failure through with its own message', async () => {
+      api = mockApi({
+        'GET /books/export/xlsx': { status: 500, data: new Blob([]) },
+      });
+
+      await expect(exportBooksXlsx(DEFAULT_PARAMS)).rejects.toMatchObject({
+        status: 500,
+        message: 'Ocurrió un error en el servidor. Inténtalo más tarde.',
+      });
+    });
+
+    it('does not turn a failure that is not an API error into one', async () => {
+      api = mockApi({ 'GET /books/export/xlsx': { network: true } });
+
+      await expect(exportBooksXlsx(DEFAULT_PARAMS)).rejects.toMatchObject({
+        status: 0,
+      });
+    });
+  });
+
+  describe('exportBooksAs', () => {
+    it.each([
+      ['csv', '/books/export'],
+      ['xlsx', '/books/export/xlsx'],
+    ] as const)('goes to the right route for %s', async (format, url) => {
+      api = mockApi({ [`GET ${url}`]: { data: new Blob(['x']) } });
+
+      await exportBooksAs(format, DEFAULT_PARAMS);
+
+      expect(sent()?.url).toBe(url);
     });
   });
 });

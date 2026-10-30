@@ -1,0 +1,117 @@
+# Spec books-export-xlsx: Tareas
+
+Reglas: seguir el orden; una tarea está hecha solo cuando su criterio se cumple y sus pruebas pasan. Un commit por tarea (formato convencional, en inglés).
+Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de decisión se refleja en `design.md`.
+Marcar con `[x]` al terminar.
+
+## Backend
+- [x] **E-01 Dependencia y generador del archivo** (E2.1 a E2.5, E5.1)
+  - Instalar `write-excel-file` 4.1.1 exacta (CommonJS) y escribir `book-xlsx.ts`: tope, tipo de contenido, nombre del archivo y `buildBooksXlsx`; el ayudante de pruebas que descomprime un `.xlsx`.
+  - Pruebas: encabezados y orden, tipos y formatos de precio y fechas, `Sí`/`No`, anchos, fila fija, hoja «Libros», vacío y un título `=HYPERLINK(...)` guardado como texto.
+  - Hecho cuando: `lint`, `tsc`, build, `test:cov` y `npm audit --omit=dev` (0) pasan.
+  - Commit: `feat(books): add the Excel file builder`
+
+- [x] **E-02 Lectura con tope** (E1.2, E1.3, E3.1 a E3.3)
+  - `BooksService.exportAll(query)`: cuenta, rechaza con `UnprocessableEntityException` por encima del tope y comprueba el tope también mientras lee.
+  - Pruebas: bajo el tope, exactamente 20.000, 20.001 sin leer, crecimiento durante la lectura, mismos filtros y orden que el listado, fallo de la base.
+  - Commit: `feat(books): read the books to export to Excel with a row limit`
+
+- [x] **E-03 Endpoint** (E1.1 a E1.5, E3.4, E5.1, E5.2)
+  - `GET /api/books/export/xlsx` con cabeceras, Swagger y e2e actualizado (15 operaciones).
+  - Pruebas HTTP con Passport real que abren el `.xlsx`: columnas, filas, celdas numéricas y de fecha, 401, 400 por `page`, 422 por el tope, vacío, ruta no tomada por `:id`.
+  - Commit: `feat(books): add the Excel export endpoint`
+
+- [x] **E-04 Verificación contra PostgreSQL real** (E5.3)
+  - Backend compilado: archivo abierto con `openpyxl` y comparado con la base; mismo orden que el listado; tope con 20.001 libros; tiempo y memoria con 20.000.
+  - Commit: `docs(books-export-xlsx): record the backend verification`
+
+## Frontend
+- [x] **E-05 Servicio, hook y botón** (E4.1 a E4.5, E5.1)
+  - `exportBooksXlsx`, `useExportBooks` con formato, «Exportar Excel» en `BooksPage`, aviso del tope.
+  - Pruebas: parámetros sin `page`/`limit`, `Blob`, nombre, 422 → mensaje, dos botones, «Exportando…» en el correcto, una descarga a la vez, aviso del tope, error con reintento y listado intacto.
+  - Commit: `feat(frontend): add the Excel export button to the books page`
+
+## Integración y cierre
+- [x] **E-06 Verificación de punta a punta** (E5.4)
+  - Docker y navegador real: descargar el Excel con y sin filtros, abrirlo con `openpyxl`, comprobar columnas, formatos y fila fija; el aviso del tope; ambos botones.
+  - Commit: `docs(books-export-xlsx): record the end-to-end verification`
+
+- [x] **E-07 Documentación**
+  - `tech-stack.md` (librería y motivo), README (guía de uso, decisiones, pendientes), `enunciado.md` (la spec en la tabla) y `architecture.md` (flujo de la exportación); enlaces comprobados.
+  - Commit: `docs: document the Excel export`
+
+- [x] **E-08 Verificación de la spec**
+  - Recorrer E1 a E5 con evidencia nueva (lint, tipos, build, cobertura ≥ 80 % y fallando por debajo en ambas apps; `npm audit`) y registrar el resultado.
+  - Commit: `docs(books-export-xlsx): record the spec verification`
+
+## Registro de verificación
+
+### E-04: verificación contra PostgreSQL real (2026-10-30)
+Entorno: PostgreSQL 16 del contenedor de desarrollo; base **nueva** migrada con `migrate deploy` (eliminada al terminar); backend compilado (`node dist/main`) con login real; 400 libros con acentos, `ñ`, comillas, saltos de línea y textos que empiezan con `=`, `+`, `-` y `@`; el archivo se leyó con **`openpyxl`** (un lector independiente de la librería que lo escribe) y se comparó con una consulta SQL.
+
+| Comprobación | Resultado |
+|---|---|
+| Respuesta | 200, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `attachment; filename="libros-AAAA-MM-DD.xlsx"`, `Cache-Control: no-store`, `Content-Length` igual al tamaño recibido |
+| El archivo | Una hoja «Libros», rango `A1:I401` (400 libros + encabezado), encabezado **fijo** (`A2`), encabezado de las 9 columnas en negrita y filas de datos sin negrita |
+| Anchos | 38, 40, 28, 24, 20, 14, 12, 20 y 20 caracteres (los de la spec) |
+| Cada celda frente a la base | 400 filas × 9 columnas: **0 diferencias** (id, textos, `Sí`/`No`, precio y las dos fechas a menos de un segundo) |
+| Tipos | El precio y las fechas son números y fechas reales con formato `#,##0.00` y `yyyy-mm-dd hh:mm:ss` en las 400 filas |
+| Fórmulas | 448 textos que empiezan con `=`, `+`, `-` o `@`: **448 guardados como texto, 0 como fórmula, 0 con comilla delante** |
+| Acentos, comillas y saltos de línea | 115 filas con `ñ`, 57 títulos con salto de línea: intactos |
+| Mismo contenido y orden que el listado (5 combinaciones) | Sin filtros (400), `availability=false` (200), `search=libro` (114), `sort=price:desc,title:asc` (400) y `genre=nove&sort=author:asc` (133): mismos libros **en el mismo orden** |
+| Sin resultados | 200 con solo la fila de encabezados |
+| Guardas | Sin token 401; `page` 400; orden inválido 400 |
+| Libro eliminado | Desaparece del archivo (400 → 399) |
+| **Exactamente 20.000 libros** | 200, 20.000 filas, archivo de 1,7 MB; el proceso del servidor se mantiene en ~130 MB |
+| **20.001 libros** | **422** con el mensaje «Too many books for Excel (maximum 20000): narrow the filters or use the CSV export» y sin leer los libros; con un filtro que baja del tope vuelve a funcionar |
+| El CSV | Sigue sin tope (20.001 filas) |
+
+**Tiempo.** Con 20.000 libros el Excel tardó entre 6 y 15 s y el CSV de los mismos libros entre 6 y 8 s: **el Excel cuesta lo mismo que el CSV** porque domina la lectura de la base (40 lotes con tres uniones). Se midió con la máquina al 100 % de procesador por otra sesión de trabajo (una página de 50 libros tardaba 2 s), así que los segundos absolutos son un techo y no una medida limpia. Mi estimación de 1 s del diseño era solo la construcción del archivo (medida aparte), no la petición completa.
+
+Hallazgos:
+- **La librería no escribe nada con una lista vacía** (ni el encabezado): lo reveló la prueba unitaria de E-01 y se resolvió armando las filas en el propio código (`buildBooksXlsx`).
+- `openpyxl` avisa de que el libro «no contiene estilo por defecto»; el archivo se abre y se lee bien, y es una característica de la librería de escritura. Se comprobará en Excel real en E-06 si hay opción.
+- Un defecto de mi método: la primera ejecución de la prueba del tope falló al insertar el libro 20.001 por una columna sin valor (mi `INSERT`, no la aplicación).
+
+### E-06: recorrido de punta a punta con Docker y navegador real (2026-10-30)
+Entorno: `docker compose up --build` de la rama, en su **propio proyecto, puertos e imágenes** (`cmpc-xlsx`, `:18081`) para no tocar el sistema que el usuario tenía en `:8080`; navegador integrado; 20 libros cargados por la API, entre ellos `=HYPERLINK("http://malo.example","Clic")` con autor `+Anónimo`, `Uno, dos "tres"` y acentos. Para leer el archivo sin guardarlo se registró el `Blob` que la aplicación entrega al navegador (`URL.createObjectURL` y el `click` del enlace), se pasó a un archivo y se abrió con `openpyxl`.
+
+| Escenario | Resultado |
+|---|---|
+| Listado | Aparecen «Exportar Excel» y «Exportar CSV» (en ese orden) junto a «Nuevo libro» |
+| Descarga del Excel (sin filtros) | `libros-AAAA-MM-DD.xlsx`, tipo `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, 4.996 bytes, sin avisos; los botones vuelven a su texto |
+| El archivo descargado, abierto con `openpyxl` | Hoja «Libros», rango `A1:I21` (20 libros), encabezado en negrita, fila fija (`A2`), precio como número y fechas como `datetime`; el título `=HYPERLINK(...)` es una celda de **texto** (`s`), no una fórmula |
+| Más de 20.000 libros (20.020 en la base) | «Exportar Excel» no descarga nada y muestra «No se pudo exportar el Excel. Hay demasiados libros para Excel (máximo 20.000). Aplica filtros o descarga el CSV.» con «Reintentar exportación» y «Cerrar aviso»; el listado sigue en pantalla |
+| «Cerrar aviso» | El aviso desaparece |
+| El CSV con los 20.020 libros | Se descarga (2,78 MB, ~3 s): el CSV no tiene tope |
+| Buscar «Libro 1» (6 resultados) y exportar el Excel | Se descarga (3.781 bytes) sin avisos |
+| Backend detenido | En ~4 s: «No se pudo exportar el Excel. Ocurrió un error en el servidor. Inténtalo más tarde.»; el botón vuelve a estar activo y la tabla sigue |
+| «Reintentar exportación» con el backend de nuevo sano | Descarga el Excel y el aviso desaparece |
+| Sesión caducada (token inválido) | La exportación recibe 401, se borra la sesión y se navega a `/login`; no hay descarga |
+| Móvil (360 px) | **Defecto hallado, corregido** (abajo) |
+
+**Defecto de diseño hallado y corregido.** Con tres acciones en la cabecera (Excel, CSV y «Nuevo libro»), a 360 px la última terminaba en 409 px: **la página se desplazaba hacia los lados**. Se hizo que la cabecera y la fila de acciones pasen de línea (`flex-wrap`); repetido en el navegador: sin desborde (Excel y CSV en una línea y «Nuevo libro» en la siguiente). Commit: `fix(frontend): wrap the books actions on narrow screens`.
+
+Observaciones:
+- No se pudo abrir el archivo en **Microsoft Excel** (no está disponible en este equipo): el lector independiente fue `openpyxl`, que avisa de que el libro «no contiene estilo por defecto»; el archivo se lee bien. Conviene que el usuario lo abra en su Excel una vez.
+- Al terminar se eliminó el sistema aislado con sus volúmenes y sus imágenes; el sistema del usuario (`:8080`) no se tocó.
+
+### E-08: verificación de la spec (2026-10-30)
+Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:cov` (**52 suites, 873 pruebas, 100 %** en sentencias, ramas, funciones y líneas; con el umbral forzado a 101 % falla: "does not meet global threshold") y e2e (**15**, con las 15 operaciones de la API); frontend `lint`, `tsc -b` y build limpios, `test:cov` (**42 archivos, 665 pruebas, 100 %**; el umbral forzado también falla); `npm audit --omit=dev`: **0** en ambas apps; más los registros E-04 y E-06.
+
+| Criterio | Evidencia |
+|---|---|
+| E1.1, E1.5 | `books-export-xlsx.http.spec` (cabeceras, nombre con la fecha, `no-store`, `Content-Length` exacto) y E-04 con la base real |
+| E1.2 | Pruebas HTTP (mismos filtros y orden con `count` y `findMany`; 400 por `page`, `limit`, parámetros desconocidos y orden inválido, sin leer nada) y E-04: 5 combinaciones con el mismo orden que el listado |
+| E1.3, E1.4 | 401 sin token; libro eliminado fuera del archivo (E-04); la ruta no la toma `:id` |
+| E2.1 a E2.5 | `book-xlsx.spec` (encabezados de `CSV_HEADERS`, tipos, formatos, anchos, fila fija, hoja «Libros», vacío, texto con `=`) y E-04: **400 filas × 9 columnas sin diferencias** abiertas con `openpyxl`; E-06 con el archivo del navegador |
+| E3.1 a E3.3 | `exportAll` (bajo el tope, exactamente 20.000, 20.001 sin leer, crecimiento durante la lectura) y E-04: 20.000 libros → 200; 20.001 → 422 |
+| E3.4 | Prueba HTTP: la base falla y la respuesta es un 500 genérico sin detalles, antes del primer byte |
+| E4.1 a E4.5 | `BooksPage.spec`, `useExportBooks.spec`, `books.service.spec` y E-06 en el navegador (dos botones, «Exportando…» solo en el pulsado, una descarga a la vez, aviso del tope con cerrar y reintentar, error con reintento, nombre saneado) |
+| E5.1 a E5.4 | Suites citadas; cobertura 100 %; E-04 (PostgreSQL y `openpyxl`) y E-06 (Docker y navegador) |
+
+Resultado: sin criterios pendientes.
+
+Hallazgos de la verificación (corregidos): la librería no escribe nada con una lista vacía (se arman las filas en el código); la fila de acciones se salía de la pantalla a 360 px con el tercer botón (se hizo que pase de línea); y las pruebas de tiempo real (argon2, límite de intentos y formularios) fallan de forma intermitente si la máquina está saturada y pasan solas (se corrigen aparte, con plazos más largos).
+
+Pendientes (no son de esta spec): abrir el archivo en Microsoft Excel real (no disponible en este equipo); Excel de más de 20.000 libros (README §10).

@@ -33,6 +33,7 @@ import {
   ApiProduces,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { AuditActor } from '../audit/audit.types';
 import { Actor } from '../common/decorators/actor.decorator';
@@ -41,6 +42,12 @@ import { RawResponse } from '../common/decorators/raw-response.decorator';
 import type { PaginatedResult } from '../common/types/api-response.types';
 import { BooksService } from './books.service';
 import { csvFileName } from './export/book-csv';
+import {
+  XLSX_CONTENT_TYPE,
+  XLSX_MAX_ROWS,
+  buildBooksXlsx,
+  xlsxFileName,
+} from './export/book-xlsx';
 import {
   bookCsvRows,
   createBomWriter,
@@ -162,6 +169,48 @@ export class BooksController {
       // the database failed halfway). Nothing internal goes to the client.
       this.logger.warn(`CSV export aborted: ${String(error)}`);
     }
+  }
+
+  /**
+   * Declared before `:id`, like the CSV. Unlike it, the file is not streamed: an
+   * .xlsx is a zip that the library builds in memory, so the whole file is ready
+   * before the first byte goes out and every error (the 422 for too many books,
+   * a database failure) can still be answered with the normal error format.
+   */
+  @Get('export/xlsx')
+  @RawResponse()
+  @ApiOperation({
+    summary: 'Export books to Excel',
+    description: `Every active book that matches the filters, in the order of the listing, as an Excel file (.xlsx): one sheet called "Libros", one column per field, the price as a number and the dates as real dates (UTC). It accepts the filters and \`sort\` of the listing and no pagination. Up to ${XLSX_MAX_ROWS} books; for more, narrow the filters or use the CSV export.`,
+  })
+  @ApiProduces(XLSX_CONTENT_TYPE)
+  @ApiOkResponse({
+    description: 'The Excel file, sent as an attachment.',
+    content: {
+      [XLSX_CONTENT_TYPE]: { schema: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Invalid filters or order, or `page` / `limit`, which the export does not take.',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: `More than ${XLSX_MAX_ROWS} books match: narrow the filters or use the CSV export.`,
+  })
+  async exportXlsx(
+    @Query() query: ExportBooksQueryDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await buildBooksXlsx(await this.books.exportAll(query));
+
+    res.set({
+      'Content-Type': XLSX_CONTENT_TYPE,
+      'Content-Disposition': `attachment; filename="${xlsxFileName(new Date())}"`,
+      'Content-Length': String(file.length),
+      // An inventory report should not be kept by a shared cache.
+      'Cache-Control': 'no-store',
+    });
+    res.end(file);
   }
 
   @Get(':id')
