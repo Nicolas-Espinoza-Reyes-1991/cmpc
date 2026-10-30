@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
@@ -10,6 +11,7 @@ import { CatalogService } from '../catalog/catalog.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { BookWithCatalogs } from './book.mapper';
 import { BooksService, EXPORT_BATCH_SIZE } from './books.service';
+import { XLSX_MAX_ROWS } from './export/book-xlsx';
 import type { CreateBookDto } from './dto/create-book.dto';
 import { ExportBooksQueryDto } from './dto/export-books-query.dto';
 import { ListBooksQueryDto } from './dto/list-books-query.dto';
@@ -701,6 +703,132 @@ describe('BooksService', () => {
 
       await expect(consume()).rejects.toThrow('db down');
       expect(received).toEqual([EXPORT_BATCH_SIZE]);
+    });
+  });
+
+  describe('exportAll', () => {
+    const query = (overrides: Partial<ExportBooksQueryDto> = {}) =>
+      Object.assign(new ExportBooksQueryDto(), overrides);
+    const rows = (from: number, amount: number) =>
+      Array.from({ length: amount }, (_, i) => ({
+        ...row,
+        id: `b${from + i}`,
+      }));
+
+    it('counts first and returns every book as one list, in the order of the batches', async () => {
+      count.mockResolvedValue(3);
+      findMany.mockResolvedValue(rows(1, 3));
+
+      const books = await service.exportAll(query());
+
+      expect(books.map((book) => book.id)).toEqual(['b1', 'b2', 'b3']);
+      expect(count).toHaveBeenCalledTimes(1);
+      expect(count.mock.invocationCallOrder[0]).toBeLessThan(
+        findMany.mock.invocationCallOrder[0] as number,
+      );
+    });
+
+    it('joins several batches into one list', async () => {
+      count.mockResolvedValue(620);
+      findMany
+        .mockResolvedValueOnce(rows(0, EXPORT_BATCH_SIZE))
+        .mockResolvedValueOnce(rows(EXPORT_BATCH_SIZE, 120));
+
+      const books = await service.exportAll(query());
+
+      expect(books).toHaveLength(620);
+      expect(books[0]?.id).toBe('b0');
+      expect(books[619]?.id).toBe('b619');
+    });
+
+    it('counts and reads with the same filters and order as the listing', async () => {
+      count.mockResolvedValue(1);
+      findMany.mockResolvedValue(rows(1, 1));
+      const filters = query({
+        search: 'dune',
+        availability: true,
+        sort: 'price:desc',
+      });
+
+      await service.exportAll(filters);
+
+      const countCalls = count.mock.calls as [{ where: unknown }][];
+      const where = countCalls[0]?.[0].where;
+      expect(findMany.mock.calls[0]?.[0]).toMatchObject({ where });
+      expect(findMany.mock.calls[0]?.[0]).toMatchObject({
+        orderBy: [{ price: 'desc' }, { id: 'asc' }],
+      });
+      expect(where).not.toEqual({});
+    });
+
+    it('gives an empty list when no book matches', async () => {
+      count.mockResolvedValue(0);
+      findMany.mockResolvedValue([]);
+
+      await expect(service.exportAll(query())).resolves.toEqual([]);
+    });
+
+    it('accepts exactly the limit', async () => {
+      count.mockResolvedValue(XLSX_MAX_ROWS);
+      findMany.mockImplementation((args) => {
+        const cursor = (args as { cursor?: { id: string } }).cursor;
+        const start = cursor ? Number(cursor.id.slice(1)) + 1 : 0;
+        const left = XLSX_MAX_ROWS - start;
+        return Promise.resolve(rows(start, Math.min(EXPORT_BATCH_SIZE, left)));
+      });
+
+      await expect(service.exportAll(query())).resolves.toHaveLength(
+        XLSX_MAX_ROWS,
+      );
+    });
+
+    it('refuses one book over the limit with a 422 and reads nothing', async () => {
+      count.mockResolvedValue(XLSX_MAX_ROWS + 1);
+
+      const attempt = service.exportAll(query());
+
+      await expect(attempt).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      await expect(attempt).rejects.toThrow(
+        'Too many books for Excel (maximum 20000): narrow the filters or use the CSV export',
+      );
+      expect(findMany).not.toHaveBeenCalled();
+    });
+
+    it('stops reading as soon as the books grow past the limit after the count', async () => {
+      // The count said it fits, but books were added before the last batch.
+      count.mockResolvedValue(XLSX_MAX_ROWS);
+      let served = 0;
+      findMany.mockImplementation(() => {
+        const batch = rows(served, EXPORT_BATCH_SIZE);
+        served += EXPORT_BATCH_SIZE;
+        return Promise.resolve(batch);
+      });
+
+      await expect(service.exportAll(query())).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      // 40 full batches fit exactly; the 41st is the first to pass the limit.
+      expect(findMany).toHaveBeenCalledTimes(
+        XLSX_MAX_ROWS / EXPORT_BATCH_SIZE + 1,
+      );
+    });
+
+    it('lets a database failure through untouched', async () => {
+      const failure = new Error('db down');
+      count.mockRejectedValue(failure);
+
+      await expect(service.exportAll(query())).rejects.toBe(failure);
+      expect(findMany).not.toHaveBeenCalled();
+    });
+
+    it('lets a failure while reading through untouched', async () => {
+      const failure = new Error('read failed');
+      count.mockResolvedValue(10);
+      findMany.mockRejectedValue(failure);
+
+      await expect(service.exportAll(query())).rejects.toBe(failure);
     });
   });
 

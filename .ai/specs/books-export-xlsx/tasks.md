@@ -11,7 +11,7 @@ Marcar con `[x]` al terminar.
   - Hecho cuando: `lint`, `tsc`, build, `test:cov` y `npm audit --omit=dev` (0) pasan.
   - Commit: `feat(books): add the Excel file builder`
 
-- [ ] **E-02 Lectura con tope** (E1.2, E1.3, E3.1 a E3.3)
+- [x] **E-02 Lectura con tope** (E1.2, E1.3, E3.1 a E3.3)
   - `BooksService.exportAll(query)`: cuenta, rechaza con `UnprocessableEntityException` por encima del tope y comprueba el tope también mientras lee.
   - Pruebas: bajo el tope, exactamente 20.000, 20.001 sin leer, crecimiento durante la lectura, mismos filtros y orden que el listado, fallo de la base.
   - Commit: `feat(books): read the books to export to Excel with a row limit`

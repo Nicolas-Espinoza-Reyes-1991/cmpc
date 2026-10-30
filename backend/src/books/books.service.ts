@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
@@ -19,6 +20,7 @@ import { BOOK_INCLUDE, toAuditSnapshot, toBookDto } from './book.mapper';
 import { ImageStorage } from './images/image-storage';
 import { sniffImageType } from './images/image-type';
 import type { BookDto } from './dto/book.dto';
+import { XLSX_MAX_ROWS } from './export/book-xlsx';
 import type { CreateBookDto } from './dto/create-book.dto';
 import type { ExportBooksQueryDto } from './dto/export-books-query.dto';
 import type { ListBooksQueryDto } from './dto/list-books-query.dto';
@@ -37,6 +39,11 @@ const DUPLICATE_MESSAGE =
 const EMPTY_UPDATE_MESSAGE = 'At least one field is required';
 const INVALID_IMAGE_MESSAGE =
   'The file is not a valid image: only JPEG, PNG and WebP are accepted';
+
+const tooManyForExcel = (): UnprocessableEntityException =>
+  new UnprocessableEntityException(
+    `Too many books for Excel (maximum ${XLSX_MAX_ROWS}): narrow the filters or use the CSV export`,
+  );
 
 /** Prisma error codes this service turns into specific answers. */
 const UNIQUE_VIOLATION = 'P2002';
@@ -231,6 +238,27 @@ export class BooksService {
     } catch (error) {
       throw this.translate(error);
     }
+  }
+
+  /**
+   * Every active book that matches the filters, in the order of the listing, for
+   * a file that is built in memory (the Excel). It refuses more than
+   * `XLSX_MAX_ROWS` (422): first by counting, so nothing is read for a request
+   * that is too big, and again while reading, because books can be added
+   * between the count and the last batch and the limit must hold anyway.
+   */
+  async exportAll(query: ExportBooksQueryDto): Promise<BookDto[]> {
+    const total = await this.prisma.live.book.count({
+      where: buildBookWhere(query),
+    });
+    if (total > XLSX_MAX_ROWS) throw tooManyForExcel();
+
+    const books: BookDto[] = [];
+    for await (const batch of this.exportRows(query)) {
+      books.push(...batch);
+      if (books.length > XLSX_MAX_ROWS) throw tooManyForExcel();
+    }
+    return books;
   }
 
   /** Soft delete: the row stays, marked with the date (C5.1). */
