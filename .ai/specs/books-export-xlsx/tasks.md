@@ -16,7 +16,7 @@ Marcar con `[x]` al terminar.
   - Pruebas: bajo el tope, exactamente 20.000, 20.001 sin leer, crecimiento durante la lectura, mismos filtros y orden que el listado, fallo de la base.
   - Commit: `feat(books): read the books to export to Excel with a row limit`
 
-- [ ] **E-03 Endpoint** (E1.1 a E1.5, E3.4, E5.1, E5.2)
+- [x] **E-03 Endpoint** (E1.1 a E1.5, E3.4, E5.1, E5.2)
   - `GET /api/books/export/xlsx` con cabeceras, Swagger y e2e actualizado (15 operaciones).
   - Pruebas HTTP con Passport real que abren el `.xlsx`: columnas, filas, celdas numéricas y de fecha, 401, 400 por `page`, 422 por el tope, vacío, ruta no tomada por `:id`.
   - Commit: `feat(books): add the Excel export endpoint`

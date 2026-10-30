@@ -32,6 +32,7 @@ const EXPECTED_OPERATIONS = [
   'POST /api/books',
   'GET /api/books',
   'GET /api/books/export',
+  'GET /api/books/export/xlsx',
   'GET /api/books/{id}',
   'PATCH /api/books/{id}',
   'DELETE /api/books/{id}',
