@@ -60,3 +60,11 @@ Evidencia nueva: frontend `lint`, `tsc -b` y build limpios, `test:cov` (**46 arc
 | M5.1, M5.2 | Suites citadas y M-04 |
 
 Resultado: sin criterios pendientes.
+
+### Corrección posterior: la tabla no debe necesitar desplazamiento horizontal (2026-10-30)
+Hallazgo del usuario al probar con datos reales: con palabras largas sin espacios (`werrwewerwer`, `34554547568`) las columnas de texto crecían hasta que la tabla (1086 px de ancho útil a 1400 px de pantalla) era más ancha que su caja y la columna «Descargar» quedaba cortada tras un desplazamiento. Las pruebas unitarias no miden anchos, por eso no lo vieron.
+
+- **Reproducido** en Docker aislado con un libro de palabras largas: la caja medía 1086 px y su contenido 2232 px.
+- **Corrección:** las celdas de título, autor, editorial y género usan `wrap-anywhere` (`overflow-wrap: anywhere`), que deja partir una palabra larga y, a diferencia de `break-word`, también reduce el ancho mínimo de la columna. El desplazamiento queda solo como último recurso en un teléfono.
+- **Medido en el navegador real después:** 1400 px → contenido 1086 = caja 1086 (sin desplazamiento y con «Descargar» entera); 1024 px → 943 = 943; 360 px → la tabla se desplaza dentro de su caja y la página sigue midiendo 360 px.
+- **Prueba:** `BookTable.spec` comprueba que las cuatro celdas de texto pueden partir palabras; al quitar la clase falla. Frontend: lint, `tsc -b`, **708 pruebas, 47 archivos, 100 %**.

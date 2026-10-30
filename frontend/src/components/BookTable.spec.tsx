@@ -206,6 +206,21 @@ describe('BookTable', () => {
       expect(box).toHaveClass('relative', 'overflow-x-auto');
     });
 
+    it('lets the text cells break a long word, so it cannot stretch the table into a scroll', () => {
+      renderTable({
+        books: [withCover('b1', 'titulotitulotitulotitulotitulo')],
+      });
+
+      const cells = within(
+        rowOf('titulotitulotitulotitulotitulo'),
+      ).getAllByRole('cell');
+      // Title, author, publisher and genre; the cover, price, availability, date and download do not.
+      const breaking = cells.filter((cell) =>
+        cell.classList.contains('wrap-anywhere'),
+      );
+      expect(breaking).toHaveLength(4);
+    });
+
     it('shows a thumbnail and a download for a book with a cover', () => {
       renderTable({ books: [withCover('b1', 'Cien años', 'abc')] });
 
