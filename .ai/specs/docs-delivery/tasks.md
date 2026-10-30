@@ -77,7 +77,7 @@ Evidencia nueva de esta sesión: backend `lint`, `tsc` y build limpios, `test:co
 | D3.1, D3.2 | `docs/architecture.md`: 5 diagramas que se dibujan; cada módulo, ruta, servicio de Compose y cabecera se contrastó con `app.module.ts`, los controladores, `docker-compose.yml` y `nginx` |
 | D4.1, D4.2 | `docs/erd.dbml` (con los índices GIN y único parcial) y `docs/erd.svg` generado por `docs/tools/dbml-to-svg.py` y revisado en el navegador |
 | D4.3 | 6 tablas, 33 columnas, 20 índices, 4 claves foráneas y el enum comparados con la base migrada: 0 diferencias; la comparación falla al alterar el DBML |
-| D5.1, D5.2 | README §9 (11 supuestos con su fundamento) y §10 (15 pendientes con enfoque y esfuerzo) |
+| D5.1, D5.2 | README §9 (12 supuestos con su fundamento) y §10 (16 pendientes con enfoque y esfuerzo) |
 | D5.3 | D-06 |
 | D5.4 | `npm audit --omit=dev` en 0 en ambas apps con dos `overrides` evaluados y verificados (`design.md` §3) |
 | D5.5 | `CLAUDE.md` con los comandos confirmados |
