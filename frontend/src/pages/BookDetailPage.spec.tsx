@@ -124,6 +124,96 @@ describe('BookDetailPage', () => {
 
       const cover = await screen.findByRole('img', { name: 'Portada de Dune' });
       expect(cover).toHaveAttribute('src', '/uploads/dune.png');
+      expect(cover).toHaveAttribute('loading', 'lazy');
+      expect(cover).toHaveAttribute('decoding', 'async');
+    });
+
+    it('offers the cover as a download only when there is one', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/api/uploads/dune.png' } },
+        },
+      });
+      renderAt();
+
+      expect(
+        await screen.findByRole('link', { name: 'Descargar portada' }),
+      ).toHaveAttribute('download', 'dune.png');
+    });
+
+    it('does not offer a download when the book has no cover', async () => {
+      start();
+      renderAt();
+
+      expect(
+        await screen.findByRole('heading', { name: 'Dune' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'Descargar portada' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('hides the download when the cover file cannot be loaded', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/uploads/roto.png' } },
+        },
+      });
+      renderAt();
+
+      fireEvent.error(
+        await screen.findByRole('img', { name: 'Portada de Dune' }),
+      );
+
+      expect(
+        screen.queryByRole('link', { name: 'Descargar portada' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('lists the actions in one order, the same on phones and on desktop', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/api/uploads/dune.png' } },
+        },
+      });
+      renderAt();
+      await screen.findByRole('heading', { name: 'Dune' });
+
+      // The thumbnail button and the dialogs' buttons are not page actions.
+      const actions = [
+        ...document.querySelectorAll('main a[href], main button'),
+      ]
+        .filter(
+          (element) =>
+            !element.closest('dialog') && !element.hasAttribute('aria-label'),
+        )
+        .map((element) => element.textContent?.trim());
+      expect(actions).toEqual([
+        'Editar',
+        'Descargar portada',
+        'Eliminar',
+        'Volver a los libros',
+      ]);
+    });
+
+    it('shows a placeholder when the cover file cannot be loaded', async () => {
+      start({
+        [`GET /books/${ID}`]: {
+          data: { data: { ...book, imageUrl: '/uploads/roto.png' } },
+        },
+      });
+      renderAt();
+
+      fireEvent.error(
+        await screen.findByRole('img', { name: 'Portada de Dune' }),
+      );
+
+      expect(
+        screen.getByRole('img', { name: 'La portada no se pudo cargar' }),
+      ).toHaveTextContent('Sin portada');
+      expect(
+        screen.queryByRole('img', { name: 'Portada de Dune' }),
+      ).not.toBeInTheDocument();
     });
 
     it('shows a placeholder when the book has no cover', async () => {

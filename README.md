@@ -182,7 +182,7 @@ El backend, el seed y los *scripts* `prisma:*` leen el `.env` de la raíz (o `ba
 1. **Iniciar sesión** en `/login`. Tras 5 intentos fallidos en un minuto desde la misma IP, el servidor responde «Demasiados intentos».
 2. **Listado** (`/books`): la búsqueda por título responde mientras escribes (con una pausa de 300 ms) y se combina con los filtros de **autor**, **editorial**, **género** y **disponibilidad**. Pulsa el encabezado de una columna para ordenar; un segundo clic invierte el sentido y un tercero lo quita. Puedes combinar hasta cuatro columnas (el orden de los clics es el de prioridad). La paginación y el tamaño de página (10, 20 o 50) los resuelve el servidor. **Todo el estado vive en la URL**: recargar, volver atrás o compartir el enlace conserva la vista.
 3. **Nuevo libro** (`/books/new`): título, autor, editorial, género, precio y disponibilidad. Autor, editorial y género se escriben (con sugerencias): si no existen, se crean. La **portada** es opcional (JPG, PNG o WebP de hasta 2 MB; el tipo se decide por el contenido del archivo, no por su nombre).
-4. **Detalle** (`/books/:id`): todos los datos y la portada, con acciones para editar y eliminar (con confirmación).
+4. **Detalle** (`/books/:id`): todos los datos y la portada (se amplía al pulsarla y se puede descargar), con acciones para editar y eliminar (con confirmación).
 5. **Editar**: cambia solo lo que quieras; la portada se puede reemplazar o quitar.
 6. **Exportar CSV**: el botón del listado descarga **todos** los libros que cumplen los filtros y el orden actuales (no solo la página visible). El archivo abre bien en Excel (UTF-8 con BOM). Si el valor de una celda empezara como una fórmula (`=`, `+`, `-`, `@`), se escapa para que la hoja de cálculo no la ejecute.
 
