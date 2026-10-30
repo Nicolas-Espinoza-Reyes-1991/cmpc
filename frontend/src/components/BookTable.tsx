@@ -85,7 +85,9 @@ export function BookTable({ books, sort, onSort, busy }: BookTableProps) {
     setBrokenCovers((current) => new Set(current).add(imageUrl));
 
   return (
-    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+    // `relative`: the hidden text of the download header (`sr-only` is absolute) is
+    // then clipped with the rest of the table instead of widening the whole page.
+    <div className="relative overflow-x-auto rounded-md border border-slate-200 bg-white">
       <table aria-busy={busy} className="min-w-full divide-y divide-slate-200">
         <caption className="sr-only">Libros</caption>
         <thead className="bg-slate-50">

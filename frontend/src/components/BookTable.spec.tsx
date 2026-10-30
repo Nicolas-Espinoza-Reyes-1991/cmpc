@@ -199,6 +199,13 @@ describe('BookTable', () => {
       ).toBeInTheDocument();
     });
 
+    it('keeps the hidden header text inside the scrolling box, so it cannot widen the page', () => {
+      renderTable({ books: [withCover('b1', 'Dune')] });
+
+      const box = screen.getByRole('table', { name: 'Libros' }).parentElement;
+      expect(box).toHaveClass('relative', 'overflow-x-auto');
+    });
+
     it('shows a thumbnail and a download for a book with a cover', () => {
       renderTable({ books: [withCover('b1', 'Cien años', 'abc')] });
 
