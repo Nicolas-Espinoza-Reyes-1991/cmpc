@@ -4,7 +4,7 @@ Reglas: seguir el orden; una tarea está hecha solo cuando su criterio se cumple
 Antes de cada tarea se leen `requirements.md` y `design.md`; cada cambio de decisión se refleja en `design.md`.
 Marcar con `[x]` al terminar.
 
-- [ ] **B-01 Logo y componente** (B1.3, B3.1, B4.1, B4.2, B5.1)
+- [x] **B-01 Logo y componente** (B1.3, B3.1, B4.1, B4.2, B5.1)
   - Copiar `logo-cmpc.svg` sin modificar a `frontend/src/assets/` y crear el componente `Logo` con su prueba.
   - Hecho cuando: `lint`, `tsc`, build y pruebas pasan; el build publica el logo con *hash*.
   - Commit: `feat(frontend): add the CMPC logo component`
