@@ -180,7 +180,7 @@ El backend, el seed y los *scripts* `prisma:*` leen el `.env` de la raíz (o `ba
 
 ### En la aplicación
 1. **Iniciar sesión** en `/login`. Tras 5 intentos fallidos en un minuto desde la misma IP, el servidor responde «Demasiados intentos».
-2. **Listado** (`/books`): la búsqueda por título responde mientras escribes (con una pausa de 300 ms) y se combina con los filtros de **autor**, **editorial**, **género** y **disponibilidad**. Pulsa el encabezado de una columna para ordenar; un segundo clic invierte el sentido y un tercero lo quita. Puedes combinar hasta cuatro columnas (el orden de los clics es el de prioridad). La paginación y el tamaño de página (10, 20 o 50) los resuelve el servidor. **Todo el estado vive en la URL**: recargar, volver atrás o compartir el enlace conserva la vista.
+2. **Listado** (`/books`): la búsqueda por título responde mientras escribes (con una pausa de 300 ms) y se combina con los filtros de **autor**, **editorial**, **género** y **disponibilidad**. Pulsa el encabezado de una columna para ordenar; un segundo clic invierte el sentido y un tercero lo quita. Puedes combinar hasta cuatro columnas (el orden de los clics es el de prioridad). Cada fila muestra la **portada** en miniatura (al pulsarla se amplía) y, en la última columna, un botón **Descargar** que guarda la imagen con un nombre legible (`dune.png`); los libros sin portada muestran un marcador «Sin portada» y no ofrecen descarga. La paginación y el tamaño de página (10, 20 o 50) los resuelve el servidor. **Todo el estado vive en la URL**: recargar, volver atrás o compartir el enlace conserva la vista.
 3. **Nuevo libro** (`/books/new`): título, autor, editorial, género, precio y disponibilidad. Autor, editorial y género se escriben (con sugerencias): si no existen, se crean. La **portada** es opcional (JPG, PNG o WebP de hasta 2 MB; el tipo se decide por el contenido del archivo, no por su nombre).
 4. **Detalle** (`/books/:id`): todos los datos y la portada (se amplía al pulsarla y se puede descargar), con acciones para editar y eliminar (con confirmación).
 5. **Editar**: cambia solo lo que quieras; la portada se puede reemplazar o quitar.
@@ -268,7 +268,7 @@ cd frontend && npm run test:cov
 | | Pruebas | Cobertura (sentencias / ramas / funciones / líneas) | Umbral |
 |---|---|---|---|
 | Backend (Jest) | 873 en 52 suites + 15 e2e | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
-| Frontend (Vitest + Testing Library) | 665 en 42 archivos | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
+| Frontend (Vitest + Testing Library) | 703 en 46 archivos | 100 % / 100 % / 100 % / 100 % | 80 % (falla si se baja) |
 
 - Las pruebas unitarias usan *mocks* de Prisma y de Axios: ninguna toca la base de datos real. Las HTTP levantan Nest con el guard JWT, la validación, el filtro y los interceptores reales.
 - Una prueba e2e recorre el documento OpenAPI y exige **401** en cada ruta protegida y resumen, respuesta y seguridad documentados en cada operación.

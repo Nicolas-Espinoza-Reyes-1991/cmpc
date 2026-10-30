@@ -1,5 +1,25 @@
 import { useEffect, useId, useRef, useState } from 'react';
 
+/**
+ * `detail` is the thumbnail of the book page; `row` is the small one of a row of
+ * the listing (48 × 72 px), where there are many on the screen.
+ */
+export type CoverSize = 'detail' | 'row';
+
+const THUMBNAIL: Record<CoverSize, { button: string; image: string }> = {
+  detail: {
+    button:
+      'mx-auto block w-40 cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:w-full',
+    image:
+      'block aspect-[2/3] w-full rounded-md border border-slate-200 object-cover',
+  },
+  row: {
+    button:
+      'block h-[72px] w-12 shrink-0 cursor-zoom-in rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700',
+    image: 'block h-full w-full rounded border border-slate-200 object-cover',
+  },
+};
+
 interface CoverPreviewProps {
   /** The cover file (`imageUrl` of the book). */
   src: string;
@@ -7,6 +27,8 @@ interface CoverPreviewProps {
   title: string;
   /** Called when the file fails to load, so the page can show its placeholder. */
   onError: () => void;
+  /** The book page by default. */
+  size?: CoverSize;
 }
 
 /**
@@ -15,7 +37,12 @@ interface CoverPreviewProps {
  * in `ConfirmDialog`. The enlarged image is rendered only while open, so the
  * page does not download it until the user asks for it.
  */
-export function CoverPreview({ src, title, onError }: CoverPreviewProps) {
+export function CoverPreview({
+  src,
+  title,
+  onError,
+  size = 'detail',
+}: CoverPreviewProps) {
   const [open, setOpen] = useState(false);
   // A state, not a ref object: the effect runs again once the element exists.
   const [dialog, setDialog] = useState<HTMLDialogElement | null>(null);
@@ -36,7 +63,7 @@ export function CoverPreview({ src, title, onError }: CoverPreviewProps) {
         type="button"
         aria-label={`Ampliar portada de ${title}`}
         onClick={() => setOpen(true)}
-        className="mx-auto block w-40 cursor-zoom-in rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:w-full"
+        className={THUMBNAIL[size].button}
       >
         <img
           src={src}
@@ -44,7 +71,9 @@ export function CoverPreview({ src, title, onError }: CoverPreviewProps) {
           loading="lazy"
           decoding="async"
           onError={onError}
-          className="block aspect-[2/3] w-full rounded-md border border-slate-200 object-cover"
+          // The row size reserves its space with the attributes, as the page does with CSS.
+          {...(size === 'row' ? { width: 48, height: 72 } : {})}
+          className={THUMBNAIL[size].image}
         />
       </button>
 

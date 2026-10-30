@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import type { Book, SortCriterion } from '../types/book';
@@ -34,6 +34,12 @@ function renderTable(props: Partial<Parameters<typeof BookTable>[0]> = {}) {
   return { onSort };
 }
 
+/** The columns of data, which can be ordered (not the cover or the download). */
+const sortableHeaders = () =>
+  screen
+    .getAllByRole('columnheader')
+    .filter((th) => th.querySelector('button') !== null);
+
 const header = (name: string) =>
   screen.getByRole('columnheader', { name: new RegExp(`^${name}`) });
 
@@ -46,6 +52,7 @@ describe('BookTable', () => {
         .getAllByRole('columnheader')
         .map((th) => th.textContent?.replace(/[↑↓↕\d]/g, '')),
     ).toEqual([
+      'Portada',
       'Título',
       'Autor',
       'Editorial',
@@ -53,6 +60,7 @@ describe('BookTable', () => {
       'Precio',
       'Disponibilidad',
       'Registrado',
+      'Descargar portada',
     ]);
   });
 
@@ -97,7 +105,7 @@ describe('BookTable', () => {
     it('marks every column as unsorted when there is no order', () => {
       renderTable();
 
-      for (const th of screen.getAllByRole('columnheader')) {
+      for (const th of sortableHeaders()) {
         expect(th).toHaveAttribute('aria-sort', 'none');
       }
     });
@@ -154,5 +162,155 @@ describe('BookTable', () => {
     renderTable();
 
     expect(screen.getByRole('table')).toHaveAttribute('aria-busy', 'false');
+  });
+
+  describe('covers', () => {
+    const withCover = (id: string, title: string, name = id) =>
+      book({ id, title, imageUrl: `/api/uploads/${name}.png` });
+    const rowOf = (title: string) =>
+      screen.getByRole('link', { name: title }).closest('tr') as HTMLElement;
+
+    it('puts the cover first and the download last, and neither can be ordered', () => {
+      renderTable({ books: [withCover('b1', 'Dune')] });
+
+      const headers = screen.getAllByRole('columnheader');
+      expect(headers[0]).toHaveTextContent('Portada');
+      expect(headers[headers.length - 1]).toHaveTextContent(
+        'Descargar portada',
+      );
+      expect(
+        within(headers[0] as HTMLElement).queryByRole('button'),
+      ).toBeNull();
+      expect(
+        within(headers.at(-1) as HTMLElement).queryByRole('button'),
+      ).toBeNull();
+      expect(headers[0]).not.toHaveAttribute('aria-sort');
+      // The cell of the row is where the header says: the cover first, the download last.
+      const cells = within(rowOf('Dune')).getAllByRole('cell');
+      expect(
+        within(cells[0] as HTMLElement).getByRole('button', {
+          name: 'Ampliar portada de Dune',
+        }),
+      ).toBeInTheDocument();
+      expect(
+        within(cells.at(-1) as HTMLElement).getByRole('link', {
+          name: 'Descargar portada de Dune',
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('keeps the hidden header text inside the scrolling box, so it cannot widen the page', () => {
+      renderTable({ books: [withCover('b1', 'Dune')] });
+
+      const box = screen.getByRole('table', { name: 'Libros' }).parentElement;
+      expect(box).toHaveClass('relative', 'overflow-x-auto');
+    });
+
+    it('shows a thumbnail and a download for a book with a cover', () => {
+      renderTable({ books: [withCover('b1', 'Cien años', 'abc')] });
+
+      const row = within(rowOf('Cien años'));
+      expect(
+        row.getByRole('img', { name: 'Portada de Cien años' }),
+      ).toHaveAttribute('src', '/api/uploads/abc.png');
+      const download = row.getByRole('link', {
+        name: 'Descargar portada de Cien años',
+      });
+      expect(download).toHaveAttribute('href', '/api/uploads/abc.png');
+      expect(download).toHaveAttribute('download', 'cien-anos.png');
+    });
+
+    it('shows a marker and no download for a book without a cover', () => {
+      renderTable({
+        books: [book({ id: 'b1', title: 'Dune', imageUrl: null })],
+      });
+
+      const row = within(rowOf('Dune'));
+      expect(
+        row.getByRole('img', { name: 'Dune todavía no tiene portada' }),
+      ).toBeInTheDocument();
+      expect(row.queryByRole('link', { name: /Descargar/ })).toBeNull();
+      expect(row.queryByRole('button', { name: /Ampliar/ })).toBeNull();
+    });
+
+    it('opens the cover of the row that was pressed, and only that one', async () => {
+      renderTable({
+        books: [withCover('b1', 'Dune'), withCover('b2', 'Neuromante')],
+      });
+
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Ampliar portada de Neuromante' }),
+      );
+
+      expect(
+        screen.getByRole('dialog', { name: 'Neuromante' }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: 'Dune' })).toBeNull();
+    });
+
+    it('gives up the picture and the download of only the row whose file did not load', () => {
+      renderTable({
+        books: [withCover('b1', 'Dune'), withCover('b2', 'Neuromante')],
+      });
+
+      fireEvent.error(
+        within(rowOf('Dune')).getByRole('img', { name: 'Portada de Dune' }),
+      );
+
+      const broken = within(rowOf('Dune'));
+      expect(
+        broken.getByRole('img', {
+          name: 'La portada de Dune no se pudo cargar',
+        }),
+      ).toBeInTheDocument();
+      expect(broken.queryByRole('link', { name: /Descargar/ })).toBeNull();
+      const intact = within(rowOf('Neuromante'));
+      expect(
+        intact.getByRole('img', { name: 'Portada de Neuromante' }),
+      ).toBeInTheDocument();
+      expect(
+        intact.getByRole('link', { name: 'Descargar portada de Neuromante' }),
+      ).toBeInTheDocument();
+    });
+
+    it('keeps a broken cover broken while the same file is shown, and tries a new upload again', () => {
+      const first = [withCover('b1', 'Dune', 'old')];
+      const { rerender } = render(
+        <MemoryRouter>
+          <BookTable books={first} sort={[]} onSort={vi.fn()} busy={false} />
+        </MemoryRouter>,
+      );
+      fireEvent.error(screen.getByRole('img', { name: 'Portada de Dune' }));
+      expect(
+        screen.getByRole('img', {
+          name: 'La portada de Dune no se pudo cargar',
+        }),
+      ).toBeInTheDocument();
+
+      rerender(
+        <MemoryRouter>
+          <BookTable books={first} sort={[]} onSort={vi.fn()} busy />
+        </MemoryRouter>,
+      );
+      expect(
+        screen.getByRole('img', {
+          name: 'La portada de Dune no se pudo cargar',
+        }),
+      ).toBeInTheDocument();
+
+      rerender(
+        <MemoryRouter>
+          <BookTable
+            books={[withCover('b1', 'Dune', 'new')]}
+            sort={[]}
+            onSort={vi.fn()}
+            busy={false}
+          />
+        </MemoryRouter>,
+      );
+      expect(
+        screen.getByRole('img', { name: 'Portada de Dune' }),
+      ).toHaveAttribute('src', '/api/uploads/new.png');
+    });
   });
 });
