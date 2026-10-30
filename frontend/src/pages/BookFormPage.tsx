@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { BookForm } from '../components/BookForm';
 import { BookNotFound } from '../components/BookNotFound';
 import { bookKey, useBook } from '../hooks/useBook';
+import { useListingPath } from '../hooks/useListingPath';
 import { ApiError, getErrorMessage } from '../lib/api-error';
 import type { BookFormValues } from '../lib/book-schema';
 import { changedFields } from '../lib/book-changes';
@@ -53,6 +54,7 @@ function Page({
 
 function CreateBook() {
   const afterSave = useAfterSave();
+  const listingPath = useListingPath();
 
   return (
     <Page title="Nuevo libro">
@@ -66,7 +68,7 @@ function CreateBook() {
           availability: true,
         }}
         submitLabel="Registrar libro"
-        cancelTo="/books"
+        cancelTo={listingPath}
         onSubmit={async (values, { image }) => {
           const created = await createBook(values);
           if (!image) {

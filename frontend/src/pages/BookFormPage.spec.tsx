@@ -7,6 +7,7 @@ import {
 } from 'react-router';
 import { SERVER_FIELD_MESSAGE } from '../lib/api-error';
 import { bookKey } from '../hooks/useBook';
+import { listingView } from '../lib/listingView';
 import { emptyCatalogs } from '../test/catalog-routes';
 import { mockApi, type MockApi, type MockRoute } from '../test/mock-api';
 import { createQueryWrapper } from '../test/query-wrapper';
@@ -55,6 +56,7 @@ describe('BookFormPage', () => {
 
   afterEach(() => {
     api.restore();
+    listingView.clear();
   });
 
   describe('new book (/books/new)', () => {
@@ -77,6 +79,17 @@ describe('BookFormPage', () => {
         screen.getByRole('heading', { name: 'Nuevo libro' }),
       ).toBeInTheDocument();
       expect(field('Título')).toHaveValue('');
+    });
+
+    it('cancels back to the view of the list the user had', () => {
+      listingView.save('?availability=true');
+      start();
+      renderAt('/books/new');
+
+      expect(screen.getByRole('link', { name: 'Cancelar' })).toHaveAttribute(
+        'href',
+        '/books?availability=true',
+      );
     });
 
     it('creates the book, then opens its detail', async () => {

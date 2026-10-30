@@ -1,5 +1,6 @@
 import { Link, Outlet } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
+import { useListingPath } from '../hooks/useListingPath';
 import { Logo } from './Logo';
 
 /**
@@ -8,13 +9,14 @@ import { Logo } from './Logo';
  */
 export function AppLayout() {
   const { user, logout } = useAuth();
+  const listingPath = useListingPath();
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <Link
-            to="/books"
+            to={listingPath}
             aria-label="CMPC Libros, ir al listado"
             className="shrink-0 rounded-md focus:outline-2 focus:outline-offset-2 focus:outline-blue-700"
           >

@@ -18,7 +18,7 @@ Marcar con `[x]` al terminar.
   - Ruta «Libros › título» y botón «← Volver a los libros» arriba; se elimina el enlace del final.
   - Commit: `feat(frontend): add a back button and breadcrumb to the book detail`
 
-- [ ] **N-04 Volver siempre a la vista guardada** (N2.4, N2.5, N5.1)
+- [x] **N-04 Volver siempre a la vista guardada** (N2.4, N2.5, N5.1)
   - La ficha, «Libro no encontrado», `NotFoundPage`, «Cancelar» del formulario y la navegación tras eliminar usan `useListingPath`.
   - Commit: `feat(frontend): return to the saved listing view from every screen`
 

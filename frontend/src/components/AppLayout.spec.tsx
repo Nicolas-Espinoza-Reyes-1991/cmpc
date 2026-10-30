@@ -1,6 +1,7 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { listingView } from '../lib/listingView';
 import { session } from '../lib/session';
 import { routes } from '../router';
 import { mockApi, type MockApi } from '../test/mock-api';
@@ -29,6 +30,7 @@ describe('AppLayout', () => {
 
   afterEach(() => {
     api.restore();
+    listingView.clear();
   });
 
   it('shows the logo and who is signed in', async () => {
@@ -52,6 +54,20 @@ describe('AppLayout', () => {
     );
 
     expect(router.state.location.pathname).toBe('/books');
+  });
+
+  it('takes the logo back to the view of the list the user had', async () => {
+    const router = renderBooks();
+    await screen.findByText(ADMIN.email);
+    await router.navigate('/books?q=dune');
+    await waitFor(() => expect(listingView.read()).toBe('?q=dune'));
+    await router.navigate('/books/new');
+
+    await userEvent.click(
+      screen.getByRole('link', { name: 'CMPC Libros, ir al listado' }),
+    );
+
+    expect(router.state.location.search).toBe('?q=dune');
   });
 
   it('renders the protected page inside the layout', async () => {

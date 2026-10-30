@@ -12,6 +12,7 @@ import {
   type RouteObject,
 } from 'react-router';
 import { bookKey } from '../hooks/useBook';
+import { listingView } from '../lib/listingView';
 import { mockApi, type MockApi, type MockRoute } from '../test/mock-api';
 import { createQueryWrapper } from '../test/query-wrapper';
 import type { Book } from '../types/book';
@@ -57,6 +58,7 @@ describe('BookDetailPage', () => {
 
   afterEach(() => {
     api.restore();
+    listingView.clear();
   });
 
   describe('reading the book', () => {
@@ -270,6 +272,18 @@ describe('BookDetailPage', () => {
       },
     );
 
+    it('sends "Libro no encontrado" back to the view of the list the user had', async () => {
+      listingView.save('?genre=Novela');
+      start({
+        [`GET /books/${ID}`]: { status: 404, data: { message: 'nope' } },
+      });
+      renderAt();
+
+      expect(
+        await screen.findByRole('link', { name: 'Volver a los libros' }),
+      ).toHaveAttribute('href', '/books?genre=Novela');
+    });
+
     it('offers to retry when the book cannot be read for another reason', async () => {
       let calls = 0;
       start({
@@ -353,6 +367,23 @@ describe('BookDetailPage', () => {
 
       await waitFor(() => expect(dialog()).not.toBeInTheDocument());
       expect(api.requests.filter((r) => r.method === 'delete')).toHaveLength(0);
+    });
+
+    it('goes back to the view of the list the user had, also after deleting', async () => {
+      listingView.save('?q=dune&page=2');
+      start({ [`DELETE /books/${ID}`]: { status: 204 } });
+      const { router } = renderAt();
+      await openDialog();
+
+      await userEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Eliminar',
+        }),
+      );
+
+      expect(await screen.findByText('lista de libros')).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/books');
+      expect(router.state.location.search).toBe('?q=dune&page=2');
     });
 
     it('deletes the book, forgets it and goes back to the list', async () => {

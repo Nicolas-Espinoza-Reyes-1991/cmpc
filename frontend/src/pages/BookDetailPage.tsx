@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CoverDownload } from '../components/CoverDownload';
 import { CoverPreview } from '../components/CoverPreview';
 import { bookKey, useBook } from '../hooks/useBook';
+import { useListingPath } from '../hooks/useListingPath';
 import { getErrorMessage } from '../lib/api-error';
 import { isMissingBook } from '../lib/book-errors';
 import { formatDateTime, formatPrice } from '../lib/format';
@@ -66,6 +67,7 @@ function Cover({
 function BookDetail({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const listingPath = useListingPath();
   const { data: book, error, isPending, refetch } = useBook(id);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -122,7 +124,7 @@ function BookDetail({ id }: { id: string }) {
     }
     queryClient.removeQueries({ queryKey: bookKey(id) });
     void queryClient.invalidateQueries({ queryKey: ['books'] });
-    void navigate('/books');
+    void navigate(listingPath);
   };
 
   const coverBroken = book.imageUrl !== null && brokenCover === book.imageUrl;
