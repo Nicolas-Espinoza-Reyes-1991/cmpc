@@ -684,4 +684,200 @@ describe('BooksPage', () => {
       );
     });
   });
+
+  describe('export to Excel', () => {
+    const xlsx = new Blob(['x']);
+    const csv = new Blob(['a'], { type: 'text/csv' });
+    const excelButton = () =>
+      screen.getByRole('button', { name: /Exportar Excel|Exportando/ });
+    const csvButton = () =>
+      screen.getByRole('button', { name: 'Exportar CSV' });
+    let saved: MockInstance<typeof download.saveBlob>;
+
+    beforeEach(() => {
+      saved = vi
+        .spyOn(download, 'saveBlob')
+        .mockImplementation(() => undefined);
+    });
+    afterEach(() => {
+      saved.mockRestore();
+    });
+
+    function startWithExports(
+      replies: Record<string, MockRoute>,
+      url = '/books',
+    ) {
+      api = mockApi({
+        ...emptyCatalogs,
+        'GET /books': page([book(1)]),
+        ...replies,
+      });
+      const { wrapper } = createQueryWrapper();
+      const router = createMemoryRouter(routes, { initialEntries: [url] });
+      render(<RouterProvider router={router} />, { wrapper });
+    }
+
+    it('shows both buttons, Excel first', async () => {
+      startWithExports({});
+      await screen.findByText('1 resultado');
+
+      const names = screen
+        .getAllByRole('button')
+        .map((button) => button.textContent)
+        .filter((text) => text?.startsWith('Exportar'));
+
+      expect(names).toEqual(['Exportar Excel', 'Exportar CSV']);
+    });
+
+    it('downloads the Excel the server names, with the filters and order of the view', async () => {
+      startWithExports(
+        {
+          'GET /books/export/xlsx': {
+            data: xlsx,
+            headers: {
+              'content-disposition':
+                'attachment; filename="libros-2026-10-30.xlsx"',
+            },
+          },
+        },
+        '/books?q=dune&availability=true&sort=price:desc&page=2&limit=20',
+      );
+      await screen.findByText(/resultado/);
+
+      await userEvent.click(excelButton());
+
+      await waitFor(() =>
+        expect(saved).toHaveBeenCalledWith(xlsx, 'libros-2026-10-30.xlsx'),
+      );
+      const request = api.requests.find((r) => r.url === '/books/export/xlsx');
+      expect(request?.params).toMatchObject({
+        search: 'dune',
+        availability: true,
+        sort: 'price:desc',
+      });
+      expect(request?.params).not.toHaveProperty('page');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('says "Exportando…" only on the button that was pressed and disables both', async () => {
+      let release: () => void = () => undefined;
+      startWithExports({
+        'GET /books/export/xlsx': () =>
+          new Promise((resolve) => {
+            release = () => resolve({ data: xlsx });
+          }),
+      });
+      await screen.findByText('1 resultado');
+
+      await userEvent.click(excelButton());
+
+      const busy = await screen.findByRole('button', { name: 'Exportando…' });
+      expect(busy).toBeDisabled();
+      expect(csvButton()).toBeDisabled();
+      expect(
+        screen.getAllByRole('button', { name: 'Exportando…' }),
+      ).toHaveLength(1);
+      release();
+      expect(
+        await screen.findByRole('button', { name: 'Exportar Excel' }),
+      ).toBeEnabled();
+      expect(csvButton()).toBeEnabled();
+    });
+
+    it('starts no CSV download while the Excel is being built', async () => {
+      let release: () => void = () => undefined;
+      startWithExports({
+        'GET /books/export/xlsx': () =>
+          new Promise((resolve) => {
+            release = () => resolve({ data: xlsx });
+          }),
+        'GET /books/export': { data: csv },
+      });
+      await screen.findByText('1 resultado');
+
+      await userEvent.click(excelButton());
+      await userEvent.click(csvButton());
+      release();
+
+      await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+      expect(
+        api.requests.filter((r) => r.url === '/books/export'),
+      ).toHaveLength(0);
+    });
+
+    it('explains in Spanish that there are too many books for Excel and keeps the list', async () => {
+      startWithExports({
+        'GET /books/export/xlsx': { status: 422, data: new Blob(['{}']) },
+      });
+      await screen.findByText('1 resultado');
+
+      await userEvent.click(excelButton());
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('No se pudo exportar el Excel.');
+      expect(alert).toHaveTextContent(
+        'Hay demasiados libros para Excel (máximo 20.000). Aplica filtros o descarga el CSV.',
+      );
+      expect(saved).not.toHaveBeenCalled();
+      expect(screen.getByRole('link', { name: 'Libro 1' })).toBeInTheDocument();
+    });
+
+    it('retries the same format that failed', async () => {
+      let calls = 0;
+      startWithExports({
+        'GET /books/export/xlsx': () => {
+          calls += 1;
+          return calls === 1
+            ? { status: 500, data: new Blob([]) }
+            : { data: xlsx };
+        },
+        'GET /books/export': { data: csv },
+      });
+      await screen.findByText('1 resultado');
+      await userEvent.click(excelButton());
+
+      const alert = await screen.findByRole('alert');
+      await userEvent.click(
+        within(alert).getByRole('button', { name: 'Reintentar exportación' }),
+      );
+
+      await waitFor(() =>
+        expect(saved).toHaveBeenCalledWith(xlsx, 'libros.xlsx'),
+      );
+      expect(
+        api.requests.filter((r) => r.url === '/books/export'),
+      ).toHaveLength(0);
+      await waitFor(() =>
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('names the CSV in the notice when the CSV failed', async () => {
+      startWithExports({
+        'GET /books/export': { status: 500, data: new Blob([]) },
+      });
+      await screen.findByText('1 resultado');
+
+      await userEvent.click(csvButton());
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'No se pudo exportar el CSV.',
+      );
+    });
+
+    it('closes the notice', async () => {
+      startWithExports({
+        'GET /books/export/xlsx': { status: 422, data: new Blob(['{}']) },
+      });
+      await screen.findByText('1 resultado');
+      await userEvent.click(excelButton());
+      const alert = await screen.findByRole('alert');
+
+      await userEvent.click(
+        within(alert).getByRole('button', { name: 'Cerrar aviso' }),
+      );
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
 });

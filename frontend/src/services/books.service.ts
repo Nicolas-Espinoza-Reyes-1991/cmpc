@@ -1,4 +1,5 @@
 import { apiClient } from '../lib/api-client';
+import { ApiError } from '../lib/api-error';
 import { toApiQuery, toExportQuery } from '../lib/book-list-params';
 import { fileNameFromDisposition } from '../lib/content-disposition';
 import type { ApiResponse } from '../types/api';
@@ -92,30 +93,94 @@ export async function deleteBookImage(id: string): Promise<Book> {
  */
 export const EXPORT_TIMEOUT_MS = 10 * 60_000;
 
-export interface CsvExport {
+export interface ExportedFile {
   blob: Blob;
   fileName: string;
 }
 
+export type ExportFormat = 'csv' | 'xlsx';
+
 /**
- * Every book that matches the filters and the order of the view, as a CSV
- * file. The page is not sent: the file is not paginated. `Authorization`
- * travels in the header, which is why this is a request and not a link.
+ * The Excel is built in memory by the API, which refuses more than this many
+ * books (422). The number is the API's `XLSX_MAX_ROWS`; it is repeated here only
+ * to word the notice, because the body of an error whose answer was asked as a
+ * `Blob` cannot be read.
  */
-export async function exportBooksCsv(
+export const XLSX_MAX_ROWS = 20_000;
+
+export const XLSX_TOO_MANY_MESSAGE = `Hay demasiados libros para Excel (máximo ${XLSX_MAX_ROWS.toLocaleString('es-CL')}). Aplica filtros o descarga el CSV.`;
+
+const XLSX_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+const EXPORTS = {
+  csv: {
+    path: '/books/export',
+    accept: 'text/csv',
+    fallbackName: 'libros.csv',
+  },
+  xlsx: {
+    path: '/books/export/xlsx',
+    accept: XLSX_CONTENT_TYPE,
+    fallbackName: 'libros.xlsx',
+  },
+} as const satisfies Record<
+  ExportFormat,
+  { path: string; accept: string; fallbackName: string }
+>;
+
+/**
+ * Every book that matches the filters and the order of the view, as a file of
+ * the given format. The page is not sent: the file is not paginated.
+ * `Authorization` travels in the header, which is why this is a request and not
+ * a link.
+ */
+async function exportBooks(
+  format: ExportFormat,
   params: BookListParams,
-): Promise<CsvExport> {
-  const response = await apiClient.get<Blob>('/books/export', {
+): Promise<ExportedFile> {
+  const { path, accept, fallbackName } = EXPORTS[format];
+  const response = await apiClient.get<Blob>(path, {
     params: toExportQuery(params),
     responseType: 'blob',
     timeout: EXPORT_TIMEOUT_MS,
-    headers: { Accept: 'text/csv' },
+    headers: { Accept: accept },
   });
   return {
     blob: response.data,
     fileName: fileNameFromDisposition(
       // Axios types headers as `any`-ish values; a header is a string or absent.
       response.headers['content-disposition'] as string | undefined,
+      fallbackName,
     ),
   };
 }
+
+export const exportBooksCsv = (params: BookListParams): Promise<ExportedFile> =>
+  exportBooks('csv', params);
+
+/** Same, as an Excel file. A 422 means too many books: it gets its own notice. */
+export async function exportBooksXlsx(
+  params: BookListParams,
+): Promise<ExportedFile> {
+  try {
+    return await exportBooks('xlsx', params);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 422) {
+      throw new ApiError(
+        422,
+        XLSX_TOO_MANY_MESSAGE,
+        error.fieldErrors,
+        error.serverMessage,
+      );
+    }
+    throw error;
+  }
+}
+
+/** The export of the chosen format. */
+export const exportBooksAs = (
+  format: ExportFormat,
+  params: BookListParams,
+): Promise<ExportedFile> =>
+  format === 'xlsx' ? exportBooksXlsx(params) : exportBooksCsv(params);

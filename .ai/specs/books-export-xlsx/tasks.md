@@ -26,7 +26,7 @@ Marcar con `[x]` al terminar.
   - Commit: `docs(books-export-xlsx): record the backend verification`
 
 ## Frontend
-- [ ] **E-05 Servicio, hook y botón** (E4.1 a E4.5, E5.1)
+- [x] **E-05 Servicio, hook y botón** (E4.1 a E4.5, E5.1)
   - `exportBooksXlsx`, `useExportBooks` con formato, «Exportar Excel» en `BooksPage`, aviso del tope.
   - Pruebas: parámetros sin `page`/`limit`, `Blob`, nombre, 422 → mensaje, dos botones, «Exportando…» en el correcto, una descarga a la vez, aviso del tope, error con reintento y listado intacto.
   - Commit: `feat(frontend): add the Excel export button to the books page`
